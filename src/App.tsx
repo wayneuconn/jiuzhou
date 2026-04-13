@@ -8,6 +8,7 @@ import HomePage from './pages/HomePage'
 import MatchDetailPage from './pages/MatchDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminMatches from './pages/admin/AdminMatches'
 import AdminMembers from './pages/admin/AdminMembers'
 import AdminPayments from './pages/admin/AdminPayments'
 import AdminSettings from './pages/admin/AdminSettings'
@@ -85,6 +86,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/matches"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminMatches />
             </ProtectedRoute>
           }
         />
