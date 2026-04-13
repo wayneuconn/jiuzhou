@@ -8,6 +8,9 @@ import HomePage from './pages/HomePage'
 import MatchDetailPage from './pages/MatchDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminMembers from './pages/admin/AdminMembers'
+import AdminPayments from './pages/admin/AdminPayments'
+import AdminSettings from './pages/admin/AdminSettings'
 import BindPhonePage from './pages/onboard/BindPhonePage'
 import SetupProfilePage from './pages/onboard/SetupProfilePage'
 
@@ -82,6 +85,30 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/members"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminMembers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/payments"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminPayments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminSettings />
             </ProtectedRoute>
           }
         />

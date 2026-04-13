@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore'
+import { collection, query, orderBy, limit, getDocs, where, doc, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import type { Announcement, Match } from '../types'
 
@@ -15,11 +15,12 @@ function Spinner() {
 export default function HomePage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [nextMatch, setNextMatch] = useState<Match | null>(null)
+  const [season, setSeason] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
-      const [annSnap, matchSnap] = await Promise.all([
+      const [annSnap, matchSnap, configSnap] = await Promise.all([
         getDocs(query(
           collection(db, 'announcements'),
           orderBy('pinned', 'desc'),
@@ -32,7 +33,9 @@ export default function HomePage() {
           orderBy('date', 'asc'),
           limit(1)
         )),
+        getDoc(doc(db, 'config', 'appConfig')),
       ])
+      if (configSnap.exists()) setSeason(configSnap.data().season ?? '')
       setAnnouncements(
         annSnap.docs.map((d) => ({
           id: d.id, ...d.data(),
@@ -59,10 +62,12 @@ export default function HomePage() {
           <h1 className="text-white text-2xl font-black tracking-tight">九州</h1>
           <p className="text-slate text-xs tracking-[0.25em] uppercase mt-0.5">Football Team</p>
         </div>
-        <span className="text-[10px] font-black text-gold border border-gold/30 bg-gold/10
-                         px-2.5 py-1 rounded-full uppercase tracking-widest">
-          2025 Season
-        </span>
+        {season && (
+          <span className="text-[10px] font-black text-gold border border-gold/30 bg-gold/10
+                           px-2.5 py-1 rounded-full uppercase tracking-widest">
+            {season} Season
+          </span>
+        )}
       </div>
 
       {/* Next Match Hero Card */}

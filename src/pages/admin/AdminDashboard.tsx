@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
 
 const items = [
-  { to: '/admin/members',       label: 'Members',       subtitle: '成员管理', icon: '👥' },
-  { to: '/admin/matches',       label: 'Matches',        subtitle: '赛事管理', icon: '⚽' },
-  { to: '/admin/finances',      label: 'Finances',       subtitle: '财务记录', icon: '💰' },
-  { to: '/admin/announcements', label: 'Announcements',  subtitle: '公告管理', icon: '📢' },
+  { to: '/admin/members',  label: 'Members',  subtitle: '成员管理', icon: '👥' },
+  { to: '/admin/payments', label: 'Payments', subtitle: '支付管理', icon: '💳' },
+  { to: '/admin/matches',  label: 'Matches',  subtitle: '赛事管理', icon: '⚽' },
+  { to: '/admin/settings', label: 'Settings', subtitle: '赛季设置', icon: '⚙️' },
 ]
 
 export default function AdminDashboard() {

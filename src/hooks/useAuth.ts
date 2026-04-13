@@ -30,8 +30,7 @@ export function useAuthInit() {
               avatar: data.avatar,
               preferredPositions: data.preferredPositions ?? [],
               role: data.role,
-              membershipStatus: data.membershipStatus,
-              paymentStatus: data.paymentStatus,
+              membershipType: data.membershipType ?? 'none',
               createdAt: data.createdAt?.toDate(),
             } as User)
           } else {

@@ -1,7 +1,6 @@
 // User
 export type UserRole = 'admin' | 'member' | 'guest'
-export type MembershipStatus = 'pending' | 'active' | 'expired' | 'rejected'
-export type PaymentStatus = 'unpaid' | 'pending_confirmation' | 'paid'
+export type MembershipType = 'annual' | 'per_session' | 'none'
 
 export interface User {
   uid: string
@@ -10,9 +9,36 @@ export interface User {
   avatar?: string
   preferredPositions: string[]
   role: UserRole
-  membershipStatus: MembershipStatus
-  paymentStatus: PaymentStatus
+  membershipType: MembershipType
   createdAt: Date
+}
+
+// Payment
+export type PaymentEventType = 'member' | 'event'
+export type PaymentEventStatus = 'open' | 'closed'
+export type PaymentStatus = 'pending' | 'confirmed'
+
+export interface PaymentEvent {
+  id: string
+  title: string
+  type: PaymentEventType
+  annualAmount: number
+  perSessionAmount: number
+  venmoHandle: string
+  status: PaymentEventStatus
+  createdAt: Date
+}
+
+export interface Payment {
+  id: string
+  uid: string
+  displayName: string
+  membershipType: MembershipType
+  amount: number
+  status: PaymentStatus
+  paidAt: Date
+  confirmedAt?: Date
+  confirmedBy?: string
 }
 
 // Match
@@ -25,8 +51,8 @@ export type MatchStatus =
   | 'completed'
 
 export interface DraftState {
-  currentTurn: string // uid of captain whose turn it is
-  pickOrder: string[] // alternating captain uids (snake order)
+  currentTurn: string
+  pickOrder: string[]
   picks: { uid: string; pickedBy: string; pickNumber: number }[]
 }
 
@@ -70,20 +96,6 @@ export interface Formation {
   updatedAt: Date
 }
 
-// Finance
-export type FinanceType = 'income' | 'expense'
-
-export interface Finance {
-  id: string
-  type: FinanceType
-  category: string
-  amount: number
-  note: string
-  linkedUserId?: string | null
-  date: Date
-  createdAt: Date
-}
-
 // Announcement
 export interface Announcement {
   id: string
@@ -96,9 +108,7 @@ export interface Announcement {
 
 // Config
 export interface AppConfig {
-  venmoHandle: string
-  annualFeeAmount: number
-  paymentWindowOpen: boolean
+  season: string
   waitlistConfirmMinutes: number
   defaultAgreementText: string
 }

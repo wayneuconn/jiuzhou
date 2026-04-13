@@ -16,12 +16,12 @@ service cloud.firestore {
       return isAuth() && request.auth.uid == uid;
     }
 
-    // Users: any authed user can read; only self can update profile fields; admin can update role/status
+    // Users: any authed user can read; only self can update profile fields; admin can update role/membership
     match /users/{uid} {
       allow read: if isAuth();
       allow create: if isOwner(uid);
       allow update: if isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['role', 'membershipStatus', 'paymentStatus'])
+                        .hasAny(['role', 'membershipType'])
                     || isAdmin();
     }
 
@@ -77,6 +77,21 @@ service cloud.firestore {
     match /config/{docId} {
       allow read: if isAuth();
       allow write: if isAdmin();
+    }
+
+    // Payment events: any authed user can read; admin can write
+    match /paymentEvents/{eventId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+
+      // Payments sub-collection
+      match /payments/{uid} {
+        allow read: if isOwner(uid) || isAdmin();
+        // User can create/update their own payment with status 'pending' only
+        allow create: if isOwner(uid) && request.resource.data.status == 'pending';
+        allow update: if isAdmin()
+                      || (isOwner(uid) && request.resource.data.status == 'pending');
+      }
     }
 
     // Invite tokens: anyone can read (for link validation); admin can create/delete

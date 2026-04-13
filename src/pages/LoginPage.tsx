@@ -163,8 +163,7 @@ export default function LoginPage() {
         phone: phoneNumber ?? '',
         preferredPositions: [],
         role: 'guest',
-        membershipStatus: 'pending',
-        paymentStatus: 'unpaid',
+        membershipType: 'none',
         createdAt: serverTimestamp(),
       })
     }

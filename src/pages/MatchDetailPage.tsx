@@ -90,7 +90,7 @@ export default function MatchDetailPage() {
 
   const canRegister = !myReg &&
     ['registration_r1', 'registration_r2'].includes(match.status) &&
-    (match.status === 'registration_r1' ? userProfile?.membershipStatus === 'active' : true)
+    (match.status === 'registration_r1' ? userProfile?.membershipType === 'annual' : true)
 
   return (
     <div className="space-y-5">
