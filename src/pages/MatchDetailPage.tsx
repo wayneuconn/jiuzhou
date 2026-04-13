@@ -106,13 +106,9 @@ export default function MatchDetailPage() {
   const canSeeTeamA    = isAdmin || isCaptainA || myReg?.team === 'A'
   const canSeeTeamB    = isAdmin || isCaptainB || myReg?.team === 'B'
   const hasTactics     = !!match?.captainA || !!match?.captainB
-  const tacticPhase    = match ? ['registration_r1', 'registration_r2', 'drafting', 'ready', 'completed'].includes(match.status) : false
+  const tacticPhase    = match ? ['registration_r1', 'registration_r2', 'drafting', 'ready'].includes(match.status) : false
 
   // Stable Firestore refs for formations
-  const formationBoardRef = useMemo(
-    () => matchId ? doc(db, 'matches', matchId, 'formations', 'board') : null,
-    [matchId],
-  )
   const formationARef = useMemo(
     () => matchId ? doc(db, 'matches', matchId, 'formations', 'teamA') : null,
     [matchId],
@@ -406,7 +402,7 @@ export default function MatchDetailPage() {
               {myReg.team && ` · Team ${myReg.team}`}
             </p>
           </div>
-          {isOpen && (
+          {isOpen && !isAnyCaptain && (
             <button onClick={doExcuse} disabled={busy}
               className="text-slate text-sm font-bold disabled:opacity-40 transition-colors hover:text-white">
               请假
@@ -680,18 +676,6 @@ export default function MatchDetailPage() {
               ))}
             </div>
           </div>
-        </section>
-      )}
-
-      {/* ── General board (admin + both captains) ── */}
-      {(isAdmin || isAnyCaptain) && hasTactics && tacticPhase && formationBoardRef && (
-        <section className="space-y-3">
-          <h2 className="text-[10px] font-black text-slate uppercase tracking-widest">战术板</h2>
-          <Pitch
-            players={roster.map((r) => ({ uid: r.uid, displayName: r.displayName, preferredPositions: r.preferredPositions ?? [] }))}
-            saveRef={formationBoardRef}
-            canEdit={isAdmin || isAnyCaptain}
-          />
         </section>
       )}
 
