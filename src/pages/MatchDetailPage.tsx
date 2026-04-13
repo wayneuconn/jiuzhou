@@ -2,13 +2,13 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   doc, collection, onSnapshot, getDoc,
-  runTransaction, serverTimestamp, updateDoc, Timestamp, writeBatch,
+  runTransaction, serverTimestamp, updateDoc, Timestamp, writeBatch, increment,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuthStore } from '../stores/authStore'
 import { Pitch } from '../components/Pitch'
 import type { PitchPlayer } from '../components/Pitch'
-import type { Match, Registration } from '../types'
+import type { Match, Registration, MatchTag } from '../types'
 import Markdown from '../components/Markdown'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -317,6 +317,21 @@ export default function MatchDetailPage() {
     try {
       await updateDoc(doc(db, 'matches', matchId, 'registrations', uid), { paymentStatus: 'confirmed' })
     } catch (e: unknown) { setError(e instanceof Error ? e.message : '操作失败') }
+  }
+
+  const doToggleTag = async (uid: string, tag: MatchTag) => {
+    if (!matchId) return
+    const reg = regs.find((r) => r.uid === uid)
+    if (!reg) return
+    const current = reg.tags ?? []
+    const has = current.includes(tag)
+    const newTags = has ? current.filter((t) => t !== tag) : [...current, tag]
+    const field = tag === 'late' ? 'lateCount' : 'dangerousCount'
+    const batch = writeBatch(db)
+    batch.update(doc(db, 'matches', matchId, 'registrations', uid), { tags: newTags })
+    batch.update(doc(db, 'users', uid), { [field]: increment(has ? -1 : 1) })
+    try { await batch.commit() }
+    catch (e: unknown) { setError(e instanceof Error ? e.message : '操作失败') }
   }
 
   // ── Render ───────────────────────────────────────────────────────────
@@ -750,6 +765,40 @@ export default function MatchDetailPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Admin: match behaviour tags ── */}
+      {isAdmin && ['ready', 'completed'].includes(match.status) && roster.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-[10px] font-black text-slate uppercase tracking-widest">行为记录</h2>
+          <div className="space-y-2">
+            {roster.map((r) => {
+              const tags = r.tags ?? []
+              const isLate      = tags.includes('late')
+              const isDangerous = tags.includes('dangerous')
+              return (
+                <div key={r.uid}
+                  className="flex items-center gap-3 bg-navy border border-surface rounded-xl px-4 py-3">
+                  <p className="text-white text-sm font-semibold flex-1 truncate">{r.displayName}</p>
+                  <button onClick={() => doToggleTag(r.uid, 'late')}
+                    className={`text-[10px] font-black px-2.5 py-1 rounded-full border transition-all
+                      ${isLate
+                        ? 'bg-gold/20 border-gold/50 text-gold'
+                        : 'border-surface text-muted hover:border-slate/50 hover:text-slate'}`}>
+                    迟到
+                  </button>
+                  <button onClick={() => doToggleTag(r.uid, 'dangerous')}
+                    className={`text-[10px] font-black px-2.5 py-1 rounded-full border transition-all
+                      ${isDangerous
+                        ? 'bg-red-hot/20 border-red-hot/50 text-red-hot'
+                        : 'border-surface text-muted hover:border-slate/50 hover:text-slate'}`}>
+                    危险动作
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </section>
       )}

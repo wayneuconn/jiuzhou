@@ -28,8 +28,10 @@ export default function AdminMembers() {
     setUsers(snap.docs.map((d) => ({
       uid: d.id,
       ...d.data(),
-      membershipType: d.data().membershipType ?? 'none',
-      createdAt: d.data().createdAt?.toDate(),
+      membershipType:  d.data().membershipType ?? 'none',
+      lateCount:       d.data().lateCount ?? 0,
+      dangerousCount:  d.data().dangerousCount ?? 0,
+      createdAt:       d.data().createdAt?.toDate(),
     })) as User[])
     setLoading(false)
   }
@@ -61,25 +63,48 @@ export default function AdminMembers() {
       </div>
 
       <div className="space-y-3">
-        {users.map((u) => {
-          const isSelf = u.uid === me?.uid
-          const busy = updating === u.uid
-          const initial = (u.displayName || u.phone).charAt(0).toUpperCase()
+        {[...users]
+          .sort((a, b) => {
+            const fa = (a.lateCount || 0) + (a.dangerousCount || 0)
+            const fb = (b.lateCount || 0) + (b.dangerousCount || 0)
+            if (fa >= 3 && fb < 3) return -1
+            if (fb >= 3 && fa < 3) return 1
+            return fb - fa
+          })
+          .map((u) => {
+          const isSelf    = u.uid === me?.uid
+          const busy      = updating === u.uid
+          const initial   = (u.displayName || u.phone).charAt(0).toUpperCase()
+          const flagCount = (u.lateCount || 0) + (u.dangerousCount || 0)
+          const flagged   = flagCount >= 3
 
           return (
-            <div key={u.uid} className="bg-navy border border-surface rounded-2xl p-4">
+            <div key={u.uid} className={`border rounded-2xl p-4
+              ${flagged ? 'bg-red-hot/5 border-red-hot/40' : 'bg-navy border-surface'}`}>
               {/* Header row */}
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal to-teal-dark
-                                flex items-center justify-center shrink-0">
-                  <span className="text-pitch text-sm font-black">{initial}</span>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0
+                  ${flagged
+                    ? 'bg-red-hot/20'
+                    : 'bg-gradient-to-br from-teal to-teal-dark'}`}>
+                  <span className={`text-sm font-black ${flagged ? 'text-red-hot' : 'text-pitch'}`}>
+                    {initial}
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-bold text-sm truncate">
                     {u.displayName || <span className="text-slate">未设置名字</span>}
                     {isSelf && <span className="text-muted text-xs ml-1">(我)</span>}
                   </p>
-                  <p className="text-slate text-xs">{u.phone}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-slate text-xs">{u.phone}</p>
+                    {u.lateCount > 0 && (
+                      <span className="text-[10px] font-black text-gold">迟到×{u.lateCount}</span>
+                    )}
+                    {u.dangerousCount > 0 && (
+                      <span className="text-[10px] font-black text-red-hot">危险×{u.dangerousCount}</span>
+                    )}
+                  </div>
                 </div>
                 <div className="shrink-0 flex gap-1.5">
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border
@@ -160,6 +185,7 @@ export default function AdminMembers() {
     </div>
   )
 }
+
 
 function ActionBtn({
   children,

@@ -19,6 +19,8 @@ export interface User {
   role: UserRole
   membershipType: MembershipType
   attendanceCount: number
+  lateCount: number
+  dangerousCount: number
   createdAt: Date
 }
 
@@ -84,6 +86,7 @@ export interface Match {
 export type RegistrationStatus = 'confirmed' | 'waitlist' | 'promoted' | 'withdrawn' | 'excused'
 
 export type PaymentSessionStatus = 'pending' | 'confirmed'
+export type MatchTag = 'late' | 'dangerous'
 
 export interface Registration {
   uid: string
@@ -97,6 +100,7 @@ export interface Registration {
   autoAccept?: boolean
   team?: 'A' | 'B' | null
   paymentStatus?: PaymentSessionStatus | null
+  tags?: MatchTag[]
 }
 
 // Formation
