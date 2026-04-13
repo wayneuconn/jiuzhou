@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   RecaptchaVerifier,
   linkWithPhoneNumber,
+  signOut,
   type ConfirmationResult,
 } from 'firebase/auth'
 import { doc, updateDoc } from 'firebase/firestore'
@@ -23,7 +24,15 @@ export default function BindPhonePage() {
   const [step, setStep] = useState<Step>('phone')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [countdown, setCountdown] = useState(0)
   const confirmationRef = useRef<ConfirmationResult | null>(null)
+
+  // Countdown timer
+  useEffect(() => {
+    if (countdown <= 0) return
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [countdown])
 
   useEffect(() => {
     return () => {
@@ -39,24 +48,50 @@ export default function BindPhonePage() {
     return window.recaptchaVerifier
   }
 
-  const handleSendCode = async () => {
+  const errMsg = (e: unknown): string => {
+    const code = (e as { code?: string }).code ?? ''
+    const map: Record<string, string> = {
+      'auth/provider-already-linked':   '该账号已绑定手机号',
+      'auth/credential-already-in-use': '该手机号已绑定其他账号。请退出后直接用手机号登录，或换一个手机号。',
+      'auth/too-many-requests':          '请求过多，请稍后再试',
+      'auth/invalid-verification-code': '验证码错误，请重试',
+      'auth/code-expired':              '验证码已过期，请重新发送',
+    }
+    return map[code] ?? (e instanceof Error ? e.message : '操作失败，请重试')
+  }
+
+  const doSendCode = async () => {
     setError('')
     const digits = phone.replace(/\D/g, '')
     if (digits.length !== 10) { setError('请输入10位手机号'); return }
     if (!firebaseUser) return
     setLoading(true)
     try {
+      window.recaptchaVerifier?.clear()
+      window.recaptchaVerifier = undefined
       const confirmation = await linkWithPhoneNumber(firebaseUser, `+1${digits}`, getRecaptcha())
       confirmationRef.current = confirmation
       setStep('code')
+      setCountdown(60)
     } catch (e: unknown) {
-      const code = (e as { code?: string }).code
-      const msg: Record<string, string> = {
-        'auth/provider-already-linked': '该账号已绑定手机号',
-        'auth/credential-already-in-use': '该手机号已被其他账号使用',
-        'auth/too-many-requests': '请求过多，请稍后再试',
-      }
-      setError(msg[code ?? ''] ?? (e instanceof Error ? e.message : '发送失败'))
+      setError(errMsg(e))
+      window.recaptchaVerifier?.clear()
+      window.recaptchaVerifier = undefined
+    } finally { setLoading(false) }
+  }
+
+  const handleResend = async () => {
+    if (!firebaseUser) return
+    setError('')
+    setLoading(true)
+    try {
+      window.recaptchaVerifier?.clear()
+      window.recaptchaVerifier = undefined
+      const confirmation = await linkWithPhoneNumber(firebaseUser, `+1${phone.replace(/\D/g, '')}`, getRecaptcha())
+      confirmationRef.current = confirmation
+      setCountdown(60)
+    } catch (e: unknown) {
+      setError(errMsg(e))
       window.recaptchaVerifier?.clear()
       window.recaptchaVerifier = undefined
     } finally { setLoading(false) }
@@ -81,16 +116,13 @@ export default function BindPhonePage() {
         navigate('/', { replace: true })
       }
     } catch (e: unknown) {
-      const code = (e as { code?: string }).code
-      const msg: Record<string, string> = {
-        'auth/invalid-verification-code': '验证码错误，请重试',
-        'auth/code-expired': '验证码已过期，请重新发送',
-        'auth/credential-already-in-use':
-          '该手机号已绑定其他账号。请退出后直接用手机号登录，或换一个手机号。',
-        'auth/provider-already-linked': '你的账号已经绑定了手机号',
-      }
-      setError(msg[code ?? ''] ?? (e instanceof Error ? e.message : '绑定失败，请重试'))
+      setError(errMsg(e))
     } finally { setLoading(false) }
+  }
+
+  const handleBackToLogin = async () => {
+    await signOut(auth)
+    navigate('/login', { replace: true })
   }
 
   return (
@@ -129,7 +161,7 @@ export default function BindPhonePage() {
                   placeholder="2015550100"
                   maxLength={10}
                   className="flex-1 px-4 py-3.5 bg-navy-light text-white placeholder-muted text-base focus:outline-none"
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
+                  onKeyDown={(e) => e.key === 'Enter' && doSendCode()}
                   autoFocus
                 />
               </div>
@@ -139,35 +171,39 @@ export default function BindPhonePage() {
             {error && <ErrorBox msg={error} />}
 
             <button
-              onClick={handleSendCode}
+              onClick={doSendCode}
               disabled={loading || phone.length < 10}
               className="w-full bg-teal hover:bg-teal-dark active:scale-95 text-pitch font-black
                          py-4 rounded-xl transition-all duration-150 disabled:opacity-40"
             >
               {loading ? '发送中...' : '发送验证码'}
             </button>
+            <button
+              onClick={handleBackToLogin}
+              className="w-full text-slate hover:text-white text-sm font-medium transition-colors py-1"
+            >
+              ← 返回登录页
+            </button>
           </div>
         ) : (
           <div className="space-y-4">
-            <div>
-              <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">
-                验证码
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
-                maxLength={6}
-                className="w-full bg-navy-light border border-surface focus:border-teal rounded-xl
-                           px-4 py-4 text-3xl font-mono tracking-[0.5em] text-center text-teal
-                           focus:outline-none transition-colors placeholder-muted"
-                onKeyDown={(e) => e.key === 'Enter' && handleVerifyCode()}
-                autoFocus
-              />
-              <p className="text-muted text-xs mt-1.5">已发送至 +1 {phone}</p>
+            <div className="text-center">
+              <p className="text-slate text-sm">验证码已发送至</p>
+              <p className="text-white font-bold">+1 {phone}</p>
             </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              maxLength={6}
+              className="w-full bg-navy-light border border-surface focus:border-teal rounded-xl
+                         px-4 py-4 text-3xl font-mono tracking-[0.5em] text-center text-teal
+                         focus:outline-none transition-colors placeholder-muted"
+              onKeyDown={(e) => e.key === 'Enter' && handleVerifyCode()}
+              autoFocus
+            />
 
             {error && <ErrorBox msg={error} />}
 
@@ -179,11 +215,28 @@ export default function BindPhonePage() {
             >
               {loading ? '验证中...' : '验证并绑定'}
             </button>
+
+            {/* Resend countdown */}
+            {countdown > 0 ? (
+              <p className="text-center text-slate text-sm">
+                <span className="text-teal font-bold">{countdown}s</span> 后可重新发送
+              </p>
+            ) : (
+              <button
+                onClick={handleResend}
+                disabled={loading}
+                className="w-full text-teal hover:text-teal-dark text-sm font-semibold
+                           transition-colors disabled:opacity-40 py-1"
+              >
+                重新发送验证码
+              </button>
+            )}
+
             <button
               onClick={() => { setStep('phone'); setCode(''); setError('') }}
               className="w-full text-slate hover:text-white text-sm font-medium transition-colors py-1"
             >
-              ← 返回
+              ← 更换手机号
             </button>
           </div>
         )}
