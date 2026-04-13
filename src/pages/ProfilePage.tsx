@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { doc, updateDoc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { signOut } from 'firebase/auth'
-import { db, auth, storage } from '../lib/firebase'
+import { db, auth } from '../lib/firebase'
 import { useAuthStore } from '../stores/authStore'
 import { PlayerCard } from '../components/PlayerCard'
 import { getCardTier, DEFAULT_THRESHOLDS } from '../utils/cardTier'
@@ -32,8 +31,6 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false)
 
   const [thresholds, setThresholds] = useState<CardThresholds>(DEFAULT_THRESHOLDS)
-  const [uploading, setUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [payEvents, setPayEvents] = useState<PaymentEvent[]>([])
   const [myPayments, setMyPayments] = useState<Record<string, Payment | null>>({})
@@ -74,23 +71,6 @@ export default function ProfilePage() {
     }
     load()
   }, [userProfile?.uid])
-
-  const handleAvatarClick = () => fileInputRef.current?.click()
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !userProfile) return
-    setUploading(true)
-    try {
-      const storageRef = ref(storage, `avatars/${userProfile.uid}/avatar`)
-      await uploadBytes(storageRef, file)
-      const url = await getDownloadURL(storageRef)
-      await updateDoc(doc(db, 'users', userProfile.uid), { avatar: url })
-    } finally {
-      setUploading(false)
-      e.target.value = ''
-    }
-  }
 
   // Clicking a selected position removes it (rest shift up in priority).
   // Clicking an unselected position appends it as the lowest priority.
@@ -150,27 +130,8 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-4">
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleAvatarUpload}
-      />
-
       {/* Player card */}
-      <div className="relative">
-        <PlayerCard user={userProfile} tier={tier} thresholds={thresholds} onAvatarClick={handleAvatarClick} />
-        {uploading && (
-          <div className="absolute inset-0 bg-navy/70 rounded-2xl flex items-center justify-center">
-            <div className="flex items-center gap-2 text-teal text-sm font-bold">
-              <div className="w-4 h-4 border-2 border-teal border-t-transparent rounded-full animate-spin" />
-              上传中...
-            </div>
-          </div>
-        )}
-      </div>
+      <PlayerCard user={userProfile} tier={tier} thresholds={thresholds} />
 
       {/* Membership badge */}
       <div className="flex items-center gap-2 px-1">
@@ -178,7 +139,6 @@ export default function ProfilePage() {
                           rounded-full border ${membershipStyle[mt]}`}>
           {membershipLabel[mt]}
         </span>
-        <span className="text-muted text-xs">点头像可更换照片</span>
       </div>
 
       {/* Open payment events */}

@@ -44,6 +44,22 @@ export const TIER_TEXT: Record<CardTier, string> = {
   none:   'text-slate',
 }
 
+export const TIER_BG: Record<CardTier, string> = {
+  blue:   'bg-royal',
+  gold:   'bg-gold',
+  silver: 'bg-silver',
+  bronze: 'bg-bronze',
+  none:   'bg-teal',
+}
+
+export const TIER_BG_TEXT: Record<CardTier, string> = {
+  blue:   'text-white',
+  gold:   'text-pitch',
+  silver: 'text-pitch',
+  bronze: 'text-white',
+  none:   'text-pitch',
+}
+
 // Rings made thicker (ring-[3px]) and with a background glow for visibility on the pitch
 export const TIER_RING: Record<CardTier, string> = {
   blue:   'ring-[3px] ring-royal   shadow-[0_0_8px_2px_rgba(79,144,225,0.6)]',
