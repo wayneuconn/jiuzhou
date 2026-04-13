@@ -31,6 +31,7 @@ const STATUS_LABEL: Record<MatchStatus, string> = {
   drafting:       '选人中',
   ready:          '已就绪',
   completed:      '已结束',
+  cancelled:      '已取消',
 }
 const STATUS_COLOR: Record<MatchStatus, string> = {
   draft:          'text-slate border-surface bg-surface',
@@ -39,6 +40,7 @@ const STATUS_COLOR: Record<MatchStatus, string> = {
   drafting:       'text-gold border-gold/30 bg-gold/10',
   ready:          'text-teal border-teal/30 bg-teal/10',
   completed:      'text-muted border-surface bg-surface',
+  cancelled:      'text-red-hot border-red-hot/30 bg-red-hot/10',
 }
 
 const NEXT_ACTION: Partial<Record<MatchStatus, { label: string; next: MatchStatus }>> = {
@@ -155,6 +157,14 @@ export default function AdminMatches() {
       ))
       setEditingId(null)
     } finally { setSaving(false) }
+  }
+
+  const handleCancel = async (matchId: string) => {
+    if (!window.confirm('确定取消这场比赛？此操作不可撤销。')) return
+    try {
+      await updateDoc(doc(db, 'matches', matchId), { status: 'cancelled' })
+      setMatches((prev) => prev.map((m) => m.id === matchId ? { ...m, status: 'cancelled' } : m))
+    } catch (e) { console.error(e) }
   }
 
   const handleAdvance = async (match: Match) => {
@@ -338,7 +348,9 @@ export default function AdminMatches() {
                     </div>
 
                     {/* Edit form / Edit button */}
-                    {isEditing ? (
+                    {match.status === 'cancelled' ? (
+                      <p className="text-center text-red-hot/70 text-xs">已取消</p>
+                    ) : isEditing ? (
                       <div className="space-y-3 border border-surface rounded-xl p-3">
                         <p className="text-[10px] font-black text-slate uppercase tracking-widest">编辑比赛</p>
 
@@ -422,6 +434,16 @@ export default function AdminMatches() {
 
                     {match.status === 'completed' && (
                       <p className="text-center text-muted text-xs">已结束</p>
+                    )}
+
+                    {/* Cancel button */}
+                    {match.status !== 'completed' && match.status !== 'cancelled' && (
+                      <button onClick={() => handleCancel(match.id)}
+                        className="w-full text-red-hot/70 hover:text-red-hot text-xs font-bold
+                                   border border-red-hot/20 hover:border-red-hot/40
+                                   py-2.5 rounded-xl transition-all">
+                        取消比赛
+                      </button>
                     )}
                   </div>
                 )}

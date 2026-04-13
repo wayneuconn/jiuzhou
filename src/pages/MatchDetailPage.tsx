@@ -17,6 +17,7 @@ const STATUS_LABEL: Record<string, string> = {
   drafting:        '选人中',
   ready:           '已就绪',
   completed:       '已结束',
+  cancelled:       '已取消',
 }
 
 function useCountdown(deadline: Date | null | undefined): number | null {
@@ -362,7 +363,12 @@ export default function MatchDetailPage() {
       </div>
 
       {/* ── Action card ── */}
-      {!regsLoaded || !userProfile ? (
+      {match.status === 'cancelled' ? (
+        <div className="bg-red-hot/10 border border-red-hot/30 rounded-2xl p-4 text-center">
+          <p className="text-red-hot font-black text-sm">比赛已取消</p>
+          <p className="text-slate text-xs mt-1">本场比赛已被取消，请关注后续通知</p>
+        </div>
+      ) : !regsLoaded || !userProfile ? (
         <div className="h-16 rounded-2xl bg-navy border border-surface animate-pulse" />
       ) : myReg?.status === 'promoted' ? (
         <div className="bg-gold/10 border border-gold/30 rounded-2xl p-4 space-y-3">

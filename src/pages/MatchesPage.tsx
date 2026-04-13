@@ -11,6 +11,7 @@ const STATUS_LABEL: Record<MatchStatus, string> = {
   drafting:       '选人中',
   ready:          '已就绪',
   completed:      '已结束',
+  cancelled:      '已取消',
 }
 
 const STATUS_DOT: Record<MatchStatus, string> = {
@@ -20,6 +21,7 @@ const STATUS_DOT: Record<MatchStatus, string> = {
   drafting:       'bg-gold animate-pulse',
   ready:          'bg-teal',
   completed:      'bg-surface',
+  cancelled:      'bg-red-hot/50',
 }
 
 function MatchCard({ match }: { match: Match }) {

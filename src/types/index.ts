@@ -58,6 +58,7 @@ export type MatchStatus =
   | 'drafting'
   | 'ready'
   | 'completed'
+  | 'cancelled'
 
 export interface DraftState {
   currentTurn: string
