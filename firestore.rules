@@ -1,0 +1,88 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // Users: any authed user can read; only self can update profile fields; admin can update role/status
+    match /users/{uid} {
+      allow read: if isAuth();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys()
+                        .hasAny(['role', 'membershipStatus', 'paymentStatus'])
+                    || isAdmin();
+    }
+
+    // Matches: any authed user can read; admin can write
+    match /matches/{matchId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+
+      // Registrations subcollection
+      match /registrations/{regId} {
+        allow read: if isAuth();
+        // Allow create if match is open for registration and user is registering themselves
+        allow create: if isAuth() && request.auth.uid == regId &&
+          (get(/databases/$(database)/documents/matches/$(matchId)).data.status == 'registration_r1' ||
+           get(/databases/$(database)/documents/matches/$(matchId)).data.status == 'registration_r2');
+        // Allow update by self (withdraw) or admin
+        allow update: if isOwner(regId) || isAdmin();
+        allow delete: if isAdmin();
+      }
+
+      // Formations: captain of the team can write; own team members can read
+      match /formations/teamA {
+        allow read: if isAuth() &&
+          (isAdmin() ||
+           get(/databases/$(database)/documents/matches/$(matchId)).data.captainA == request.auth.uid ||
+           get(/databases/$(database)/documents/matches/$(matchId)/registrations/$(request.auth.uid)).data.team == 'A');
+        allow write: if isAuth() &&
+          get(/databases/$(database)/documents/matches/$(matchId)).data.captainA == request.auth.uid;
+      }
+
+      match /formations/teamB {
+        allow read: if isAuth() &&
+          (isAdmin() ||
+           get(/databases/$(database)/documents/matches/$(matchId)).data.captainB == request.auth.uid ||
+           get(/databases/$(database)/documents/matches/$(matchId)/registrations/$(request.auth.uid)).data.team == 'B');
+        allow write: if isAuth() &&
+          get(/databases/$(database)/documents/matches/$(matchId)).data.captainB == request.auth.uid;
+      }
+    }
+
+    // Finances: admin only
+    match /finances/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Announcements: any authed user can read; admin can write
+    match /announcements/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Config: any authed user can read; admin can write
+    match /config/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Invite tokens: anyone can read (for link validation); admin can create/delete
+    match /inviteTokens/{tokenId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

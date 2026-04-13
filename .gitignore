@@ -32,3 +32,6 @@ dist-ssr
 .firebase/
 firebase-debug.log
 firestore-debug.log
+
+# Functions build output
+functions/lib/

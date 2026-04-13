@@ -11,7 +11,28 @@
       "Bash(git init:*)",
       "Bash(git remote:*)",
       "Bash(git branch:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(firebase --version)",
+      "Bash(gcloud config:*)",
+      "Bash(firebase login:*)",
+      "Bash(firebase projects:list:*)",
+      "Bash(firebase projects:addfirebase:*)",
+      "Bash(firebase login:list:*)",
+      "Bash(gcloud projects describe jiuzhou-493217:*)",
+      "Bash(gcloud auth list:*)",
+      "Read(//Users/wayne/.config/**)",
+      "Read(//Users/wayne/.config/firebase/**)",
+      "Bash(python3 -c 'import sys,json; d=json.load\\(sys.stdin\\); tokens=d.get\\(\"tokens\",{}\\); print\\(list\\(tokens.keys\\(\\)\\)\\)')",
+      "Bash(node -e \"const {getConfigPath}=require\\('/Users/wayne/.nvm/versions/node/v20.16.0/lib/node_modules/firebase-tools/lib/config'\\); console.log\\(getConfigPath\\(\\)\\)\")",
+      "Bash(node -e \"const os=require\\('os'\\),path=require\\('path'\\); console.log\\(path.join\\(os.homedir\\(\\),'.config','configstore','firebase-tools.json'\\)\\)\")",
+      "Bash(python3 -c ':*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('state:', d.get\\('state'\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(list\\(d['tokens'].keys\\(\\)\\)\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['tokens']['scope']\\)\")",
+      "Bash(firebase deploy:*)",
+      "Bash(git rm:*)"
     ]
   }
 }
