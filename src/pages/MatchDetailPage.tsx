@@ -103,10 +103,10 @@ export default function MatchDetailPage() {
   // Draft/tactics visibility
   const isDraftPhase   = match?.status === 'drafting'
   const showDraft      = (isAdmin || isAnyCaptain) && isDraftPhase && !!match?.captainA && !!match?.captainB
-  const canSeeTeamA    = isAdmin || isCaptainA || myReg?.team === 'A'
-  const canSeeTeamB    = isAdmin || isCaptainB || myReg?.team === 'B'
+  const canSeeTeamA    = isCaptainA || myReg?.team === 'A'
+  const canSeeTeamB    = isCaptainB || myReg?.team === 'B'
   const hasTactics     = !!match?.captainA || !!match?.captainB
-  const tacticPhase    = match ? ['registration_r1', 'registration_r2', 'drafting', 'ready'].includes(match.status) : false
+  const tacticPhase    = match ? ['drafting', 'ready'].includes(match.status) : false
 
   // Stable Firestore refs for formations
   const formationARef = useMemo(
@@ -699,7 +699,7 @@ export default function MatchDetailPage() {
           <Pitch
             players={teamAPlayers}
             saveRef={formationARef}
-            canEdit={isAdmin || isCaptainA}
+            canEdit={isCaptainA}
           />
         </section>
       )}
@@ -711,7 +711,7 @@ export default function MatchDetailPage() {
           <Pitch
             players={teamBPlayers}
             saveRef={formationBRef}
-            canEdit={isAdmin || isCaptainB}
+            canEdit={isCaptainB}
           />
         </section>
       )}
