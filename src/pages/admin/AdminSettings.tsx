@@ -2,17 +2,24 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
+import { DEFAULT_THRESHOLDS } from '../../utils/cardTier'
+import type { CardThresholds } from '../../types'
 
 export default function AdminSettings() {
   const navigate = useNavigate()
-  const [season, setSeason] = useState('')
+
+  const [season, setSeason]   = useState('')
+  const [thresholds, setThresholds] = useState<CardThresholds>(DEFAULT_THRESHOLDS)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [saving, setSaving]   = useState(false)
+  const [saved, setSaved]     = useState(false)
 
   useEffect(() => {
     getDoc(doc(db, 'config', 'appConfig')).then((snap) => {
-      if (snap.exists()) setSeason(snap.data().season ?? '')
+      if (snap.exists()) {
+        setSeason(snap.data().season ?? '')
+        setThresholds(snap.data().cardThresholds ?? DEFAULT_THRESHOLDS)
+      }
       setLoading(false)
     })
   }, [])
@@ -20,23 +27,32 @@ export default function AdminSettings() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await setDoc(doc(db, 'config', 'appConfig'), { season }, { merge: true })
+      await setDoc(doc(db, 'config', 'appConfig'), {
+        season,
+        cardThresholds: thresholds,
+      }, { merge: true })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } finally { setSaving(false) }
   }
 
+  const setThreshold = (key: keyof CardThresholds) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value)
+    if (!isNaN(val) && val >= 0) setThresholds((prev) => ({ ...prev, [key]: val }))
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/admin')}
-          className="text-slate hover:text-white transition-colors">
+        <button onClick={() => navigate('/admin')} className="text-slate hover:text-white transition-colors">
           ← 返回
         </button>
         <h1 className="text-white text-xl font-black">Settings</h1>
       </div>
 
+      {/* Season */}
       <div className="bg-navy border border-surface rounded-2xl p-5 space-y-4">
+        <p className="text-white font-black text-sm">赛季</p>
         <div>
           <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">
             当前赛季
@@ -53,16 +69,50 @@ export default function AdminSettings() {
           />
           <p className="text-muted text-xs mt-1.5">显示在首页标题旁边</p>
         </div>
-
-        <button
-          onClick={handleSave}
-          disabled={saving || loading || !season.trim()}
-          className="w-full bg-teal hover:bg-teal-dark active:scale-95 text-pitch font-black
-                     py-4 rounded-xl transition-all duration-150 disabled:opacity-40"
-        >
-          {saved ? '✓ 已保存' : saving ? '保存中...' : '保存'}
-        </button>
       </div>
+
+      {/* Card thresholds */}
+      <div className="bg-navy border border-surface rounded-2xl p-5 space-y-4">
+        <div>
+          <p className="text-white font-black text-sm">球员卡等级门槛</p>
+          <p className="text-slate text-xs mt-1">根据出勤次数自动升级，设置每个等级所需的最低次数</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {([
+            ['bronze', '铜卡', 'border-bronze text-bronze'],
+            ['silver', '银卡', 'border-silver text-silver'],
+            ['gold',   '金卡', 'border-gold text-gold'],
+            ['blue',   '蓝卡', 'border-royal text-royal'],
+          ] as const).map(([key, label, cls]) => (
+            <div key={key}>
+              <label className={`text-[10px] font-black uppercase tracking-widest block mb-2 ${cls.split(' ')[1]}`}>
+                {label}
+              </label>
+              <div className={`flex items-center rounded-xl overflow-hidden border ${cls.split(' ')[0]} bg-navy-light`}>
+                <input
+                  type="number"
+                  value={thresholds[key]}
+                  onChange={setThreshold(key)}
+                  min={0}
+                  disabled={loading}
+                  className="flex-1 px-3 py-3 text-white text-base font-bold focus:outline-none bg-transparent"
+                />
+                <span className="px-3 text-slate text-xs shrink-0">次</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={saving || loading}
+        className="w-full bg-teal hover:bg-teal-dark active:scale-95 text-pitch font-black
+                   py-4 rounded-xl transition-all duration-150 disabled:opacity-40"
+      >
+        {saved ? '✓ 已保存' : saving ? '保存中...' : '保存设置'}
+      </button>
     </div>
   )
 }

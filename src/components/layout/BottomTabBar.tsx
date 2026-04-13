@@ -20,6 +20,24 @@ function ShieldIcon() {
   )
 }
 
+function PitchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+      strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+      {/* Pitch outline */}
+      <rect x="2" y="3" width="20" height="18" rx="1"/>
+      {/* Center line */}
+      <line x1="12" y1="3" x2="12" y2="21"/>
+      {/* Center circle */}
+      <circle cx="12" cy="12" r="3"/>
+      {/* Top penalty area */}
+      <rect x="7" y="3" width="10" height="5" rx="0"/>
+      {/* Bottom penalty area */}
+      <rect x="7" y="16" width="10" height="5" rx="0"/>
+    </svg>
+  )
+}
+
 function UserIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
@@ -43,7 +61,7 @@ function GridIcon() {
 }
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `flex flex-col items-center gap-0.5 px-5 py-2 rounded-xl transition-all duration-150
+  `flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-150
    ${isActive ? 'text-teal' : 'text-slate hover:text-white'}`
 
 export default function BottomTabBar() {
@@ -62,12 +80,17 @@ export default function BottomTabBar() {
 
         <NavLink to="/matches" className={linkClass}>
           <ShieldIcon />
-          <span className="text-[10px] font-bold tracking-wide">Matches</span>
+          <span className="text-[10px] font-bold tracking-wide">比赛</span>
+        </NavLink>
+
+        <NavLink to="/tactics" className={linkClass}>
+          <PitchIcon />
+          <span className="text-[10px] font-bold tracking-wide">战术</span>
         </NavLink>
 
         <NavLink to="/profile" className={linkClass}>
           <UserIcon />
-          <span className="text-[10px] font-bold tracking-wide">Profile</span>
+          <span className="text-[10px] font-bold tracking-wide">我的</span>
         </NavLink>
 
         {userProfile?.role === 'admin' && (

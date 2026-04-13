@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { doc, updateDoc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { signOut } from 'firebase/auth'
-import { db, auth } from '../lib/firebase'
+import { db, auth, storage } from '../lib/firebase'
 import { useAuthStore } from '../stores/authStore'
-import type { PaymentEvent, Payment, MembershipType } from '../types'
+import { PlayerCard } from '../components/PlayerCard'
+import { getCardTier, DEFAULT_THRESHOLDS } from '../utils/cardTier'
+import type { PaymentEvent, Payment, MembershipType, CardThresholds } from '../types'
 
 const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST']
 
@@ -23,16 +26,18 @@ export default function ProfilePage() {
   const { userProfile } = useAuthStore()
   const navigate = useNavigate()
 
-  // Edit profile state
   const [displayName, setDisplayName] = useState('')
   const [positions, setPositions] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  // Payment state
+  const [thresholds, setThresholds] = useState<CardThresholds>(DEFAULT_THRESHOLDS)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [payEvents, setPayEvents] = useState<PaymentEvent[]>([])
   const [myPayments, setMyPayments] = useState<Record<string, Payment | null>>({})
-  const [paying, setPaying] = useState<string | null>(null)  // eventId being paid
+  const [paying, setPaying] = useState<string | null>(null)
 
   useEffect(() => {
     if (userProfile) {
@@ -42,13 +47,19 @@ export default function ProfilePage() {
   }, [userProfile])
 
   useEffect(() => {
+    getDoc(doc(db, 'config', 'appConfig')).then((snap) => {
+      if (snap.exists() && snap.data().cardThresholds) {
+        setThresholds(snap.data().cardThresholds)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
     if (!userProfile) return
     const load = async () => {
       const snap = await getDocs(query(collection(db, 'paymentEvents'), where('status', '==', 'open')))
       const events = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-        createdAt: d.data().createdAt?.toDate(),
+        id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate(),
       })) as PaymentEvent[]
       setPayEvents(events)
 
@@ -63,6 +74,23 @@ export default function ProfilePage() {
     }
     load()
   }, [userProfile?.uid])
+
+  const handleAvatarClick = () => fileInputRef.current?.click()
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !userProfile) return
+    setUploading(true)
+    try {
+      const storageRef = ref(storage, `avatars/${userProfile.uid}/avatar`)
+      await uploadBytes(storageRef, file)
+      const url = await getDownloadURL(storageRef)
+      await updateDoc(doc(db, 'users', userProfile.uid), { avatar: url })
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
 
   const togglePosition = (pos: string) => {
     setPositions((prev) => {
@@ -86,11 +114,8 @@ export default function ProfilePage() {
     if (!userProfile) return
     const amount = userProfile.membershipType === 'annual' ? event.annualAmount : event.perSessionAmount
     const venmoUrl = `https://venmo.com/${event.venmoHandle}?txn=pay&amount=${amount}&note=${encodeURIComponent(event.title)}`
-
     setPaying(event.id)
-    // Open Venmo
     window.open(venmoUrl, '_blank')
-    // Record payment as pending
     await setDoc(doc(db, 'paymentEvents', event.id, 'payments', userProfile.uid), {
       uid: userProfile.uid,
       displayName: userProfile.displayName,
@@ -102,13 +127,10 @@ export default function ProfilePage() {
     setMyPayments((prev) => ({
       ...prev,
       [event.id]: {
-        id: userProfile.uid,
-        uid: userProfile.uid,
+        id: userProfile.uid, uid: userProfile.uid,
         displayName: userProfile.displayName,
         membershipType: userProfile.membershipType,
-        amount,
-        status: 'pending',
-        paidAt: new Date(),
+        amount, status: 'pending', paidAt: new Date(),
       },
     }))
     setPaying(null)
@@ -121,27 +143,40 @@ export default function ProfilePage() {
 
   if (!userProfile) return null
 
-  const initial = (userProfile.displayName || userProfile.phone).charAt(0).toUpperCase()
+  const tier = getCardTier(userProfile.attendanceCount, thresholds)
   const mt = userProfile.membershipType
 
   return (
     <div className="space-y-4">
-      {/* Player header */}
-      <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-teal to-teal-dark
-                        flex items-center justify-center shadow-lg shadow-teal/25 shrink-0">
-          <span className="text-pitch text-2xl font-black">{initial}</span>
-        </div>
-        <div>
-          <h1 className="text-white text-xl font-black">
-            {userProfile.displayName || <span className="text-slate">未设置名字</span>}
-          </h1>
-          <p className="text-slate text-sm">{userProfile.phone}</p>
-          <span className={`inline-block mt-1 text-[10px] font-black uppercase tracking-widest
-                            px-2.5 py-1 rounded-full border ${membershipStyle[mt]}`}>
-            {membershipLabel[mt]}
-          </span>
-        </div>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarUpload}
+      />
+
+      {/* Player card */}
+      <div className="relative">
+        <PlayerCard user={userProfile} tier={tier} onAvatarClick={handleAvatarClick} />
+        {uploading && (
+          <div className="absolute inset-0 bg-navy/70 rounded-2xl flex items-center justify-center">
+            <div className="flex items-center gap-2 text-teal text-sm font-bold">
+              <div className="w-4 h-4 border-2 border-teal border-t-transparent rounded-full animate-spin" />
+              上传中...
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Membership badge */}
+      <div className="flex items-center gap-2 px-1">
+        <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1
+                          rounded-full border ${membershipStyle[mt]}`}>
+          {membershipLabel[mt]}
+        </span>
+        <span className="text-muted text-xs">点头像可更换照片</span>
       </div>
 
       {/* Open payment events */}
@@ -167,7 +202,6 @@ export default function ProfilePage() {
                       {event.type === 'member' ? '会费' : '活动费'}
                     </span>
                   </div>
-
                   {!payment ? (
                     <button
                       onClick={() => handlePay(event)}
@@ -197,7 +231,7 @@ export default function ProfilePage() {
         </section>
       )}
 
-      {/* Edit profile */}
+      {/* Edit name */}
       <div className="bg-navy border border-surface rounded-2xl p-4">
         <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">名字</label>
         <input
@@ -209,6 +243,7 @@ export default function ProfilePage() {
         />
       </div>
 
+      {/* Edit positions */}
       <div className="bg-navy border border-surface rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
           <label className="text-[10px] font-black text-slate uppercase tracking-widest">惯用位置</label>
@@ -221,10 +256,7 @@ export default function ProfilePage() {
             const selected = positions.includes(pos)
             const disabled = !selected && positions.length >= 3
             return (
-              <button
-                key={pos}
-                onClick={() => togglePosition(pos)}
-                disabled={disabled}
+              <button key={pos} onClick={() => togglePosition(pos)} disabled={disabled}
                 className={`px-3.5 py-2 rounded-lg text-xs font-black border transition-all duration-150
                   ${selected
                     ? 'bg-teal border-teal text-pitch shadow-md shadow-teal/30'
@@ -240,20 +272,15 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={saving || !displayName.trim()}
+      <button onClick={handleSave} disabled={saving || !displayName.trim()}
         className="w-full bg-teal hover:bg-teal-dark active:scale-95 text-pitch font-black
-                   py-4 rounded-xl transition-all duration-150 disabled:opacity-40 text-base"
-      >
+                   py-4 rounded-xl transition-all duration-150 disabled:opacity-40 text-base">
         {saved ? '✓ 已保存' : saving ? '保存中...' : '保存'}
       </button>
 
-      <button
-        onClick={handleSignOut}
+      <button onClick={handleSignOut}
         className="w-full border border-surface hover:border-red-hot/30 text-slate hover:text-red-hot
-                   font-bold py-3.5 rounded-xl transition-all duration-150"
-      >
+                   font-bold py-3.5 rounded-xl transition-all duration-150">
         退出登录
       </button>
     </div>

@@ -164,6 +164,7 @@ export default function LoginPage() {
         preferredPositions: [],
         role: 'guest',
         membershipType: 'none',
+        attendanceCount: 0,
         createdAt: serverTimestamp(),
       })
     }

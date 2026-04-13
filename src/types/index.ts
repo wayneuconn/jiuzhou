@@ -1,6 +1,14 @@
 // User
 export type UserRole = 'admin' | 'member' | 'guest'
 export type MembershipType = 'annual' | 'per_session' | 'none'
+export type CardTier = 'blue' | 'gold' | 'silver' | 'bronze' | 'none'
+
+export interface CardThresholds {
+  bronze: number
+  silver: number
+  gold:   number
+  blue:   number
+}
 
 export interface User {
   uid: string
@@ -10,6 +18,7 @@ export interface User {
   preferredPositions: string[]
   role: UserRole
   membershipType: MembershipType
+  attendanceCount: number
   createdAt: Date
 }
 
@@ -109,6 +118,7 @@ export interface Announcement {
 // Config
 export interface AppConfig {
   season: string
+  cardThresholds: CardThresholds
   waitlistConfirmMinutes: number
   defaultAgreementText: string
 }

@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import MatchDetailPage from './pages/MatchDetailPage'
 import ProfilePage from './pages/ProfilePage'
+import TacticsPage from './pages/TacticsPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminMatches from './pages/admin/AdminMatches'
 import AdminMembers from './pages/admin/AdminMembers'
@@ -80,6 +81,7 @@ function AppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/matches" element={<HomePage />} />
         <Route path="/match/:matchId" element={<MatchDetailPage />} />
+        <Route path="/tactics" element={<TacticsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route
           path="/admin"

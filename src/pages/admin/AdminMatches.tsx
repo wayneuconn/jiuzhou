@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   collection, getDocs, addDoc, updateDoc, doc,
-  serverTimestamp, query, orderBy,
+  serverTimestamp, query, orderBy, where, writeBatch, increment,
 } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import type { Match, MatchStatus } from '../../types'
@@ -88,7 +88,23 @@ export default function AdminMatches() {
     if (!action) return
     setAdvancing(match.id)
     try {
-      await updateDoc(doc(db, 'matches', match.id), { status: action.next })
+      if (action.next === 'completed') {
+        // Batch: mark match complete + increment attendanceCount for all confirmed players
+        const regSnap = await getDocs(
+          query(
+            collection(db, 'matches', match.id, 'registrations'),
+            where('status', 'in', ['confirmed', 'promoted'])
+          )
+        )
+        const batch = writeBatch(db)
+        batch.update(doc(db, 'matches', match.id), { status: 'completed' })
+        regSnap.docs.forEach((d) => {
+          batch.update(doc(db, 'users', d.id), { attendanceCount: increment(1) })
+        })
+        await batch.commit()
+      } else {
+        await updateDoc(doc(db, 'matches', match.id), { status: action.next })
+      }
       setMatches((prev) => prev.map((m) => m.id === match.id ? { ...m, status: action.next } : m))
     } finally { setAdvancing(null) }
   }

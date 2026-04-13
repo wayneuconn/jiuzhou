@@ -31,6 +31,7 @@ export function useAuthInit() {
               preferredPositions: data.preferredPositions ?? [],
               role: data.role,
               membershipType: data.membershipType ?? 'none',
+              attendanceCount: data.attendanceCount ?? 0,
               createdAt: data.createdAt?.toDate(),
             } as User)
           } else {

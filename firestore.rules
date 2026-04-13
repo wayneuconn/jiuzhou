@@ -79,6 +79,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Tactics board: any authed user can read; admin can write
+    match /tactics/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
     // Payment events: any authed user can read; admin can write
     match /paymentEvents/{eventId} {
       allow read: if isAuth();
