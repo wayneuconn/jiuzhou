@@ -80,8 +80,16 @@ export default function BindPhonePage() {
       } else {
         navigate('/', { replace: true })
       }
-    } catch {
-      setError('验证码错误，请重试')
+    } catch (e: unknown) {
+      const code = (e as { code?: string }).code
+      const msg: Record<string, string> = {
+        'auth/invalid-verification-code': '验证码错误，请重试',
+        'auth/code-expired': '验证码已过期，请重新发送',
+        'auth/credential-already-in-use':
+          '该手机号已绑定其他账号。请退出后直接用手机号登录，或换一个手机号。',
+        'auth/provider-already-linked': '你的账号已经绑定了手机号',
+      }
+      setError(msg[code ?? ''] ?? (e instanceof Error ? e.message : '绑定失败，请重试'))
     } finally { setLoading(false) }
   }
 
