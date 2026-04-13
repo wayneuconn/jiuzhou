@@ -71,6 +71,7 @@ export default function MatchDetailPage() {
   const waitlist = regs
     .filter((r) => r.status === 'waitlist')
     .sort((a, b) => (a.waitlistPosition ?? 0) - (b.waitlistPosition ?? 0))
+  const excusedList = regs.filter((r) => r.status === 'excused')
 
   const myReg       = regs.find((r) => r.uid === userProfile?.uid)
   const isFull      = !!match && roster.length >= match.maxPlayers
@@ -199,6 +200,35 @@ export default function MatchDetailPage() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : '报名失败，请重试')
     } finally { setBusy(false) }
+  }
+
+  const doExcuse = async () => {
+    if (!userProfile || !matchId) return
+    setBusy(true); setError('')
+    try {
+      const batch = writeBatch(db)
+      batch.update(doc(db, 'matches', matchId, 'registrations', userProfile.uid), {
+        status: 'excused',
+      })
+      if (waitlist.length > 0) {
+        const next = waitlist[0]
+        if (next.autoAccept) {
+          batch.update(doc(db, 'matches', matchId, 'registrations', next.uid), {
+            status: 'confirmed',
+            promotedAt: serverTimestamp(),
+            confirmDeadline: null,
+          })
+        } else {
+          batch.update(doc(db, 'matches', matchId, 'registrations', next.uid), {
+            status: 'promoted',
+            promotedAt: serverTimestamp(),
+            confirmDeadline: Timestamp.fromDate(new Date(Date.now() + 30 * 60 * 1000)),
+          })
+        }
+      }
+      await batch.commit()
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : '操作失败') }
+    finally { setBusy(false) }
   }
 
   const doWithdraw = async () => {
@@ -358,7 +388,7 @@ export default function MatchDetailPage() {
               </button>
               <button onClick={doConfirmSpot} disabled={busy}
                 className="flex-1 bg-gold text-pitch font-black py-3 rounded-xl disabled:opacity-40 text-sm">
-                确认参加
+                报名
               </button>
             </div>
           )}
@@ -373,24 +403,31 @@ export default function MatchDetailPage() {
             </p>
           </div>
           {isOpen && (
-            <button onClick={doWithdraw} disabled={busy}
-              className="text-red-hot text-sm font-bold disabled:opacity-40 transition-colors">
-              取消报名
+            <button onClick={doExcuse} disabled={busy}
+              className="text-slate text-sm font-bold disabled:opacity-40 transition-colors hover:text-white">
+              请假
             </button>
           )}
+        </div>
+      ) : myReg?.status === 'excused' ? (
+        <div className="bg-surface/50 border border-surface rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-white font-black text-sm">已请假</p>
+            <p className="text-slate text-xs mt-0.5">已通知队友</p>
+          </div>
         </div>
       ) : myReg?.status === 'waitlist' ? (
         <div className="bg-surface/50 border border-surface rounded-2xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-white font-black text-sm">候补中</p>
+            <p className="text-white font-black text-sm">Waitlist</p>
             <p className="text-slate text-xs mt-0.5">
-              候补 #{myReg.waitlistPosition}
+              #{myReg.waitlistPosition}
               {myReg.autoAccept && <span className="text-teal"> · 自动接受</span>}
             </p>
           </div>
           <button onClick={doWithdraw} disabled={busy}
             className="text-red-hot text-sm font-bold disabled:opacity-40 transition-colors">
-            退出候补
+            退出
           </button>
         </div>
       ) : canRegister ? (
@@ -403,7 +440,7 @@ export default function MatchDetailPage() {
         <button onClick={() => setWaitlistModal(true)} disabled={busy}
           className="w-full border border-teal/40 text-teal hover:bg-teal/10 active:scale-[0.98]
                      font-black py-4 rounded-2xl transition-all duration-150 text-base disabled:opacity-40">
-          加入候补 — 名额已满 ({roster.length}/{match.maxPlayers})
+          加入 Waitlist — 名额已满 ({roster.length}/{match.maxPlayers})
         </button>
       ) : r1Blocked ? (
         <div className="bg-surface/30 border border-surface rounded-2xl p-4 text-center">
@@ -501,7 +538,7 @@ export default function MatchDetailPage() {
       {waitlist.length > 0 && (
         <section>
           <h2 className="text-[10px] font-black text-slate uppercase tracking-widest mb-3">
-            候补 ({waitlist.length})
+            Waitlist ({waitlist.length})
           </h2>
           <div className="space-y-2">
             {waitlist.map((r) => (
@@ -514,6 +551,26 @@ export default function MatchDetailPage() {
                   <p className="text-slate font-semibold text-sm truncate">{r.displayName || '未命名'}</p>
                   {r.autoAccept && <p className="text-[10px] text-teal/70 font-bold mt-0.5">自动接受</p>}
                 </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Excused ── */}
+      {excusedList.length > 0 && (
+        <section>
+          <h2 className="text-[10px] font-black text-slate uppercase tracking-widest mb-3">
+            请假 ({excusedList.length})
+          </h2>
+          <div className="space-y-2">
+            {excusedList.map((r) => (
+              <div key={r.uid}
+                className="flex items-center gap-3 bg-navy border border-surface rounded-xl px-4 py-3 opacity-60">
+                <div className="flex-1 min-w-0">
+                  <p className="text-slate font-semibold text-sm truncate">{r.displayName || '未命名'}</p>
+                </div>
+                <span className="text-[10px] font-black text-muted shrink-0">请假</span>
               </div>
             ))}
           </div>
@@ -678,7 +735,7 @@ export default function MatchDetailPage() {
           style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
           <div className="bg-navy-light border border-surface rounded-3xl w-full max-w-sm p-6 space-y-4">
             <div className="w-10 h-1 bg-surface rounded-full mx-auto" />
-            <h3 className="font-black text-white text-lg">加入候补</h3>
+            <h3 className="font-black text-white text-lg">加入 Waitlist</h3>
 
             {/* Agreement text */}
             {(match.agreementText || defaultAgreement) && (
@@ -691,7 +748,7 @@ export default function MatchDetailPage() {
 
             <p className="text-slate text-sm leading-relaxed">
               名额已满，你将排在{' '}
-              <span className="text-white font-bold">候补 #{waitlist.length + 1}</span>。
+              <span className="text-white font-bold">Waitlist #{waitlist.length + 1}</span>。
               有人退出时按顺序通知。
             </p>
             <label className="flex items-center gap-3 cursor-pointer select-none">
@@ -721,7 +778,7 @@ export default function MatchDetailPage() {
               <button onClick={() => doRegister(true)} disabled={busy}
                 className="flex-1 bg-teal hover:bg-teal-dark text-pitch font-black py-3.5 rounded-xl
                            transition-colors disabled:opacity-40">
-                {busy ? '处理中...' : '同意并候补'}
+                {busy ? '处理中...' : '加入 Waitlist'}
               </button>
             </div>
           </div>

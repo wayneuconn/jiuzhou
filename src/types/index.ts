@@ -80,7 +80,7 @@ export interface Match {
 }
 
 // Registration
-export type RegistrationStatus = 'confirmed' | 'waitlist' | 'promoted' | 'withdrawn'
+export type RegistrationStatus = 'confirmed' | 'waitlist' | 'promoted' | 'withdrawn' | 'excused'
 
 export interface Registration {
   uid: string
