@@ -82,7 +82,7 @@ export default function MatchDetailPage() {
   const isCaptainB  = !!match?.captainB && userProfile?.uid === match.captainB
   const isAnyCaptain = isCaptainA || isCaptainB
 
-  const notRegistered = !myReg || myReg.status === 'withdrawn'
+  const notRegistered = !myReg || myReg.status === 'withdrawn' || myReg.status === 'excused'
   const canRegister   = notRegistered && isOpen && !isFull && (!isR1 || r1Ok)
   const canWaitlist   = notRegistered && isOpen && isFull  && (!isR1 || r1Ok)
   const r1Blocked     = notRegistered && isR1 && !r1Ok
@@ -177,7 +177,7 @@ export default function MatchDetailPage() {
       const regRef = doc(db, 'matches', matchId, 'registrations', userProfile.uid)
       await runTransaction(db, async (tx) => {
         const ex = await tx.get(regRef)
-        if (ex.exists() && ex.data().status !== 'withdrawn') throw new Error('Already registered')
+        if (ex.exists() && !['withdrawn', 'excused'].includes(ex.data().status)) throw new Error('Already registered')
         const positions = userProfile.preferredPositions ?? []
         if (joinWaitlist) {
           tx.set(regRef, {
@@ -413,8 +413,21 @@ export default function MatchDetailPage() {
         <div className="bg-surface/50 border border-surface rounded-2xl p-4 flex items-center justify-between">
           <div>
             <p className="text-white font-black text-sm">已请假</p>
-            <p className="text-slate text-xs mt-0.5">已通知队友</p>
+            <p className="text-slate text-xs mt-0.5">可随时重新报名</p>
           </div>
+          {isOpen && (
+            canRegister ? (
+              <button onClick={() => setAgreementOpen(true)} disabled={busy}
+                className="text-teal text-sm font-bold disabled:opacity-40 transition-colors hover:text-teal-dark">
+                重新报名
+              </button>
+            ) : canWaitlist ? (
+              <button onClick={() => setWaitlistModal(true)} disabled={busy}
+                className="text-teal text-sm font-bold disabled:opacity-40 transition-colors hover:text-teal-dark">
+                加入 Waitlist
+              </button>
+            ) : null
+          )}
         </div>
       ) : myReg?.status === 'waitlist' ? (
         <div className="bg-surface/50 border border-surface rounded-2xl p-4 flex items-center justify-between">
