@@ -98,6 +98,7 @@ interface MiniCardProps {
 export function MiniCard({ user, tier, dragging, onPointerDown }: MiniCardProps) {
   const ringClass = TIER_RING[tier]
   const textClass = TIER_TEXT[tier]
+  const topPos    = user.preferredPositions?.[0]
 
   return (
     <div
@@ -107,16 +108,25 @@ export function MiniCard({ user, tier, dragging, onPointerDown }: MiniCardProps)
                   ${dragging ? 'opacity-80 scale-110 z-50' : 'z-10'}`}
       style={{ touchAction: 'none' }}
     >
-      <div className={`w-9 h-9 rounded-full overflow-hidden ${ringClass}`}>
-        {user.avatar ? (
-          <img src={user.avatar} alt={user.displayName} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-teal to-teal-dark
-                          flex items-center justify-center">
-            <span className="text-pitch text-sm font-black">
-              {(user.displayName || user.phone).charAt(0).toUpperCase()}
-            </span>
-          </div>
+      <div className="relative">
+        <div className={`w-9 h-9 rounded-full overflow-hidden ${ringClass}`}>
+          {user.avatar ? (
+            <img src={user.avatar} alt={user.displayName} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-teal to-teal-dark
+                            flex items-center justify-center">
+              <span className="text-pitch text-sm font-black">
+                {(user.displayName || user.phone).charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
+        </div>
+        {topPos && (
+          <span className="absolute -right-[22px] top-1/2 -translate-y-1/2
+                           text-[8px] font-black px-1 py-0.5 rounded
+                           bg-pitch/80 text-white/90 border border-white/20 leading-none whitespace-nowrap">
+            {topPos}
+          </span>
         )}
       </div>
       <div className={`text-[9px] font-bold text-center leading-tight max-w-[52px] truncate

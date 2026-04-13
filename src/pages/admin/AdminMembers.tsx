@@ -89,12 +89,12 @@ export default function AdminMembers() {
                     {roleLabel[u.role]}
                   </span>
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border
-                    ${u.membershipType === 'annual'
+                    ${(u.role === 'admin' || u.membershipType === 'annual')
                       ? 'text-teal border-teal/30 bg-teal/10'
                       : u.membershipType === 'per_session'
                       ? 'text-gold border-gold/30 bg-gold/10'
                       : 'text-slate border-surface bg-surface'}`}>
-                    {membershipLabel[u.membershipType]}
+                    {u.role === 'admin' ? '年卡' : membershipLabel[u.membershipType]}
                   </span>
                 </div>
               </div>
@@ -121,34 +121,36 @@ export default function AdminMembers() {
                     </ActionBtn>
                   )}
 
-                  {/* Membership type */}
-                  {u.membershipType !== 'annual' && (
-                    <ActionBtn
-                      onClick={() => update(u.uid, { membershipType: 'annual' })}
-                      disabled={busy}
-                      variant="teal"
-                    >
-                      设为年卡
-                    </ActionBtn>
-                  )}
-                  {u.membershipType !== 'per_session' && (
-                    <ActionBtn
-                      onClick={() => update(u.uid, { membershipType: 'per_session' })}
-                      disabled={busy}
-                      variant="slate"
-                    >
-                      设为次卡
-                    </ActionBtn>
-                  )}
-                  {u.membershipType !== 'none' && (
-                    <ActionBtn
-                      onClick={() => update(u.uid, { membershipType: 'none' })}
-                      disabled={busy}
-                      variant="red"
-                    >
-                      清除会员
-                    </ActionBtn>
-                  )}
+                  {/* Membership type — not applicable to admins */}
+                  {u.role !== 'admin' && (<>
+                    {u.membershipType !== 'annual' && (
+                      <ActionBtn
+                        onClick={() => update(u.uid, { membershipType: 'annual' })}
+                        disabled={busy}
+                        variant="teal"
+                      >
+                        设为年卡
+                      </ActionBtn>
+                    )}
+                    {u.membershipType !== 'per_session' && (
+                      <ActionBtn
+                        onClick={() => update(u.uid, { membershipType: 'per_session' })}
+                        disabled={busy}
+                        variant="slate"
+                      >
+                        设为次卡
+                      </ActionBtn>
+                    )}
+                    {u.membershipType !== 'none' && (
+                      <ActionBtn
+                        onClick={() => update(u.uid, { membershipType: 'none' })}
+                        disabled={busy}
+                        variant="red"
+                      >
+                        清除会员
+                      </ActionBtn>
+                    )}
+                  </>)}
                 </div>
               )}
             </div>

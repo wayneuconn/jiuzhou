@@ -35,7 +35,24 @@
       "Bash(git rm:*)",
       "Bash(gh run:*)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('ok' if 'signIn' in d else d\\)\")",
-      "Bash(npx firebase:*)"
+      "Bash(npx firebase:*)",
+      "Bash(gsutil cors:*)",
+      "Bash(gcloud storage buckets update:*)",
+      "Bash(gcloud storage:*)",
+      "Bash(gcloud alpha:*)",
+      "Bash(gcloud projects:*)",
+      "Bash(gcloud beta:*)",
+      "Bash(firebase apps:list --project jiuzhou-493217)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(i['name']\\) for i in d.get\\('items',[]\\)]\")",
+      "Bash(gcloud auth:*)",
+      "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' 'https://storage.googleapis.com/storage/v1/b?project=jiuzhou-493217')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\('client_email',''\\) or d.get\\('account',''\\)\\)\")",
+      "Bash(python3:*)",
+      "Bash(node -e ':*)",
+      "Bash(firebase storage:buckets:list:*)",
+      "Bash(npm init:*)",
+      "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' https://firebasestorage.googleapis.com/v0/b/jiuzhou-493217.firebasestorage.app/o)",
+      "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' -H 'x-goog-user-project: jiuzhou-493217' https://firebasestorage.googleapis.com/v1beta/projects/jiuzhou-493217/buckets/jiuzhou-493217.firebasestorage.app)"
     ]
   }
 }

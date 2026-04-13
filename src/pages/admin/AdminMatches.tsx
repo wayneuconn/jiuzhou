@@ -134,7 +134,7 @@ export default function AdminMatches() {
       time:          timeStr,
       location:      match.location,
       maxPlayers:    String(match.maxPlayers),
-      agreementText: match.agreementText,
+      agreementText: match.agreementText || defaultAgreement,
     })
     setEditingId(match.id)
   }

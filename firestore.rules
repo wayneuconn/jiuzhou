@@ -3,25 +3,30 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
     function isAuth() {
       return request.auth != null;
     }
 
     function isAdmin() {
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isAuth() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     function isOwner(uid) {
       return isAuth() && request.auth.uid == uid;
     }
 
-    // Users: any authed user can read; only self can update profile fields; admin can update role/membership
+    function isMatchCaptain(matchId) {
+      let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
+      return isAuth() && (m.captainA == request.auth.uid || m.captainB == request.auth.uid);
+    }
+
+    // Users: any authed user can read; self can update profile; admin can update role/membership
     match /users/{uid} {
       allow read: if isAuth();
       allow create: if isOwner(uid);
-      allow update: if isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['role', 'membershipType'])
+      allow update: if isOwner(uid) &&
+                        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'membershipType'])
                     || isAdmin();
     }
 
@@ -33,32 +38,40 @@ service cloud.firestore {
       // Registrations subcollection
       match /registrations/{regId} {
         allow read: if isAuth();
-        // Allow create if match is open for registration and user is registering themselves
+        // Any authed user can register themselves while the match is open
         allow create: if isAuth() && request.auth.uid == regId &&
           (get(/databases/$(database)/documents/matches/$(matchId)).data.status == 'registration_r1' ||
            get(/databases/$(database)/documents/matches/$(matchId)).data.status == 'registration_r2');
-        // Allow update by self (withdraw) or admin
-        allow update: if isOwner(regId) || isAdmin();
+        // Self can withdraw; admin can do anything; captains can only update the `team` field
+        allow update: if isOwner(regId)
+          || isAdmin()
+          || (isMatchCaptain(matchId) &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['team']));
         allow delete: if isAdmin();
       }
 
-      // Formations: captain of the team can write; own team members can read
-      match /formations/teamA {
-        allow read: if isAuth() &&
-          (isAdmin() ||
-           get(/databases/$(database)/documents/matches/$(matchId)).data.captainA == request.auth.uid ||
-           get(/databases/$(database)/documents/matches/$(matchId)/registrations/$(request.auth.uid)).data.team == 'A');
-        allow write: if isAuth() &&
-          get(/databases/$(database)/documents/matches/$(matchId)).data.captainA == request.auth.uid;
-      }
-
-      match /formations/teamB {
-        allow read: if isAuth() &&
-          (isAdmin() ||
-           get(/databases/$(database)/documents/matches/$(matchId)).data.captainB == request.auth.uid ||
-           get(/databases/$(database)/documents/matches/$(matchId)/registrations/$(request.auth.uid)).data.team == 'B');
-        allow write: if isAuth() &&
-          get(/databases/$(database)/documents/matches/$(matchId)).data.captainB == request.auth.uid;
+      // Per-team and general board formations
+      match /formations/{formationId} {
+        allow read: if isAuth() && (
+          isAdmin() ||
+          formationId == 'board' ||
+          (formationId == 'teamA' && (
+            get(/databases/$(database)/documents/matches/$(matchId)).data.captainA == request.auth.uid ||
+            (exists(/databases/$(database)/documents/matches/$(matchId)/registrations/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/matches/$(matchId)/registrations/$(request.auth.uid)).data.team == 'A')
+          )) ||
+          (formationId == 'teamB' && (
+            get(/databases/$(database)/documents/matches/$(matchId)).data.captainB == request.auth.uid ||
+            (exists(/databases/$(database)/documents/matches/$(matchId)/registrations/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/matches/$(matchId)/registrations/$(request.auth.uid)).data.team == 'B')
+          ))
+        );
+        allow write: if isAdmin()
+          || (formationId == 'board'  && (isAdmin() || isMatchCaptain(matchId)))
+          || (formationId == 'teamA'  &&
+              get(/databases/$(database)/documents/matches/$(matchId)).data.captainA == request.auth.uid)
+          || (formationId == 'teamB'  &&
+              get(/databases/$(database)/documents/matches/$(matchId)).data.captainB == request.auth.uid);
       }
     }
 
@@ -79,28 +92,26 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Tactics board: any authed user can read; admin or active captain can write
+    // Global tactics board (legacy / fallback when no active match)
     match /tactics/{docId} {
       allow read: if isAuth();
       allow write: if isAuth();
     }
 
-    // Payment events: any authed user can read; admin can write
+    // Payment events
     match /paymentEvents/{eventId} {
       allow read: if isAuth();
       allow write: if isAdmin();
 
-      // Payments sub-collection
       match /payments/{uid} {
         allow read: if isOwner(uid) || isAdmin();
-        // User can create/update their own payment with status 'pending' only
         allow create: if isOwner(uid) && request.resource.data.status == 'pending';
         allow update: if isAdmin()
                       || (isOwner(uid) && request.resource.data.status == 'pending');
       }
     }
 
-    // Invite tokens: anyone can read (for link validation); admin can create/delete
+    // Invite tokens
     match /inviteTokens/{tokenId} {
       allow read: if true;
       allow write: if isAdmin();
