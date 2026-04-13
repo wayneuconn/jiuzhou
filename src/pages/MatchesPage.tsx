@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, query, orderBy, getDocs } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { useAuthStore } from '../stores/authStore'
 import type { Match, MatchStatus } from '../types'
 
 const STATUS_LABEL: Record<MatchStatus, string> = {
@@ -68,6 +69,9 @@ function MatchCard({ match }: { match: Match }) {
 }
 
 export default function MatchesPage() {
+  const { userProfile } = useAuthStore()
+  const isAdmin = userProfile?.role === 'admin'
+
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -88,8 +92,9 @@ export default function MatchesPage() {
     </div>
   )
 
-  const upcoming = matches.filter((m) => m.status !== 'completed' && m.status !== 'draft')
-  const past     = matches.filter((m) => m.status === 'completed')
+  const visible  = matches.filter((m) => isAdmin || m.status !== 'cancelled')
+  const upcoming = visible.filter((m) => m.status !== 'completed' && m.status !== 'draft')
+  const past     = visible.filter((m) => m.status === 'completed')
 
   return (
     <div className="space-y-6">
@@ -98,7 +103,7 @@ export default function MatchesPage() {
       {upcoming.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-[10px] font-black text-slate uppercase tracking-widest">即将进行</h2>
-          {upcoming.map((m) => <MatchCard key={m.id} match={m} />)}
+              {upcoming.map((m) => <MatchCard key={m.id} match={m} />)}
         </section>
       )}
 
