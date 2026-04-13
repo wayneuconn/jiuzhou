@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, query, orderBy, limit, getDocs, where, doc, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import Markdown from '../components/Markdown'
 import type { Announcement, Match } from '../types'
 
 function Spinner() {
@@ -16,6 +17,7 @@ export default function HomePage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [nextMatch, setNextMatch] = useState<Match | null>(null)
   const [season, setSeason] = useState('')
+  const [defaultAnnouncement, setDefaultAnnouncement] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -35,7 +37,10 @@ export default function HomePage() {
         )),
         getDoc(doc(db, 'config', 'appConfig')),
       ])
-      if (configSnap.exists()) setSeason(configSnap.data().season ?? '')
+      if (configSnap.exists()) {
+        setSeason(configSnap.data().season ?? '')
+        setDefaultAnnouncement(configSnap.data().defaultAnnouncement ?? '')
+      }
       setAnnouncements(
         annSnap.docs.map((d) => ({
           id: d.id, ...d.data(),
@@ -115,7 +120,13 @@ export default function HomePage() {
           公告
         </h2>
         {announcements.length === 0 ? (
-          <p className="text-muted text-sm">暂无公告</p>
+          defaultAnnouncement ? (
+            <div className="bg-navy border border-surface rounded-2xl p-4">
+              <Markdown>{defaultAnnouncement}</Markdown>
+            </div>
+          ) : (
+            <p className="text-muted text-sm">暂无公告</p>
+          )
         ) : (
           <div className="space-y-3">
             {announcements.map((a) => (
@@ -129,7 +140,7 @@ export default function HomePage() {
                     </span>
                   )}
                 </div>
-                <p className="text-slate text-sm leading-relaxed whitespace-pre-wrap">{a.content}</p>
+                <Markdown>{a.content}</Markdown>
                 <p className="text-muted text-xs">{a.createdAt?.toLocaleDateString()}</p>
               </div>
             ))}

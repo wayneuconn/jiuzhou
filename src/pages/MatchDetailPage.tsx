@@ -9,6 +9,7 @@ import { useAuthStore } from '../stores/authStore'
 import { Pitch } from '../components/Pitch'
 import type { PitchPlayer } from '../components/Pitch'
 import type { Match, Registration } from '../types'
+import Markdown from '../components/Markdown'
 
 const STATUS_LABEL: Record<string, string> = {
   draft:           '草稿',
@@ -729,9 +730,9 @@ export default function MatchDetailPage() {
           <div className="bg-navy-light border border-surface rounded-3xl w-full max-w-sm p-6 space-y-4">
             <div className="w-10 h-1 bg-surface rounded-full mx-auto" />
             <h3 className="font-black text-white text-lg">报名须知</h3>
-            <p className="text-slate text-sm leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap">
-              {match.agreementText || defaultAgreement || '报名即表示您同意遵守队伍规则并出席已报名的比赛。'}
-            </p>
+            <div className="max-h-48 overflow-y-auto">
+              <Markdown>{match.agreementText || defaultAgreement || '报名即表示您同意遵守队伍规则并出席已报名的比赛。'}</Markdown>
+            </div>
             <div className="flex gap-3">
               <button onClick={() => setAgreementOpen(false)}
                 className="flex-1 border border-surface text-slate font-bold py-3.5 rounded-xl
@@ -759,9 +760,9 @@ export default function MatchDetailPage() {
             {/* Agreement text */}
             {(match.agreementText || defaultAgreement) && (
               <div className="bg-surface/40 rounded-xl p-3 max-h-28 overflow-y-auto">
-                <p className="text-slate text-xs leading-relaxed whitespace-pre-wrap">
+                <Markdown className="text-xs">
                   {match.agreementText || defaultAgreement}
-                </p>
+                </Markdown>
               </div>
             )}
 

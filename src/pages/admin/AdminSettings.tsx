@@ -8,9 +8,10 @@ import type { CardThresholds } from '../../types'
 export default function AdminSettings() {
   const navigate = useNavigate()
 
-  const [season, setSeason]         = useState('')
-  const [thresholds, setThresholds] = useState<CardThresholds>(DEFAULT_THRESHOLDS)
-  const [defaultAgreement, setDefaultAgreement] = useState('')
+  const [season, setSeason]               = useState('')
+  const [thresholds, setThresholds]       = useState<CardThresholds>(DEFAULT_THRESHOLDS)
+  const [defaultAgreement, setDefaultAgreement]     = useState('')
+  const [defaultAnnouncement, setDefaultAnnouncement] = useState('')
   const [loading, setLoading]       = useState(true)
   const [saving, setSaving]         = useState(false)
   const [saved, setSaved]           = useState(false)
@@ -21,6 +22,7 @@ export default function AdminSettings() {
         setSeason(snap.data().season ?? '')
         setThresholds(snap.data().cardThresholds ?? DEFAULT_THRESHOLDS)
         setDefaultAgreement(snap.data().defaultAgreementText ?? '')
+        setDefaultAnnouncement(snap.data().defaultAnnouncement ?? '')
       }
       setLoading(false)
     })
@@ -33,6 +35,7 @@ export default function AdminSettings() {
         season,
         cardThresholds: thresholds,
         defaultAgreementText: defaultAgreement,
+        defaultAnnouncement,
       }, { merge: true })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -106,6 +109,24 @@ export default function AdminSettings() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Default announcement */}
+      <div className="bg-navy border border-surface rounded-2xl p-5 space-y-4">
+        <div>
+          <p className="text-white font-black text-sm">默认公告</p>
+          <p className="text-slate text-xs mt-1">无公告时首页显示的内容，支持 Markdown</p>
+        </div>
+        <textarea
+          value={loading ? '' : defaultAnnouncement}
+          onChange={(e) => setDefaultAnnouncement(e.target.value)}
+          placeholder="欢迎加入九州足球队！"
+          rows={4}
+          disabled={loading}
+          className="w-full bg-navy-light border border-surface focus:border-teal rounded-xl
+                     px-4 py-3 text-white placeholder-muted text-sm focus:outline-none
+                     transition-colors resize-none disabled:opacity-50 font-mono"
+        />
       </div>
 
       {/* Default agreement text */}

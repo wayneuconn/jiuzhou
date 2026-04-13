@@ -124,4 +124,5 @@ export interface AppConfig {
   cardThresholds: CardThresholds
   waitlistConfirmMinutes: number
   defaultAgreementText: string
+  defaultAnnouncement: string
 }
