@@ -22,6 +22,7 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<HomePage />} />
+        <Route path="/matches" element={<HomePage />} />
         <Route path="/match/:matchId" element={<MatchDetailPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route

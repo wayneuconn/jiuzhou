@@ -1,14 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
-  doc,
-  getDoc,
-  collection,
-  onSnapshot,
-  query,
-  orderBy,
-  runTransaction,
-  serverTimestamp,
+  doc, getDoc, collection, onSnapshot, query, orderBy,
+  runTransaction, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuthStore } from '../stores/authStore'
@@ -26,26 +20,22 @@ export default function MatchDetailPage() {
 
   const myReg = registrations.find((r) => r.uid === userProfile?.uid)
   const roster = registrations.filter((r) => r.status === 'confirmed' || r.status === 'promoted')
-  const waitlist = registrations.filter((r) => r.status === 'waitlist').sort((a, b) => (a.waitlistPosition ?? 0) - (b.waitlistPosition ?? 0))
+  const waitlist = registrations
+    .filter((r) => r.status === 'waitlist')
+    .sort((a, b) => (a.waitlistPosition ?? 0) - (b.waitlistPosition ?? 0))
 
   useEffect(() => {
     if (!matchId) return
-    const load = async () => {
-      const snap = await getDoc(doc(db, 'matches', matchId))
+    getDoc(doc(db, 'matches', matchId)).then((snap) => {
       if (snap.exists()) {
         setMatch({ id: snap.id, ...snap.data(), date: snap.data().date?.toDate(), createdAt: snap.data().createdAt?.toDate() } as Match)
       }
       setLoading(false)
-    }
-    load()
-
-    const unsubReg = onSnapshot(
+    })
+    return onSnapshot(
       query(collection(db, 'matches', matchId, 'registrations'), orderBy('registeredAt', 'asc')),
-      (snap) => {
-        setRegistrations(snap.docs.map((d) => ({ ...d.data(), registeredAt: d.data().registeredAt?.toDate() })) as Registration[])
-      }
+      (snap) => setRegistrations(snap.docs.map((d) => ({ ...d.data(), registeredAt: d.data().registeredAt?.toDate() })) as Registration[])
     )
-    return unsubReg
   }, [matchId])
 
   const handleRegister = async () => {
@@ -56,27 +46,22 @@ export default function MatchDetailPage() {
     try {
       const regRef = doc(db, 'matches', matchId, 'registrations', userProfile.uid)
       await runTransaction(db, async (tx) => {
-        const regSnap = await tx.get(regRef)
-        if (regSnap.exists()) throw new Error('Already registered.')
-        const confirmedCount = roster.length
-        const status = confirmedCount < match.maxPlayers ? 'confirmed' : 'waitlist'
-        const waitlistPosition = status === 'waitlist' ? waitlist.length + 1 : null
+        if ((await tx.get(regRef)).exists()) throw new Error('Already registered.')
+        const status = roster.length < match.maxPlayers ? 'confirmed' : 'waitlist'
         tx.set(regRef, {
           uid: userProfile.uid,
           displayName: userProfile.displayName,
           registeredAt: serverTimestamp(),
           status,
-          waitlistPosition,
+          waitlistPosition: status === 'waitlist' ? waitlist.length + 1 : null,
           promotedAt: null,
           confirmDeadline: null,
           team: null,
         })
       })
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Registration failed.')
-    } finally {
-      setActionLoading(false)
-    }
+      setError(e instanceof Error ? e.message : '报名失败')
+    } finally { setActionLoading(false) }
   }
 
   const handleWithdraw = async () => {
@@ -86,84 +71,104 @@ export default function MatchDetailPage() {
     try {
       const regRef = doc(db, 'matches', matchId, 'registrations', userProfile.uid)
       await runTransaction(db, async (tx) => {
-        const snap = await tx.get(regRef)
-        if (!snap.exists()) throw new Error('Not registered.')
+        if (!(await tx.get(regRef)).exists()) throw new Error('Not registered.')
         tx.update(regRef, { status: 'withdrawn' })
       })
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Withdrawal failed.')
-    } finally {
-      setActionLoading(false)
-    }
+      setError(e instanceof Error ? e.message : '操作失败')
+    } finally { setActionLoading(false) }
   }
 
   if (loading) {
-    return <div className="flex justify-center py-16"><div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
+    return (
+      <div className="flex justify-center py-16">
+        <div className="w-6 h-6 border-2 border-teal border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
+  if (!match) return <p className="text-slate">比赛不存在</p>
 
-  if (!match) return <p className="text-gray-500">Match not found.</p>
-
-  const canRegister = !myReg && ['registration_r1', 'registration_r2'].includes(match.status) &&
+  const canRegister = !myReg &&
+    ['registration_r1', 'registration_r2'].includes(match.status) &&
     (match.status === 'registration_r1' ? userProfile?.membershipStatus === 'active' : true)
 
   return (
-    <div className="space-y-6">
-      {/* Match Header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-800">
-          {match.date?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-        </h1>
-        <p className="text-gray-500 mt-1">{match.location}</p>
-        <span className="inline-block mt-2 text-xs font-semibold bg-green-100 text-green-700 px-3 py-1 rounded-full capitalize">
-          {match.status.replace('_', ' ')}
-        </span>
+    <div className="space-y-5">
+      {/* Match header */}
+      <div className="relative rounded-2xl overflow-hidden bg-navy border border-surface">
+        <div className="h-1 w-full bg-gradient-to-r from-teal via-teal/50 to-transparent" />
+        <div className="p-5">
+          <span className="text-[10px] font-black text-teal uppercase tracking-widest block mb-2">
+            Match Day
+          </span>
+          <h1 className="text-white text-2xl font-black tracking-tight leading-tight">
+            {match.date?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </h1>
+          <p className="text-slate text-sm mt-1">{match.location}</p>
+          <span className="inline-block mt-3 text-[10px] font-black text-gold bg-gold/10
+                           border border-gold/25 px-3 py-1 rounded-full uppercase tracking-widest capitalize">
+            {match.status.replace(/_/g, ' ')}
+          </span>
+        </div>
       </div>
 
-      {/* Action Button */}
-      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {/* Error */}
+      {error && (
+        <p className="text-red-hot text-sm bg-red-hot/10 border border-red-hot/20 px-3 py-2 rounded-lg">
+          {error}
+        </p>
+      )}
 
+      {/* CTA */}
       {canRegister && (
         <button
           onClick={() => setAgreementOpen(true)}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-colors"
+          className="w-full bg-teal hover:bg-teal-dark active:scale-95 text-pitch font-black
+                     py-4 rounded-xl transition-all duration-150 text-base uppercase tracking-wide"
         >
-          Sign Up ({roster.length}/{match.maxPlayers})
+          报名参加 — {roster.length}/{match.maxPlayers} 人
         </button>
       )}
 
+      {/* My registration */}
       {myReg && myReg.status !== 'withdrawn' && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+        <div className="bg-teal/10 border border-teal/30 rounded-xl p-4 flex items-center justify-between">
           <div>
-            <p className="font-semibold text-green-700 capitalize">{myReg.status}</p>
+            <p className="text-teal font-black text-sm uppercase tracking-wide">{myReg.status}</p>
             {myReg.status === 'waitlist' && (
-              <p className="text-sm text-green-600">Position #{myReg.waitlistPosition}</p>
+              <p className="text-slate text-xs mt-0.5">候补位置 #{myReg.waitlistPosition}</p>
             )}
           </div>
           <button
             onClick={handleWithdraw}
             disabled={actionLoading}
-            className="text-sm text-red-500 hover:text-red-700 disabled:opacity-50"
+            className="text-red-hot hover:text-red-400 text-sm font-bold disabled:opacity-40 transition-colors"
           >
-            Withdraw
+            取消报名
           </button>
         </div>
       )}
 
       {/* Roster */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-          Roster ({roster.length}/{match.maxPlayers})
+        <h2 className="text-[10px] font-black text-slate uppercase tracking-widest mb-3">
+          名单 <span className="text-teal">({roster.length}/{match.maxPlayers})</span>
         </h2>
         {roster.length === 0 ? (
-          <p className="text-gray-400 text-sm">No one signed up yet.</p>
+          <p className="text-muted text-sm">暂无人报名</p>
         ) : (
           <div className="space-y-2">
             {roster.map((r, i) => (
-              <div key={r.uid} className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3">
-                <span className="w-6 text-center text-sm font-bold text-gray-400">{i + 1}</span>
-                <span className="font-medium text-gray-800 flex-1">{r.displayName}</span>
+              <div key={r.uid}
+                className="flex items-center gap-3 bg-navy border border-surface rounded-xl px-4 py-3">
+                <span className="w-7 text-center text-xs font-black text-muted">{i + 1}</span>
+                <span className="flex-1 text-white font-semibold text-sm">{r.displayName || '未命名'}</span>
                 {r.team && (
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${r.team === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border
+                    ${r.team === 'A'
+                      ? 'text-team-a border-team-a/30 bg-team-a/10'
+                      : 'text-team-b border-team-b/30 bg-team-b/10'
+                    }`}>
                     Team {r.team}
                   </span>
                 )}
@@ -176,41 +181,45 @@ export default function MatchDetailPage() {
       {/* Waitlist */}
       {waitlist.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Waitlist ({waitlist.length})
+          <h2 className="text-[10px] font-black text-slate uppercase tracking-widest mb-3">
+            候补 ({waitlist.length})
           </h2>
           <div className="space-y-2">
             {waitlist.map((r) => (
-              <div key={r.uid} className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
-                <span className="w-6 text-center text-sm font-bold text-gray-400">#{r.waitlistPosition}</span>
-                <span className="font-medium text-gray-600 flex-1">{r.displayName}</span>
+              <div key={r.uid}
+                className="flex items-center gap-3 bg-navy border border-surface rounded-xl px-4 py-3 opacity-70">
+                <span className="w-7 text-center text-xs font-black text-muted">#{r.waitlistPosition}</span>
+                <span className="flex-1 text-slate font-semibold text-sm">{r.displayName || '未命名'}</span>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Agreement Modal */}
+      {/* Agreement modal */}
       {agreementOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4">
-            <h3 className="font-bold text-gray-800 text-lg">Registration Agreement</h3>
-            <p className="text-gray-600 text-sm whitespace-pre-wrap max-h-48 overflow-y-auto">
-              {match.agreementText || 'By signing up, you agree to follow the team code of conduct and attend the match you register for.'}
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end justify-center z-50 p-4">
+          <div className="bg-navy-light border border-surface rounded-3xl w-full max-w-sm p-6 space-y-4">
+            <div className="w-10 h-1 bg-surface rounded-full mx-auto" />
+            <h3 className="font-black text-white text-lg">报名须知</h3>
+            <p className="text-slate text-sm leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap">
+              {match.agreementText || '报名即表示您同意遵守队伍规则并出席已报名的比赛。'}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setAgreementOpen(false)}
-                className="flex-1 border border-gray-300 py-3 rounded-xl font-medium text-gray-700 hover:bg-gray-50"
+                className="flex-1 border border-surface text-slate font-bold py-3.5 rounded-xl
+                           hover:border-muted transition-colors"
               >
-                Cancel
+                取消
               </button>
               <button
                 onClick={handleRegister}
                 disabled={actionLoading}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors"
+                className="flex-1 bg-teal hover:bg-teal-dark text-pitch font-black py-3.5 rounded-xl
+                           transition-colors disabled:opacity-40"
               >
-                I Agree
+                同意并报名
               </button>
             </div>
           </div>

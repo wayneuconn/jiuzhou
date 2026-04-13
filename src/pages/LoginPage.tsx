@@ -11,9 +11,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 
 declare global {
-  interface Window {
-    recaptchaVerifier?: RecaptchaVerifier
-  }
+  interface Window { recaptchaVerifier?: RecaptchaVerifier }
 }
 
 const isWeChat = /MicroMessenger/i.test(navigator.userAgent)
@@ -26,49 +24,36 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const confirmationRef = useRef<ConfirmationResult | null>(null)
-  const recaptchaContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     return () => {
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear()
-        window.recaptchaVerifier = undefined
-      }
+      window.recaptchaVerifier?.clear()
+      window.recaptchaVerifier = undefined
     }
   }, [])
 
   const getRecaptcha = () => {
     if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        'recaptcha-container',
-        { size: 'invisible' }
-      )
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' })
     }
     return window.recaptchaVerifier
   }
 
   const handleSendCode = async () => {
     setError('')
-    const normalized = phone.trim().startsWith('+') ? phone.trim() : `+1${phone.trim()}`
-    if (normalized.replace(/\D/g, '').length < 10) {
-      setError('Please enter a valid US phone number.')
-      return
-    }
+    const digits = phone.replace(/\D/g, '')
+    if (digits.length !== 10) { setError('请输入10位手机号'); return }
     setLoading(true)
     try {
-      const verifier = getRecaptcha()
-      const confirmation = await signInWithPhoneNumber(auth, normalized, verifier)
+      const confirmation = await signInWithPhoneNumber(auth, `+1${digits}`, getRecaptcha())
       confirmationRef.current = confirmation
-      localStorage.setItem('jz_phone', phone.trim())
+      localStorage.setItem('jz_phone', phone)
       setStep('code')
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to send code.')
+      setError(e instanceof Error ? e.message : '发送失败，请重试')
       window.recaptchaVerifier?.clear()
       window.recaptchaVerifier = undefined
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   const handleVerifyCode = async () => {
@@ -77,34 +62,28 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const result = await confirmationRef.current.confirm(code.trim())
-      await ensureUserProfile(result.user.uid, phone.trim())
+      await ensureUserProfile(result.user.uid, phone)
       navigate('/')
     } catch {
-      setError('Invalid verification code. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+      setError('验证码错误，请重试')
+    } finally { setLoading(false) }
   }
 
   const handleGoogleSignIn = async () => {
     setError('')
     setLoading(true)
     try {
-      const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(auth, provider)
+      const result = await signInWithPopup(auth, new GoogleAuthProvider())
       await ensureUserProfile(result.user.uid, result.user.phoneNumber ?? '')
       navigate('/')
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Google sign-in failed.')
-    } finally {
-      setLoading(false)
-    }
+      setError(e instanceof Error ? e.message : 'Google 登录失败')
+    } finally { setLoading(false) }
   }
 
   const ensureUserProfile = async (uid: string, phoneNumber: string) => {
     const ref = doc(db, 'users', uid)
-    const snap = await getDoc(ref)
-    if (!snap.exists()) {
+    if (!(await getDoc(ref)).exists()) {
       await setDoc(ref, {
         displayName: '',
         phone: phoneNumber,
@@ -118,49 +97,74 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-700 to-green-900 flex flex-col items-center justify-center px-4">
-      <div ref={recaptchaContainerRef} id="recaptcha-container" />
+    <div className="min-h-screen bg-pitch flex flex-col items-center justify-center px-6">
+      <div id="recaptcha-container" />
 
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8">
-        <h1 className="text-3xl font-bold text-center text-green-700 mb-1">九州</h1>
-        <p className="text-center text-gray-500 text-sm mb-8">Football Team Management</p>
+      {/* Logo */}
+      <div className="flex flex-col items-center mb-10">
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal to-teal-dark
+                        flex items-center justify-center mb-4 shadow-2xl shadow-teal/30">
+          <span className="text-pitch text-3xl font-black">九</span>
+        </div>
+        <h1 className="text-white text-4xl font-black tracking-tight">九州</h1>
+        <p className="text-slate text-xs mt-1 tracking-[0.3em] uppercase">Football Team</p>
+      </div>
 
+      {/* Form card */}
+      <div className="w-full max-w-sm bg-navy border border-surface rounded-3xl p-8 shadow-2xl shadow-black/60">
         {step === 'phone' ? (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number
+              <label className="block text-[10px] font-black text-slate uppercase tracking-widest mb-2">
+                手机号
               </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1 201 555 0100"
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
-                onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
-              />
-              <p className="text-xs text-gray-400 mt-1">US numbers only (+1). We'll send a 6-digit code.</p>
+              <div className="flex rounded-xl overflow-hidden border border-surface focus-within:border-teal transition-colors">
+                <span className="px-4 py-3.5 bg-surface text-slate font-mono text-base select-none shrink-0">
+                  +1
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="2015550100"
+                  maxLength={10}
+                  className="flex-1 px-4 py-3.5 bg-navy-light text-white placeholder-muted text-base focus:outline-none"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
+                  autoFocus
+                />
+              </div>
+              <p className="text-muted text-xs mt-1.5">输入10位美国手机号</p>
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+
+            {error && (
+              <p className="text-red-hot text-sm bg-red-hot/10 border border-red-hot/20 px-3 py-2 rounded-lg">
+                {error}
+              </p>
+            )}
+
             <button
               onClick={handleSendCode}
-              disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
+              disabled={loading || phone.length < 10}
+              className="w-full bg-teal hover:bg-teal-dark active:scale-95 text-pitch font-black
+                         py-4 rounded-xl transition-all duration-150 disabled:opacity-40 text-base tracking-wide"
             >
-              {loading ? 'Sending...' : 'Send Code'}
+              {loading ? '发送中...' : '发送验证码'}
             </button>
 
             {!isWeChat && (
               <>
-                <div className="relative flex items-center">
-                  <div className="flex-1 border-t border-gray-200" />
-                  <span className="mx-3 text-xs text-gray-400">or</span>
-                  <div className="flex-1 border-t border-gray-200" />
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 border-t border-surface" />
+                  <span className="text-muted text-xs">或</span>
+                  <div className="flex-1 border-t border-surface" />
                 </div>
                 <button
                   onClick={handleGoogleSignIn}
                   disabled={loading}
-                  className="w-full border border-gray-300 hover:bg-gray-50 disabled:opacity-50 font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                  className="w-full bg-navy-light border border-surface hover:border-slate text-white
+                             font-medium py-3.5 rounded-xl flex items-center justify-center gap-3
+                             transition-all duration-150 disabled:opacity-40"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/>
@@ -176,35 +180,45 @@ export default function LoginPage() {
         ) : (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Verification Code
+              <label className="block text-[10px] font-black text-slate uppercase tracking-widest mb-2">
+                验证码
               </label>
               <input
                 type="text"
                 inputMode="numeric"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="123456"
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
                 maxLength={6}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-2xl tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full bg-navy-light border border-surface focus:border-teal rounded-xl
+                           px-4 py-4 text-3xl font-mono tracking-[0.5em] text-center text-teal
+                           focus:outline-none transition-colors placeholder-muted"
                 onKeyDown={(e) => e.key === 'Enter' && handleVerifyCode()}
                 autoFocus
               />
-              <p className="text-xs text-gray-400 mt-1">Sent to {phone}</p>
+              <p className="text-muted text-xs mt-1.5">已发送至 +1 {phone}</p>
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+
+            {error && (
+              <p className="text-red-hot text-sm bg-red-hot/10 border border-red-hot/20 px-3 py-2 rounded-lg">
+                {error}
+              </p>
+            )}
+
             <button
               onClick={handleVerifyCode}
               disabled={loading || code.length < 6}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
+              className="w-full bg-teal hover:bg-teal-dark active:scale-95 text-pitch font-black
+                         py-4 rounded-xl transition-all duration-150 disabled:opacity-40 text-base"
             >
-              {loading ? 'Verifying...' : 'Verify'}
+              {loading ? '验证中...' : '验证'}
             </button>
+
             <button
               onClick={() => { setStep('phone'); setCode(''); setError('') }}
-              className="w-full text-sm text-gray-500 hover:text-gray-700"
+              className="w-full text-slate hover:text-white text-sm font-medium transition-colors py-1"
             >
-              ← Back
+              ← 返回
             </button>
           </div>
         )}
