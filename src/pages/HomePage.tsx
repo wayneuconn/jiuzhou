@@ -13,12 +13,20 @@ function Spinner() {
   )
 }
 
+// Module-level cache: persists across in-session tab switches without re-fetching
+let _cache: {
+  announcements: Announcement[]
+  nextMatch: Match | null
+  season: string
+  defaultAnnouncement: string
+} | null = null
+
 export default function HomePage() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  const [nextMatch, setNextMatch] = useState<Match | null>(null)
-  const [season, setSeason] = useState('')
-  const [defaultAnnouncement, setDefaultAnnouncement] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [announcements, setAnnouncements] = useState<Announcement[]>(_cache?.announcements ?? [])
+  const [nextMatch, setNextMatch] = useState<Match | null>(_cache?.nextMatch ?? null)
+  const [season, setSeason] = useState(_cache?.season ?? '')
+  const [defaultAnnouncement, setDefaultAnnouncement] = useState(_cache?.defaultAnnouncement ?? '')
+  const [loading, setLoading] = useState(!_cache)
 
   useEffect(() => {
     const load = async () => {
@@ -37,21 +45,23 @@ export default function HomePage() {
         )),
         getDoc(doc(db, 'config', 'appConfig')),
       ])
-      if (configSnap.exists()) {
-        setSeason(configSnap.data().season ?? '')
-        setDefaultAnnouncement(configSnap.data().defaultAnnouncement ?? '')
-      }
-      setAnnouncements(
-        annSnap.docs.map((d) => ({
-          id: d.id, ...d.data(),
-          createdAt: d.data().createdAt?.toDate(),
-          updatedAt: d.data().updatedAt?.toDate(),
-        })) as Announcement[]
-      )
-      if (!matchSnap.empty) {
+      const newSeason = configSnap.exists() ? (configSnap.data().season ?? '') : ''
+      const newDefaultAnn = configSnap.exists() ? (configSnap.data().defaultAnnouncement ?? '') : ''
+      const newAnnouncements = annSnap.docs.map((d) => ({
+        id: d.id, ...d.data(),
+        createdAt: d.data().createdAt?.toDate(),
+        updatedAt: d.data().updatedAt?.toDate(),
+      })) as Announcement[]
+      const newNextMatch = matchSnap.empty ? null : (() => {
         const d = matchSnap.docs[0]
-        setNextMatch({ id: d.id, ...d.data(), date: d.data().date?.toDate(), createdAt: d.data().createdAt?.toDate() } as Match)
-      }
+        return { id: d.id, ...d.data(), date: d.data().date?.toDate(), createdAt: d.data().createdAt?.toDate() } as Match
+      })()
+
+      _cache = { announcements: newAnnouncements, nextMatch: newNextMatch, season: newSeason, defaultAnnouncement: newDefaultAnn }
+      setSeason(newSeason)
+      setDefaultAnnouncement(newDefaultAnn)
+      setAnnouncements(newAnnouncements)
+      setNextMatch(newNextMatch)
       setLoading(false)
     }
     load()

@@ -10,6 +10,7 @@ interface Props {
 export default function ProtectedRoute({ children, requiredRole }: Props) {
   const { firebaseUser, userProfile, loading } = useAuthStore()
 
+  // No cached profile and Firebase not ready yet → show spinner
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-pitch">
@@ -21,7 +22,8 @@ export default function ProtectedRoute({ children, requiredRole }: Props) {
     )
   }
 
-  if (!firebaseUser) return <Navigate to="/login" replace />
+  // Firebase resolved with no user, and no cached profile to show optimistically
+  if (!firebaseUser && !userProfile) return <Navigate to="/login" replace />
 
   if (requiredRole && userProfile?.role !== requiredRole) {
     return <Navigate to="/" replace />
