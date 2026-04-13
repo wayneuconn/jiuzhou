@@ -85,11 +85,13 @@ export type RegistrationStatus = 'confirmed' | 'waitlist' | 'promoted' | 'withdr
 export interface Registration {
   uid: string
   displayName: string
+  preferredPositions?: string[]
   registeredAt: Date
   status: RegistrationStatus
   waitlistPosition?: number | null
   promotedAt?: Date | null
   confirmDeadline?: Date | null
+  autoAccept?: boolean
   team?: 'A' | 'B' | null
 }
 

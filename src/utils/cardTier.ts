@@ -15,12 +15,17 @@ export function getCardTier(count: number, thresholds: CardThresholds): CardTier
   return 'none'
 }
 
-export const TIER_LABEL: Record<CardTier, string> = {
-  blue:   '蓝卡',
-  gold:   '金卡',
-  silver: '银卡',
-  bronze: '铜卡',
-  none:   '',
+// Returns how many more games to the next tier, and the color of that tier.
+// Returns null if already at max tier.
+export function getNextTierProgress(
+  count: number,
+  thresholds: CardThresholds,
+): { gamesLeft: number; colorClass: string } | null {
+  if (count >= thresholds.blue) return null
+  if (count >= thresholds.gold)   return { gamesLeft: thresholds.blue   - count, colorClass: 'text-royal' }
+  if (count >= thresholds.silver) return { gamesLeft: thresholds.gold   - count, colorClass: 'text-gold'  }
+  if (count >= thresholds.bronze) return { gamesLeft: thresholds.silver - count, colorClass: 'text-silver' }
+  return                                 { gamesLeft: thresholds.bronze - count, colorClass: 'text-bronze' }
 }
 
 export const TIER_BORDER: Record<CardTier, string> = {
@@ -39,10 +44,11 @@ export const TIER_TEXT: Record<CardTier, string> = {
   none:   'text-slate',
 }
 
+// Rings made thicker (ring-[3px]) and with a background glow for visibility on the pitch
 export const TIER_RING: Record<CardTier, string> = {
-  blue:   'ring-2 ring-royal',
-  gold:   'ring-2 ring-gold',
-  silver: 'ring-2 ring-silver',
-  bronze: 'ring-2 ring-bronze',
-  none:   'ring-1 ring-surface',
+  blue:   'ring-[3px] ring-royal   shadow-[0_0_8px_2px_rgba(79,144,225,0.6)]',
+  gold:   'ring-[3px] ring-gold    shadow-[0_0_8px_2px_rgba(240,180,41,0.55)]',
+  silver: 'ring-[3px] ring-silver  shadow-[0_0_6px_2px_rgba(168,169,173,0.5)]',
+  bronze: 'ring-[3px] ring-bronze  shadow-[0_0_6px_2px_rgba(184,115,51,0.45)]',
+  none:   'ring-2 ring-white/20',
 }

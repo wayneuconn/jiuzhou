@@ -8,17 +8,19 @@ import type { CardThresholds } from '../../types'
 export default function AdminSettings() {
   const navigate = useNavigate()
 
-  const [season, setSeason]   = useState('')
+  const [season, setSeason]         = useState('')
   const [thresholds, setThresholds] = useState<CardThresholds>(DEFAULT_THRESHOLDS)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving]   = useState(false)
-  const [saved, setSaved]     = useState(false)
+  const [defaultAgreement, setDefaultAgreement] = useState('')
+  const [loading, setLoading]       = useState(true)
+  const [saving, setSaving]         = useState(false)
+  const [saved, setSaved]           = useState(false)
 
   useEffect(() => {
     getDoc(doc(db, 'config', 'appConfig')).then((snap) => {
       if (snap.exists()) {
         setSeason(snap.data().season ?? '')
         setThresholds(snap.data().cardThresholds ?? DEFAULT_THRESHOLDS)
+        setDefaultAgreement(snap.data().defaultAgreementText ?? '')
       }
       setLoading(false)
     })
@@ -30,6 +32,7 @@ export default function AdminSettings() {
       await setDoc(doc(db, 'config', 'appConfig'), {
         season,
         cardThresholds: thresholds,
+        defaultAgreementText: defaultAgreement,
       }, { merge: true })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -103,6 +106,24 @@ export default function AdminSettings() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Default agreement text */}
+      <div className="bg-navy border border-surface rounded-2xl p-5 space-y-4">
+        <div>
+          <p className="text-white font-black text-sm">默认参赛须知</p>
+          <p className="text-slate text-xs mt-1">新建比赛时自动预填的协议文本</p>
+        </div>
+        <textarea
+          value={loading ? '' : defaultAgreement}
+          onChange={(e) => setDefaultAgreement(e.target.value)}
+          placeholder="参加本次比赛即表示同意遵守队规。"
+          rows={4}
+          disabled={loading}
+          className="w-full bg-navy-light border border-surface focus:border-teal rounded-xl
+                     px-4 py-3 text-white placeholder-muted text-sm focus:outline-none
+                     transition-colors resize-none disabled:opacity-50"
+        />
       </div>
 
       <button

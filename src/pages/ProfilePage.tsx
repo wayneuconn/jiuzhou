@@ -92,6 +92,8 @@ export default function ProfilePage() {
     }
   }
 
+  // Clicking a selected position removes it (rest shift up in priority).
+  // Clicking an unselected position appends it as the lowest priority.
   const togglePosition = (pos: string) => {
     setPositions((prev) => {
       if (prev.includes(pos)) return prev.filter((p) => p !== pos)
@@ -159,7 +161,7 @@ export default function ProfilePage() {
 
       {/* Player card */}
       <div className="relative">
-        <PlayerCard user={userProfile} tier={tier} onAvatarClick={handleAvatarClick} />
+        <PlayerCard user={userProfile} tier={tier} thresholds={thresholds} onAvatarClick={handleAvatarClick} />
         {uploading && (
           <div className="absolute inset-0 bg-navy/70 rounded-2xl flex items-center justify-center">
             <div className="flex items-center gap-2 text-teal text-sm font-bold">
@@ -247,20 +249,39 @@ export default function ProfilePage() {
       <div className="bg-navy border border-surface rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
           <label className="text-[10px] font-black text-slate uppercase tracking-widest">惯用位置</label>
-          <span className={`text-xs font-black tabular-nums ${positions.length === 3 ? 'text-gold' : 'text-slate'}`}>
-            {positions.length}/3
-          </span>
+          <span className="text-[10px] text-muted">按优先级选最多 3 个</span>
         </div>
+
+        {/* Priority order display */}
+        {positions.length > 0 && (
+          <div className="flex gap-2 mb-3">
+            {positions.map((pos, i) => (
+              <div key={pos} className="flex flex-col items-center gap-1">
+                <span className="text-[9px] font-black text-teal uppercase tracking-widest">
+                  {i === 0 ? '首选' : i === 1 ? '次选' : '第三'}
+                </span>
+                <button
+                  onClick={() => togglePosition(pos)}
+                  className="px-3.5 py-2 rounded-lg text-xs font-black border
+                             bg-teal border-teal text-pitch shadow-md shadow-teal/30
+                             active:scale-95 transition-all"
+                >
+                  {pos}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
           {POSITIONS.map((pos) => {
             const selected = positions.includes(pos)
             const disabled = !selected && positions.length >= 3
+            if (selected) return null // already shown above
             return (
               <button key={pos} onClick={() => togglePosition(pos)} disabled={disabled}
                 className={`px-3.5 py-2 rounded-lg text-xs font-black border transition-all duration-150
-                  ${selected
-                    ? 'bg-teal border-teal text-pitch shadow-md shadow-teal/30'
-                    : disabled
+                  ${disabled
                     ? 'bg-transparent border-surface text-muted cursor-not-allowed opacity-40'
                     : 'bg-transparent border-surface text-slate hover:border-teal/50 hover:text-white'
                   }`}
@@ -270,6 +291,9 @@ export default function ProfilePage() {
             )
           })}
         </div>
+        {positions.length > 0 && (
+          <p className="text-muted text-xs mt-2">点击已选位置可移除</p>
+        )}
       </div>
 
       <button onClick={handleSave} disabled={saving || !displayName.trim()}

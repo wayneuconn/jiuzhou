@@ -12,21 +12,23 @@ export default function AdminPayments() {
   const navigate = useNavigate()
   const { userProfile } = useAuthStore()
 
-  const [events, setEvents] = useState<PaymentEvent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [events, setEvents]           = useState<PaymentEvent[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [selectedId, setSelectedId]   = useState<string | null>(null)
   const [eventPayments, setEventPayments] = useState<Payment[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
-  const [showForm, setShowForm] = useState(false)
+  const [showForm, setShowForm]       = useState(false)
+  const [editingId, setEditingId]     = useState<string | null>(null)
+  const [confirming, setConfirming]   = useState<string | null>(null)
+  const [saving, setSaving]           = useState(false)
 
-  // Create form state
-  const [title, setTitle] = useState('')
-  const [type, setType] = useState<PaymentEventType>('member')
+  // Shared form state (used for both create and edit)
+  const [title, setTitle]             = useState('')
+  const [type, setType]               = useState<PaymentEventType>('member')
   const [annualAmount, setAnnualAmount] = useState('')
   const [perSessionAmount, setPerSessionAmount] = useState('')
   const [venmoHandle, setVenmoHandle] = useState('')
-  const [creating, setCreating] = useState(false)
-  const [confirming, setConfirming] = useState<string | null>(null)
+  const [creating, setCreating]       = useState(false)
 
   const load = async () => {
     const snap = await getDocs(query(collection(db, 'paymentEvents'), orderBy('createdAt', 'desc')))
@@ -41,12 +43,17 @@ export default function AdminPayments() {
   const loadPayments = async (eventId: string) => {
     if (selectedId === eventId) { setSelectedId(null); return }
     setSelectedId(eventId)
+    setEditingId(null)
     setLoadingPayments(true)
     const snap = await getDocs(collection(db, 'paymentEvents', eventId, 'payments'))
     setEventPayments(snap.docs.map((d) => ({
       id: d.id, ...d.data(), paidAt: d.data().paidAt?.toDate(),
     })) as Payment[])
     setLoadingPayments(false)
+  }
+
+  const resetForm = () => {
+    setTitle(''); setType('member'); setAnnualAmount(''); setPerSessionAmount(''); setVenmoHandle('')
   }
 
   const handleCreate = async () => {
@@ -65,8 +72,7 @@ export default function AdminPayments() {
         status: 'open',
         createdAt: serverTimestamp(),
       })
-      // reset form
-      setTitle(''); setType('member'); setAnnualAmount(''); setPerSessionAmount(''); setVenmoHandle('')
+      resetForm()
       setShowForm(false)
       await load()
       setSelectedId(ref.id)
@@ -74,18 +80,48 @@ export default function AdminPayments() {
     } finally { setCreating(false) }
   }
 
+  const startEdit = (event: PaymentEvent) => {
+    setTitle(event.title)
+    setType(event.type)
+    setAnnualAmount(String(event.annualAmount))
+    setPerSessionAmount(String(event.perSessionAmount))
+    setVenmoHandle(event.venmoHandle)
+    setEditingId(event.id)
+    setShowForm(false)
+  }
+
+  const handleSaveEdit = async (eventId: string) => {
+    const ann = parseFloat(annualAmount)
+    const per = parseFloat(perSessionAmount)
+    if (!title.trim() || !venmoHandle.trim() || isNaN(ann) || isNaN(per)) return
+    setSaving(true)
+    try {
+      await updateDoc(doc(db, 'paymentEvents', eventId), {
+        title: title.trim(),
+        type,
+        annualAmount: ann,
+        perSessionAmount: per,
+        venmoHandle: venmoHandle.trim(),
+      })
+      setEvents((prev) => prev.map((e) => e.id === eventId
+        ? { ...e, title: title.trim(), type, annualAmount: ann, perSessionAmount: per, venmoHandle: venmoHandle.trim() }
+        : e
+      ))
+      setEditingId(null)
+      resetForm()
+    } finally { setSaving(false) }
+  }
+
   const handleConfirm = async (payment: Payment, event: PaymentEvent) => {
     if (!userProfile) return
     setConfirming(payment.uid)
     try {
       const batch = writeBatch(db)
-      // Confirm payment
       batch.update(doc(db, 'paymentEvents', event.id, 'payments', payment.uid), {
         status: 'confirmed',
         confirmedAt: serverTimestamp(),
         confirmedBy: userProfile.uid,
       })
-      // Update user membership if member-type event
       if (event.type === 'member') {
         batch.update(doc(db, 'users', payment.uid), { membershipType: 'annual' })
       }
@@ -102,12 +138,78 @@ export default function AdminPayments() {
     setEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, status: newStatus } : e))
   }
 
-  const pending = eventPayments.filter((p) => p.status === 'pending')
+  const pending   = eventPayments.filter((p) => p.status === 'pending')
   const confirmed = eventPayments.filter((p) => p.status === 'confirmed')
 
   if (loading) return (
     <div className="flex justify-center py-16">
       <div className="w-6 h-6 border-2 border-teal border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  // Shared form body (create & edit)
+  const FormBody = ({ onSubmit, submitting, submitLabel }: {
+    onSubmit: () => void; submitting: boolean; submitLabel: string
+  }) => (
+    <div className="space-y-3">
+      <div>
+        <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">标题</label>
+        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+          placeholder="例如：2025赛季会费"
+          className="w-full bg-navy-light border border-surface focus:border-teal rounded-xl
+                     px-4 py-3 text-white placeholder-muted text-sm focus:outline-none transition-colors"
+        />
+      </div>
+
+      <div>
+        <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">类型</label>
+        <div className="flex gap-2">
+          {(['member', 'event'] as PaymentEventType[]).map((t) => (
+            <button key={t} onClick={() => setType(t)}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all
+                ${type === t ? 'bg-teal border-teal text-pitch' : 'border-surface text-slate hover:text-white'}`}>
+              {t === 'member' ? '会费' : '活动费'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">年卡 ($)</label>
+          <input type="number" value={annualAmount} onChange={(e) => setAnnualAmount(e.target.value)}
+            placeholder="0"
+            className="w-full bg-navy-light border border-surface focus:border-teal rounded-xl
+                       px-4 py-3 text-white placeholder-muted text-sm focus:outline-none transition-colors"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">次卡 ($)</label>
+          <input type="number" value={perSessionAmount} onChange={(e) => setPerSessionAmount(e.target.value)}
+            placeholder="0"
+            className="w-full bg-navy-light border border-surface focus:border-teal rounded-xl
+                       px-4 py-3 text-white placeholder-muted text-sm focus:outline-none transition-colors"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">Venmo 账号</label>
+        <div className="flex rounded-xl overflow-hidden border border-surface focus-within:border-teal transition-colors">
+          <span className="px-3 py-3 bg-surface text-slate text-sm select-none shrink-0">@</span>
+          <input type="text" value={venmoHandle} onChange={(e) => setVenmoHandle(e.target.value)}
+            placeholder="venmo-username"
+            className="flex-1 px-4 py-3 bg-navy-light text-white placeholder-muted text-sm focus:outline-none"
+          />
+        </div>
+      </div>
+
+      <button onClick={onSubmit}
+        disabled={submitting || !title.trim() || !venmoHandle.trim() || !annualAmount || !perSessionAmount}
+        className="w-full bg-teal hover:bg-teal-dark active:scale-95 text-pitch font-black
+                   py-4 rounded-xl transition-all duration-150 disabled:opacity-40">
+        {submitting ? '保存中...' : submitLabel}
+      </button>
     </div>
   )
 
@@ -120,7 +222,7 @@ export default function AdminPayments() {
         </button>
         <h1 className="text-white text-xl font-black">Payments</h1>
         <button
-          onClick={() => setShowForm((v) => !v)}
+          onClick={() => { resetForm(); setEditingId(null); setShowForm((v) => !v) }}
           className="ml-auto bg-teal hover:bg-teal-dark text-pitch font-black
                      text-xs px-4 py-2 rounded-xl transition-colors"
         >
@@ -132,69 +234,7 @@ export default function AdminPayments() {
       {showForm && (
         <div className="bg-navy border border-surface rounded-2xl p-5 space-y-4">
           <p className="text-white font-black text-sm">新建支付活动</p>
-
-          <div>
-            <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">标题</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-              placeholder="例如：2025赛季会费"
-              className="w-full bg-navy-light border border-surface focus:border-teal rounded-xl
-                         px-4 py-3 text-white placeholder-muted text-sm focus:outline-none transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">类型</label>
-            <div className="flex gap-2">
-              {(['member', 'event'] as PaymentEventType[]).map((t) => (
-                <button key={t} onClick={() => setType(t)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all
-                    ${type === t
-                      ? 'bg-teal border-teal text-pitch'
-                      : 'border-surface text-slate hover:text-white'}`}>
-                  {t === 'member' ? '会费' : '活动费'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">年卡金额 ($)</label>
-              <input type="number" value={annualAmount} onChange={(e) => setAnnualAmount(e.target.value)}
-                placeholder="0"
-                className="w-full bg-navy-light border border-surface focus:border-teal rounded-xl
-                           px-4 py-3 text-white placeholder-muted text-sm focus:outline-none transition-colors"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">次卡金额 ($)</label>
-              <input type="number" value={perSessionAmount} onChange={(e) => setPerSessionAmount(e.target.value)}
-                placeholder="0"
-                className="w-full bg-navy-light border border-surface focus:border-teal rounded-xl
-                           px-4 py-3 text-white placeholder-muted text-sm focus:outline-none transition-colors"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">Venmo 账号</label>
-            <div className="flex rounded-xl overflow-hidden border border-surface focus-within:border-teal transition-colors">
-              <span className="px-3 py-3 bg-surface text-slate text-sm select-none shrink-0">@</span>
-              <input type="text" value={venmoHandle} onChange={(e) => setVenmoHandle(e.target.value)}
-                placeholder="venmo-username"
-                className="flex-1 px-4 py-3 bg-navy-light text-white placeholder-muted text-sm focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={handleCreate}
-            disabled={creating || !title.trim() || !venmoHandle.trim() || !annualAmount || !perSessionAmount}
-            className="w-full bg-teal hover:bg-teal-dark active:scale-95 text-pitch font-black
-                       py-4 rounded-xl transition-all duration-150 disabled:opacity-40"
-          >
-            {creating ? '创建中...' : '发布支付活动'}
-          </button>
+          <FormBody onSubmit={handleCreate} submitting={creating} submitLabel="发布支付活动" />
         </div>
       )}
 
@@ -206,10 +246,7 @@ export default function AdminPayments() {
           {events.map((event) => (
             <div key={event.id} className="bg-navy border border-surface rounded-2xl overflow-hidden">
               {/* Event card header */}
-              <button
-                onClick={() => loadPayments(event.id)}
-                className="w-full p-4 text-left"
-              >
+              <button onClick={() => loadPayments(event.id)} className="w-full p-4 text-left">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -241,20 +278,40 @@ export default function AdminPayments() {
                 </div>
               </button>
 
-              {/* Expanded payments */}
+              {/* Expanded */}
               {selectedId === event.id && (
                 <div className="border-t border-surface px-4 pb-4 space-y-3 pt-3">
-                  {/* Toggle open/close */}
-                  <button
-                    onClick={() => handleToggleStatus(event)}
-                    className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-all
-                      ${event.status === 'open'
-                        ? 'border-red-hot/40 text-red-hot hover:bg-red-hot/10'
-                        : 'border-teal/40 text-teal hover:bg-teal/10'}`}
-                  >
-                    {event.status === 'open' ? '关闭此活动' : '重新开放'}
-                  </button>
+                  {/* Action row */}
+                  <div className="flex gap-2">
+                    <button onClick={() => handleToggleStatus(event)}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-all
+                        ${event.status === 'open'
+                          ? 'border-red-hot/40 text-red-hot hover:bg-red-hot/10'
+                          : 'border-teal/40 text-teal hover:bg-teal/10'}`}>
+                      {event.status === 'open' ? '关闭' : '重新开放'}
+                    </button>
+                    {editingId !== event.id && (
+                      <button onClick={() => startEdit(event)}
+                        className="text-xs font-bold text-slate border border-surface hover:border-muted
+                                   hover:text-white px-3 py-1.5 rounded-lg transition-all">
+                        编辑
+                      </button>
+                    )}
+                  </div>
 
+                  {/* Edit form */}
+                  {editingId === event.id && (
+                    <div className="border border-surface rounded-xl p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-black text-slate uppercase tracking-widest">编辑活动</p>
+                        <button onClick={() => { setEditingId(null); resetForm() }}
+                          className="text-muted hover:text-white text-xs transition-colors">取消</button>
+                      </div>
+                      <FormBody onSubmit={() => handleSaveEdit(event.id)} submitting={saving} submitLabel="保存修改" />
+                    </div>
+                  )}
+
+                  {/* Payments list */}
                   {loadingPayments ? (
                     <div className="flex justify-center py-4">
                       <div className="w-5 h-5 border-2 border-teal border-t-transparent rounded-full animate-spin" />
@@ -278,12 +335,10 @@ export default function AdminPayments() {
                                     {p.membershipType === 'annual' ? '年卡' : '次卡'} · ${p.amount}
                                   </p>
                                 </div>
-                                <button
-                                  onClick={() => handleConfirm(p, event)}
+                                <button onClick={() => handleConfirm(p, event)}
                                   disabled={confirming === p.uid}
                                   className="shrink-0 bg-teal hover:bg-teal-dark text-pitch font-black
-                                             text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
-                                >
+                                             text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40">
                                   {confirming === p.uid ? '...' : '确认'}
                                 </button>
                               </div>
@@ -307,7 +362,8 @@ export default function AdminPayments() {
                                     {p.membershipType === 'annual' ? '年卡' : '次卡'} · ${p.amount}
                                   </p>
                                 </div>
-                                <svg className="w-5 h-5 text-teal shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <svg className="w-5 h-5 text-teal shrink-0" fill="none" viewBox="0 0 24 24"
+                                  stroke="currentColor" strokeWidth={2.5}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                 </svg>
                               </div>

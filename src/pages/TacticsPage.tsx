@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { collection, getDocs, doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, doc, setDoc, getDoc, serverTimestamp, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuthStore } from '../stores/authStore'
 import { MiniCard } from '../components/PlayerCard'
@@ -76,12 +76,13 @@ export default function TacticsPage() {
   const { userProfile } = useAuthStore()
   const isAdmin = userProfile?.role === 'admin'
 
-  const [users, setUsers]         = useState<User[]>([])
-  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
-  const [thresholds, setThresholds] = useState<CardThresholds>(DEFAULT_THRESHOLDS)
-  const [dragging, setDragging]   = useState<string | null>(null)
-  const [loading, setLoading]     = useState(true)
-  const [saved, setSaved]         = useState(false)
+  const [users, setUsers]             = useState<User[]>([])
+  const [positions, setPositions]     = useState<Record<string, { x: number; y: number }>>({})
+  const [thresholds, setThresholds]   = useState<CardThresholds>(DEFAULT_THRESHOLDS)
+  const [dragging, setDragging]       = useState<string | null>(null)
+  const [loading, setLoading]         = useState(true)
+  const [saved, setSaved]             = useState(false)
+  const [isCaptain, setIsCaptain]     = useState(false)
 
   const pitchRef      = useRef<HTMLDivElement>(null)
   const draggingRef   = useRef<string | null>(null)
@@ -90,10 +91,14 @@ export default function TacticsPage() {
 
   useEffect(() => {
     const load = async () => {
-      const [usersSnap, tacticSnap, configSnap] = await Promise.all([
+      const [usersSnap, tacticSnap, configSnap, activeMatchesSnap] = await Promise.all([
         getDocs(collection(db, 'users')),
         getDoc(doc(db, 'tactics', 'default')),
         getDoc(doc(db, 'config', 'appConfig')),
+        getDocs(query(
+          collection(db, 'matches'),
+          where('status', 'in', ['registration_r2', 'drafting', 'ready']),
+        )),
       ])
 
       const loadedUsers = (usersSnap.docs
@@ -118,10 +123,19 @@ export default function TacticsPage() {
         setThresholds(configSnap.data().cardThresholds)
       }
 
+      if (userProfile) {
+        const uid = userProfile.uid
+        const captain = activeMatchesSnap.docs.some((d) => {
+          const data = d.data()
+          return data.captainA === uid || data.captainB === uid
+        })
+        setIsCaptain(captain)
+      }
+
       setLoading(false)
     }
     load()
-  }, [])
+  }, [userProfile])
 
   // Stable pointer event handlers using refs
   const handlePointerMove = useCallback((e: PointerEvent) => {
@@ -156,8 +170,10 @@ export default function TacticsPage() {
     }
   }, [handlePointerMove, handlePointerUp])
 
+  const canEdit = isAdmin || isCaptain
+
   const startDrag = (uid: string) => (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isAdmin) return
+    if (!canEdit) return
     e.preventDefault()
     draggingRef.current = uid
     setDragging(uid)
@@ -182,12 +198,12 @@ export default function TacticsPage() {
         <div>
           <h1 className="text-white text-2xl font-black tracking-tight">战术板</h1>
           <p className="text-slate text-xs mt-0.5">
-            {isAdmin ? '拖动球员调整位置，自动保存' : '查看阵型'}
+            {canEdit ? '拖动球员调整位置，自动保存' : '查看阵型'}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {saved && <span className="text-teal text-xs font-bold">✓ 已保存</span>}
-          {isAdmin && (
+          {canEdit && (
             <button
               onClick={handleReset}
               className="text-slate hover:text-white text-xs font-bold border border-surface
@@ -227,7 +243,7 @@ export default function TacticsPage() {
                 user={user}
                 tier={tier}
                 dragging={isDragging}
-                onPointerDown={isAdmin ? startDrag(user.uid) : undefined}
+                onPointerDown={canEdit ? startDrag(user.uid) : undefined}
               />
             </div>
           )
@@ -240,19 +256,17 @@ export default function TacticsPage() {
         )}
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-3 justify-center">
-        {([['blue', '蓝卡', 'text-royal'], ['gold', '金卡', 'text-gold'],
-           ['silver', '银卡', 'text-silver'], ['bronze', '铜卡', 'text-bronze']] as const).map(([, label, cls]) => (
-          <div key={label} className="flex items-center gap-1.5">
-            <div className={`w-3 h-3 rounded-full ring-2 ${
-              label === '蓝卡' ? 'ring-royal bg-navy' :
-              label === '金卡' ? 'ring-gold bg-navy' :
-              label === '银卡' ? 'ring-silver bg-navy' :
-              'ring-bronze bg-navy'
-            }`} />
-            <span className={`text-[10px] font-bold ${cls}`}>{label}</span>
-          </div>
+      {/* Color guide — no tier names, just ring colors */}
+      <div className="flex items-center gap-3 justify-center">
+        <span className="text-muted text-[10px]">出勤圈色：</span>
+        {([
+          ['ring-bronze shadow-[0_0_6px_1px_rgba(184,115,51,0.4)]',  ''],
+          ['ring-silver shadow-[0_0_6px_1px_rgba(168,169,173,0.45)]', ''],
+          ['ring-gold   shadow-[0_0_6px_1px_rgba(240,180,41,0.5)]',   ''],
+          ['ring-royal  shadow-[0_0_6px_1px_rgba(79,144,225,0.55)]',  ''],
+        ] as const).map(([cls], i) => (
+          <div key={i}
+            className={`w-4 h-4 rounded-full ring-[3px] bg-navy ${cls}`} />
         ))}
       </div>
     </div>

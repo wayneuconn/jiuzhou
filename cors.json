@@ -1,0 +1,13 @@
+[
+  {
+    "origin": [
+      "https://jiuzhou-493217.web.app",
+      "https://jiuzhou-493217.firebaseapp.com",
+      "http://localhost:5173",
+      "http://localhost:4173"
+    ],
+    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent"],
+    "maxAgeSeconds": 3600
+  }
+]

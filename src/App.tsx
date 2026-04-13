@@ -5,6 +5,7 @@ import AppLayout from './components/layout/AppLayout'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
+import MatchesPage from './pages/MatchesPage'
 import MatchDetailPage from './pages/MatchDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import TacticsPage from './pages/TacticsPage'
@@ -79,7 +80,7 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<HomePage />} />
-        <Route path="/matches" element={<HomePage />} />
+        <Route path="/matches" element={<MatchesPage />} />
         <Route path="/match/:matchId" element={<MatchDetailPage />} />
         <Route path="/tactics" element={<TacticsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
