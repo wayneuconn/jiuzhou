@@ -58,8 +58,11 @@ export default function MatchDetailPage() {
 
   const [agreementOpen, setAgreementOpen] = useState(false)
   const [waitlistModal, setWaitlistModal] = useState(false)
+  const [venmoModal, setVenmoModal]       = useState(false)
   const [autoAccept, setAutoAccept]       = useState(true)
-  const [defaultAgreement, setDefaultAgreement] = useState('')
+  const [defaultAgreement, setDefaultAgreement]   = useState('')
+  const [defaultVenmoHandle, setDefaultVenmoHandle] = useState('')
+  const [perSessionFee, setPerSessionFee]           = useState(2)
   const [busy, setBusy]                   = useState(false)
   const [error, setError]                 = useState('')
   const [copied, setCopied]               = useState(false)
@@ -149,10 +152,14 @@ export default function MatchDetailPage() {
     })
   }, [matchId])
 
-  // Load default agreement text from config (fallback for matches with empty agreementText)
+  // Load config
   useEffect(() => {
     getDoc(doc(db, 'config', 'appConfig')).then((snap) => {
-      if (snap.exists()) setDefaultAgreement(snap.data().defaultAgreementText ?? '')
+      if (snap.exists()) {
+        setDefaultAgreement(snap.data().defaultAgreementText ?? '')
+        setDefaultVenmoHandle(snap.data().defaultVenmoHandle ?? '')
+        setPerSessionFee(snap.data().perSessionFee ?? 2)
+      }
     })
   }, [])
 
@@ -181,6 +188,7 @@ export default function MatchDetailPage() {
         const ex = await tx.get(regRef)
         if (ex.exists() && !['withdrawn', 'excused'].includes(ex.data().status)) throw new Error('Already registered')
         const positions = userProfile.preferredPositions ?? []
+        const isPerSession = userProfile.membershipType === 'per_session'
         if (joinWaitlist) {
           tx.set(regRef, {
             uid: userProfile.uid, displayName: userProfile.displayName,
@@ -188,6 +196,7 @@ export default function MatchDetailPage() {
             registeredAt: serverTimestamp(),
             status: 'waitlist', waitlistPosition: waitlist.length + 1,
             autoAccept, promotedAt: null, confirmDeadline: null, team: null,
+            paymentStatus: null,
           })
         } else {
           tx.set(regRef, {
@@ -196,9 +205,13 @@ export default function MatchDetailPage() {
             registeredAt: serverTimestamp(),
             status: 'confirmed', waitlistPosition: null,
             autoAccept: false, promotedAt: null, confirmDeadline: null, team: null,
+            paymentStatus: isPerSession ? 'pending' : null,
           })
         }
       })
+      if (userProfile.membershipType === 'per_session' && !joinWaitlist) {
+        setVenmoModal(true)
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : '报名失败，请重试')
     } finally { setBusy(false) }
@@ -297,6 +310,13 @@ export default function MatchDetailPage() {
       await updateDoc(doc(db, 'matches', matchId, 'registrations', uid), { team })
     } catch (e: unknown) { setError(e instanceof Error ? e.message : '操作失败') }
     finally { setBusy(false) }
+  }
+
+  const doConfirmPayment = async (uid: string) => {
+    if (!matchId) return
+    try {
+      await updateDoc(doc(db, 'matches', matchId, 'registrations', uid), { paymentStatus: 'confirmed' })
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : '操作失败') }
   }
 
   // ── Render ───────────────────────────────────────────────────────────
@@ -401,19 +421,38 @@ export default function MatchDetailPage() {
           )}
         </div>
       ) : myReg?.status === 'confirmed' ? (
-        <div className="bg-teal/10 border border-teal/30 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-teal font-black text-sm uppercase tracking-wide">已报名</p>
-            <p className="text-slate text-xs mt-0.5">
-              第 {roster.findIndex((r) => r.uid === userProfile?.uid) + 1} 位
-              {myReg.team && ` · Team ${myReg.team}`}
-            </p>
+        <div className="bg-teal/10 border border-teal/30 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-teal font-black text-sm uppercase tracking-wide">已报名</p>
+              <p className="text-slate text-xs mt-0.5">
+                第 {roster.findIndex((r) => r.uid === userProfile?.uid) + 1} 位
+                {myReg.team && ` · Team ${myReg.team}`}
+              </p>
+            </div>
+            {isOpen && !isAnyCaptain && (
+              <button onClick={doExcuse} disabled={busy}
+                className="text-slate text-sm font-bold disabled:opacity-40 transition-colors hover:text-white">
+                请假
+              </button>
+            )}
           </div>
-          {isOpen && !isAnyCaptain && (
-            <button onClick={doExcuse} disabled={busy}
-              className="text-slate text-sm font-bold disabled:opacity-40 transition-colors hover:text-white">
-              请假
-            </button>
+          {myReg.paymentStatus === 'pending' && defaultVenmoHandle && (
+            <div className="flex items-center justify-between bg-gold/10 border border-gold/25 rounded-xl px-3 py-2">
+              <div>
+                <p className="text-gold text-xs font-black">待付款 · ${perSessionFee}</p>
+                <p className="text-muted text-[10px] mt-0.5">@{defaultVenmoHandle}</p>
+              </div>
+              <a href={`https://venmo.com/${defaultVenmoHandle}?txn=pay&amount=${perSessionFee}&note=${encodeURIComponent('Match Fee')}`}
+                target="_blank" rel="noopener noreferrer"
+                className="text-gold text-xs font-black border border-gold/30 px-3 py-1.5 rounded-lg
+                           hover:bg-gold/10 transition-colors">
+                去支付
+              </a>
+            </div>
+          )}
+          {myReg.paymentStatus === 'confirmed' && (
+            <p className="text-teal text-xs font-bold">✓ 已付款</p>
           )}
         </div>
       ) : myReg?.status === 'excused' ? (
@@ -546,6 +585,22 @@ export default function MatchDetailPage() {
                                        : 'text-team-b border-team-b/30 bg-team-b/10'}`}>
                       {r.team}
                     </span>
+                  )}
+                  {r.paymentStatus === 'pending' && (
+                    isAdmin ? (
+                      <button onClick={() => doConfirmPayment(r.uid)}
+                        className="text-[10px] font-black text-gold border border-gold/30 bg-gold/10
+                                   px-2 py-0.5 rounded-full shrink-0 hover:bg-gold/20 transition-colors">
+                        待付款
+                      </button>
+                    ) : (
+                      <span className="text-[10px] font-black text-gold border border-gold/30 bg-gold/10
+                                       px-2 py-0.5 rounded-full shrink-0">待付款</span>
+                    )
+                  )}
+                  {r.paymentStatus === 'confirmed' && (
+                    <span className="text-[10px] font-black text-teal border border-teal/30 bg-teal/10
+                                     px-2 py-0.5 rounded-full shrink-0">已付款</span>
                   )}
                 </div>
               ))}
@@ -800,6 +855,39 @@ export default function MatchDetailPage() {
                            transition-colors disabled:opacity-40">
                 {busy ? '处理中...' : '加入 Waitlist'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Venmo payment modal ── */}
+      {venmoModal && defaultVenmoHandle && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end justify-center z-[60] p-4"
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+          <div className="bg-navy-light border border-surface rounded-3xl w-full max-w-sm p-6 space-y-4">
+            <div className="w-10 h-1 bg-surface rounded-full mx-auto" />
+            <div className="text-center space-y-1">
+              <p className="text-gold font-black text-lg">请支付场地费</p>
+              <p className="text-white font-black text-4xl">${perSessionFee}</p>
+              <p className="text-slate text-sm">@{defaultVenmoHandle}</p>
+            </div>
+            <p className="text-muted text-xs text-center leading-relaxed">
+              次卡会员需支付场地费，报名名额已保留。<br/>
+              支付后管理员将手动确认。
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setVenmoModal(false)}
+                className="flex-1 border border-surface text-slate font-bold py-3.5 rounded-xl
+                           hover:border-muted transition-colors">
+                稍后支付
+              </button>
+              <a href={`https://venmo.com/${defaultVenmoHandle}?txn=pay&amount=${perSessionFee}&note=${encodeURIComponent('Match Fee')}`}
+                target="_blank" rel="noopener noreferrer"
+                onClick={() => setVenmoModal(false)}
+                className="flex-1 bg-gold hover:bg-gold/90 text-pitch font-black py-3.5 rounded-xl
+                           transition-colors text-center text-sm">
+                去 Venmo 支付
+              </a>
             </div>
           </div>
         </div>

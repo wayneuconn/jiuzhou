@@ -10,8 +10,10 @@ export default function AdminSettings() {
 
   const [season, setSeason]               = useState('')
   const [thresholds, setThresholds]       = useState<CardThresholds>(DEFAULT_THRESHOLDS)
-  const [defaultAgreement, setDefaultAgreement]     = useState('')
-  const [defaultAnnouncement, setDefaultAnnouncement] = useState('')
+  const [defaultAgreement, setDefaultAgreement]         = useState('')
+  const [defaultAnnouncement, setDefaultAnnouncement]   = useState('')
+  const [defaultVenmoHandle, setDefaultVenmoHandle]     = useState('')
+  const [perSessionFee, setPerSessionFee]               = useState('2')
   const [loading, setLoading]       = useState(true)
   const [saving, setSaving]         = useState(false)
   const [saved, setSaved]           = useState(false)
@@ -23,6 +25,8 @@ export default function AdminSettings() {
         setThresholds(snap.data().cardThresholds ?? DEFAULT_THRESHOLDS)
         setDefaultAgreement(snap.data().defaultAgreementText ?? '')
         setDefaultAnnouncement(snap.data().defaultAnnouncement ?? '')
+        setDefaultVenmoHandle(snap.data().defaultVenmoHandle ?? '')
+        setPerSessionFee(String(snap.data().perSessionFee ?? 2))
       }
       setLoading(false)
     })
@@ -36,6 +40,8 @@ export default function AdminSettings() {
         cardThresholds: thresholds,
         defaultAgreementText: defaultAgreement,
         defaultAnnouncement,
+        defaultVenmoHandle,
+        perSessionFee: parseFloat(perSessionFee) || 2,
       }, { merge: true })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -127,6 +133,50 @@ export default function AdminSettings() {
                      px-4 py-3 text-white placeholder-muted text-sm focus:outline-none
                      transition-colors resize-none disabled:opacity-50 font-mono"
         />
+      </div>
+
+      {/* Venmo */}
+      <div className="bg-navy border border-surface rounded-2xl p-5 space-y-4">
+        <div>
+          <p className="text-white font-black text-sm">次卡付款</p>
+          <p className="text-slate text-xs mt-1">次卡会员报名时需通过 Venmo 支付场地费</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">
+              Venmo Handle
+            </label>
+            <div className="flex items-center bg-navy-light border border-surface focus-within:border-teal
+                            rounded-xl overflow-hidden transition-colors">
+              <span className="pl-3 text-slate text-sm">@</span>
+              <input
+                type="text"
+                value={loading ? '' : defaultVenmoHandle}
+                onChange={(e) => setDefaultVenmoHandle(e.target.value)}
+                placeholder="username"
+                disabled={loading}
+                className="flex-1 px-2 py-3 text-white text-sm focus:outline-none bg-transparent disabled:opacity-50"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-slate uppercase tracking-widest block mb-2">
+              金额 (USD)
+            </label>
+            <div className="flex items-center bg-navy-light border border-surface focus-within:border-teal
+                            rounded-xl overflow-hidden transition-colors">
+              <span className="pl-3 text-slate text-sm">$</span>
+              <input
+                type="number"
+                value={loading ? '' : perSessionFee}
+                onChange={(e) => setPerSessionFee(e.target.value)}
+                min={0} step={0.5}
+                disabled={loading}
+                className="flex-1 px-2 py-3 text-white text-sm focus:outline-none bg-transparent disabled:opacity-50"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Default agreement text */}

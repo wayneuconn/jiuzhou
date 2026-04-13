@@ -83,6 +83,8 @@ export interface Match {
 // Registration
 export type RegistrationStatus = 'confirmed' | 'waitlist' | 'promoted' | 'withdrawn' | 'excused'
 
+export type PaymentSessionStatus = 'pending' | 'confirmed'
+
 export interface Registration {
   uid: string
   displayName: string
@@ -94,6 +96,7 @@ export interface Registration {
   confirmDeadline?: Date | null
   autoAccept?: boolean
   team?: 'A' | 'B' | null
+  paymentStatus?: PaymentSessionStatus | null
 }
 
 // Formation
@@ -125,4 +128,6 @@ export interface AppConfig {
   waitlistConfirmMinutes: number
   defaultAgreementText: string
   defaultAnnouncement: string
+  defaultVenmoHandle: string
+  perSessionFee: number
 }
