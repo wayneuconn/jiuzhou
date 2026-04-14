@@ -96,7 +96,7 @@ export default function AdminMembers() {
                     {u.displayName || <span className="text-slate">未设置名字</span>}
                     {isSelf && <span className="text-muted text-xs ml-1">(我)</span>}
                   </p>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <p className="text-slate text-xs">{u.phone}</p>
                     {u.lateCount > 0 && (
                       <span className="text-[10px] font-black text-gold">迟到×{u.lateCount}</span>
@@ -105,6 +105,16 @@ export default function AdminMembers() {
                       <span className="text-[10px] font-black text-red-hot">危险×{u.dangerousCount}</span>
                     )}
                   </div>
+                  {u.preferredPositions?.length > 0 && (
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      {u.preferredPositions.map((pos) => (
+                        <span key={pos} className="text-[10px] font-bold text-teal bg-teal/10
+                                                   border border-teal/20 px-1.5 py-0.5 rounded">
+                          {pos}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="shrink-0 flex gap-1.5">
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border

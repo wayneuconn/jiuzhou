@@ -293,9 +293,14 @@ export default function MatchDetailPage() {
     if (!matchId) return
     try {
       const batch = writeBatch(db)
+      // Clear previous captain's team assignment
+      const prevUid = slot === 'captainA' ? match?.captainA : match?.captainB
+      if (prevUid && prevUid !== uid) {
+        batch.update(doc(db, 'matches', matchId, 'registrations', prevUid), { team: null })
+      }
       batch.update(doc(db, 'matches', matchId), { [slot]: uid ?? null })
       if (uid) {
-        // Automatically assign captain to their team
+        // Automatically assign new captain to their team
         const team = slot === 'captainA' ? 'A' : 'B'
         batch.update(doc(db, 'matches', matchId, 'registrations', uid), { team })
       }
