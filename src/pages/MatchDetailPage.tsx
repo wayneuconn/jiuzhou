@@ -111,7 +111,7 @@ export default function MatchDetailPage() {
   const canSeeTeamA    = isCaptainA || myReg?.team === 'A'
   const canSeeTeamB    = isCaptainB || myReg?.team === 'B'
   const hasTactics     = !!match?.captainA || !!match?.captainB
-  const tacticPhase    = match ? ['drafting', 'ready'].includes(match.status) : false
+  const tacticPhase    = match?.status === 'ready'
 
   // Stable Firestore refs for formations
   const formationARef = useMemo(
