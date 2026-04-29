@@ -1,37 +1,81 @@
 <view class="container">
-  <view wx:if="{{loading}}" class="text-muted">加载中...</view>
+  <view wx:if="{{loading}}" style="text-align:center;padding:80rpx 0;">
+    <view class="text-muted">加载中...</view>
+  </view>
 
   <block wx:elif="{{match}}">
+    <!-- 比赛信息 -->
     <view class="card">
-      <view style="font-size:36rpx;font-weight:600;">{{match.location}}</view>
-      <view class="text-muted" style="margin-top:8rpx;">{{match.date}}</view>
-      <view class="text-muted" style="margin-top:8rpx;">名额: {{match.maxPlayers}} · {{match.status}}</view>
+      <view class="flex-row" style="justify-content:space-between;align-items:flex-start;">
+        <view style="flex:1;">
+          <view style="font-size:36rpx;font-weight:700;">{{match.location}}</view>
+          <view class="text-muted" style="font-size:28rpx;margin-top:8rpx;">{{dateStr}}</view>
+        </view>
+        <view class="badge {{statusBadge}}" style="margin-left:16rpx;flex-shrink:0;">{{statusLabel}}</view>
+      </view>
+      <view class="divider"></view>
+      <view class="flex-row text-muted" style="font-size:26rpx;gap:32rpx;">
+        <text>名额 {{match.maxPlayers}} 人</text>
+        <text>已报 {{confirmedCount}} 人</text>
+        <text wx:if="{{waitlistCount > 0}}">候补 {{waitlistCount}} 人</text>
+      </view>
     </view>
 
-    <!-- 我的报名状态 -->
-    <view wx:if="{{myReg}}" class="card flex-row" style="justify-content:space-between;align-items:center;">
-      <text>我的状态: {{myReg.status}}</text>
-      <button wx:if="{{myReg.status !== 'withdrawn'}}" size="mini" bindtap="withdraw">退出</button>
+    <!-- 我的状态 -->
+    <view wx:if="{{myReg && myReg.status !== 'withdrawn' && myReg.status !== 'excused'}}" class="card">
+      <view class="flex-row" style="justify-content:space-between;align-items:center;">
+        <view>
+          <view style="font-size:28rpx;font-weight:600;">我的报名</view>
+          <view class="text-muted" style="font-size:26rpx;margin-top:6rpx;">
+            {{myRegStatusLabel}}
+            <text wx:if="{{myReg.status === 'waitlist'}}"> · 第 {{myReg.waitlistPosition}} 位</text>
+          </view>
+        </view>
+        <button size="mini" class="btn-ghost" style="margin:0;" bindtap="withdraw">退出报名</button>
+      </view>
     </view>
 
     <!-- 报名按钮 -->
     <button
-      wx:if="{{!myReg || myReg.status === 'withdrawn'}}"
+      wx:if="{{canRegister && match.status === 'registration_r1' || canRegister && match.status === 'registration_r2'}}"
       class="btn-primary"
       bindtap="register"
       style="margin-bottom:24rpx;">
       我要报名
     </button>
 
-    <!-- 报名列表 -->
-    <view class="card">
-      <view style="font-weight:600;margin-bottom:16rpx;">已报名 ({{registrations.length}})</view>
-      <view wx:for="{{registrations}}" wx:key="uid" class="flex-row" style="justify-content:space-between;padding:12rpx 0;">
-        <text>{{item.displayName}}</text>
-        <text class="text-muted" style="font-size:24rpx;">
-          {{item.status === 'confirmed' ? '✓' : item.status === 'waitlist' ? '候补' + item.waitlistPosition : item.status}}
-        </text>
+    <!-- 确认名单 -->
+    <view class="card" wx:if="{{confirmedCount > 0}}">
+      <view style="font-weight:600;font-size:30rpx;margin-bottom:16rpx;">确认名单（{{confirmedCount}}）</view>
+      <view
+        wx:for="{{confirmedList}}"
+        wx:key="uid"
+        class="flex-row"
+        style="justify-content:space-between;padding:14rpx 0;border-bottom:1rpx solid #f0f0f0;">
+        <text style="font-size:28rpx;">{{item.displayName}}</text>
+        <view class="flex-row" style="gap:12rpx;align-items:center;">
+          <text wx:if="{{item.status === 'promoted'}}" class="badge badge-orange" style="font-size:22rpx;padding:2rpx 10rpx;">待确认</text>
+          <text class="text-muted" style="font-size:24rpx;">{{item.preferredPositions[0]}}</text>
+        </view>
       </view>
+    </view>
+
+    <!-- 候补名单 -->
+    <view class="card" wx:if="{{waitlistCount > 0}}">
+      <view style="font-weight:600;font-size:30rpx;margin-bottom:16rpx;">候补名单（{{waitlistCount}}）</view>
+      <view
+        wx:for="{{waitlistList}}"
+        wx:key="uid"
+        class="flex-row"
+        style="justify-content:space-between;padding:14rpx 0;border-bottom:1rpx solid #f0f0f0;">
+        <text style="font-size:28rpx;">{{item.displayName}}</text>
+        <text class="text-muted" style="font-size:24rpx;">第 {{item.waitlistPosition}} 位</text>
+      </view>
+    </view>
+
+    <!-- 暂无报名 -->
+    <view wx:if="{{confirmedCount === 0 && waitlistCount === 0}}" style="text-align:center;padding:60rpx 0;">
+      <view class="text-muted" style="font-size:28rpx;">暂无人报名</view>
     </view>
   </block>
 </view>

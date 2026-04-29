@@ -1,16 +1,27 @@
 <view class="container">
-  <view class="card">
-    <view style="font-weight:600;margin-bottom:16rpx;">昵称</view>
-    <input class="input" placeholder="请输入昵称" value="{{displayName}}" bindinput="onNameInput" />
+  <view style="padding:48rpx 0 32rpx;text-align:center;">
+    <view style="font-size:44rpx;font-weight:700;">完善资料</view>
+    <view class="text-muted" style="margin-top:12rpx;font-size:28rpx;">让队友认识你</view>
   </view>
 
   <view class="card">
-    <view style="font-weight:600;margin-bottom:16rpx;">擅长位置（可多选）</view>
+    <view class="field-label">昵称</view>
+    <input
+      class="field-input"
+      placeholder="输入你在队里的名字"
+      placeholder-style="color:#bbb"
+      value="{{displayName}}"
+      bindinput="onNameInput"
+      maxlength="20" />
+  </view>
+
+  <view class="card" style="margin-top:16rpx;">
+    <view class="field-label">擅长位置</view>
     <view class="position-row">
       <view
         wx:for="{{POSITIONS}}"
         wx:key="*this"
-        class="position-chip {{selectedPositions.indexOf(item) >= 0 ? 'selected' : ''}}"
+        class="position-chip {{selectedMap[item] ? 'selected' : ''}}"
         bindtap="togglePosition"
         data-pos="{{item}}">
         {{item}}
@@ -18,7 +29,12 @@
     </view>
   </view>
 
-  <button class="btn-primary" bindtap="onSubmit" loading="{{loading}}" disabled="{{loading}}">
-    完成
+  <button
+    class="btn-primary"
+    style="margin-top:32rpx;"
+    bindtap="onSubmit"
+    loading="{{loading}}"
+    disabled="{{loading || !displayName}}">
+    完成，进入球队
   </button>
 </view>

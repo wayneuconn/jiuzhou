@@ -1,29 +1,46 @@
 <view class="container">
-  <view wx:if="{{loading}}" class="text-muted">加载中...</view>
+  <view wx:if="{{loading}}" style="text-align:center;padding:80rpx 0;">
+    <view class="text-muted">加载中...</view>
+  </view>
 
   <block wx:elif="{{user}}">
-    <view class="card flex-row" style="gap:24rpx;">
-      <image wx:if="{{user.avatar}}" src="{{user.avatar}}" style="width:120rpx;height:120rpx;border-radius:50%;" />
-      <view wx:else class="avatar-placeholder">{{user.displayName}}</view>
-      <view class="flex-col">
-        <text style="font-size:36rpx;font-weight:600;">{{user.displayName}}</text>
-        <text class="text-muted" style="font-size:26rpx;">{{user.role}}</text>
+    <!-- 头像 + 名字 -->
+    <view class="card" style="text-align:center;padding:48rpx 32rpx;">
+      <view style="display:flex;justify-content:center;margin-bottom:20rpx;">
+        <image wx:if="{{user.avatar}}" src="{{user.avatar}}" style="width:140rpx;height:140rpx;border-radius:50%;" mode="aspectFill" />
+        <view wx:else class="avatar-placeholder">{{user.displayName[0]}}</view>
+      </view>
+      <view style="font-size:38rpx;font-weight:700;">{{user.displayName}}</view>
+      <view style="margin-top:8rpx;">
+        <view class="badge badge-blue" wx:if="{{user.role === 'admin'}}">管理员</view>
+        <view class="badge badge-grey" wx:elif="{{user.role === 'member'}}">会员</view>
+        <view class="badge badge-grey" wx:else>访客</view>
       </view>
     </view>
 
+    <!-- 出勤统计 -->
     <view class="card">
-      <view class="flex-row" style="justify-content:space-between;padding:12rpx 0;">
-        <text>出勤</text><text>{{user.attendanceCount}}</text>
-      </view>
-      <view class="flex-row" style="justify-content:space-between;padding:12rpx 0;">
-        <text>迟到</text><text>{{user.lateCount}}</text>
-      </view>
-      <view class="flex-row" style="justify-content:space-between;padding:12rpx 0;">
-        <text>危险动作</text><text>{{user.dangerousCount}}</text>
+      <view style="font-weight:600;font-size:28rpx;color:#888;margin-bottom:16rpx;">球员数据</view>
+      <view class="flex-row" style="justify-content:space-around;text-align:center;">
+        <view>
+          <view style="font-size:44rpx;font-weight:700;color:#1a73e8;">{{user.attendanceCount}}</view>
+          <view class="text-muted" style="font-size:24rpx;margin-top:4rpx;">出勤</view>
+        </view>
+        <view style="width:1rpx;background:#f0f0f0;"></view>
+        <view>
+          <view style="font-size:44rpx;font-weight:700;color:{{user.lateCount > 0 ? '#ef6c00' : '#1f1f1f'}};">{{user.lateCount}}</view>
+          <view class="text-muted" style="font-size:24rpx;margin-top:4rpx;">迟到</view>
+        </view>
+        <view style="width:1rpx;background:#f0f0f0;"></view>
+        <view>
+          <view style="font-size:44rpx;font-weight:700;color:{{user.dangerousCount > 0 ? '#e53935' : '#1f1f1f'}};">{{user.dangerousCount}}</view>
+          <view class="text-muted" style="font-size:24rpx;margin-top:4rpx;">危险动作</view>
+        </view>
       </view>
     </view>
 
-    <button wx:if="{{user.role === 'admin'}}" class="btn-primary" bindtap="goAdmin" style="margin-top:24rpx;">管理后台</button>
-    <button class="btn-primary" bindtap="logout" style="margin-top:16rpx;background:#999;">退出登录</button>
+    <!-- 操作 -->
+    <button wx:if="{{user.role === 'admin'}}" class="btn-primary" bindtap="goAdmin" style="margin-bottom:16rpx;">进入管理后台</button>
+    <button class="btn-ghost" bindtap="logout">退出登录</button>
   </block>
 </view>

@@ -1,17 +1,20 @@
 <view class="container">
-  <view wx:if="{{loading}}" class="text-muted" style="text-align:center;padding:40rpx;">加载中...</view>
+  <view wx:if="{{loading}}" style="text-align:center;padding:80rpx 0;">
+    <view class="text-muted">加载中...</view>
+  </view>
 
-  <view wx:elif="{{announcements.length === 0}}" class="card text-muted" style="text-align:center;">
-    暂无公告
+  <view wx:elif="{{announcements.length === 0}}" style="text-align:center;padding:120rpx 0;">
+    <view style="font-size:80rpx;">📢</view>
+    <view class="text-muted" style="margin-top:16rpx;">暂无公告</view>
   </view>
 
   <view wx:else>
     <view wx:for="{{announcements}}" wx:key="id" class="card">
-      <view class="flex-row" style="justify-content:space-between;margin-bottom:12rpx;">
-        <text style="font-weight:600;font-size:32rpx;">{{item.title}}</text>
-        <text wx:if="{{item.pinned}}" style="color:#1a73e8;font-size:24rpx;">置顶</text>
+      <view class="flex-row" style="justify-content:space-between;margin-bottom:16rpx;">
+        <view style="font-size:32rpx;font-weight:600;flex:1;">{{item.title}}</view>
+        <view wx:if="{{item.pinned}}" class="badge badge-blue" style="margin-left:16rpx;flex-shrink:0;">置顶</view>
       </view>
-      <text style="color:#555;white-space:pre-wrap;">{{item.content}}</text>
+      <view style="color:#555;font-size:28rpx;line-height:1.7;white-space:pre-wrap;">{{item.content}}</view>
     </view>
   </view>
 </view>

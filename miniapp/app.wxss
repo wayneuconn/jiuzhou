@@ -1,45 +1,72 @@
 page {
-  background-color: #f5f5f5;
+  background-color: #f2f3f7;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
   font-size: 28rpx;
   color: #1f1f1f;
-  line-height: 1.5;
+  line-height: 1.6;
+  box-sizing: border-box;
 }
 
 .container {
   padding: 24rpx;
+  min-height: 100vh;
   box-sizing: border-box;
 }
 
+/* Cards */
 .card {
   background: #ffffff;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  margin-bottom: 16rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  border-radius: 20rpx;
+  padding: 28rpx 32rpx;
+  margin-bottom: 20rpx;
 }
 
+.card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f1f1f;
+  margin-bottom: 16rpx;
+}
+
+/* Buttons */
 .btn-primary {
+  display: block;
+  width: 100%;
   background: #1a73e8;
   color: #ffffff;
   border-radius: 999rpx;
-  padding: 20rpx 40rpx;
-  font-size: 30rpx;
+  padding: 28rpx 40rpx;
+  font-size: 32rpx;
+  font-weight: 600;
   text-align: center;
+  border: none;
+  line-height: 1.4;
 }
 
 .btn-primary[disabled] {
-  background: #aac7f0;
+  background: #a8c7f5;
 }
 
-.text-muted {
-  color: #999999;
+.btn-ghost {
+  display: block;
+  width: 100%;
+  background: transparent;
+  color: #1a73e8;
+  border-radius: 999rpx;
+  padding: 24rpx 40rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  text-align: center;
+  border: 2rpx solid #1a73e8;
 }
 
-.text-danger {
-  color: #e53935;
-}
+/* Text helpers */
+.text-muted { color: #999; }
+.text-danger { color: #e53935; }
+.text-success { color: #43a047; }
+.text-primary { color: #1a73e8; }
 
+/* Layout */
 .flex-row {
   display: flex;
   flex-direction: row;
@@ -50,3 +77,25 @@ page {
   display: flex;
   flex-direction: column;
 }
+
+/* Divider */
+.divider {
+  height: 1rpx;
+  background: #f0f0f0;
+  margin: 16rpx 0;
+}
+
+/* Status badges */
+.badge {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.badge-blue { background: #e8f0fe; color: #1a73e8; }
+.badge-green { background: #e8f5e9; color: #43a047; }
+.badge-orange { background: #fff3e0; color: #ef6c00; }
+.badge-grey { background: #f5f5f5; color: #888; }
+.badge-red { background: #fce8e6; color: #e53935; }

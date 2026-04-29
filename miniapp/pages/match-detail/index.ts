@@ -1,9 +1,13 @@
 import type { Match, Registration } from '../../types/index'
+import { formatDate, STATUS_LABEL, STATUS_BADGE, REG_STATUS_LABEL } from '../../utils/format'
 
-// Subscribe template IDs — fill after creating in WeChat MP backend
 const SUBSCRIBE_TEMPLATES = {
   promoted: 'REPLACE_PROMOTED_TEMPLATE_ID',
   draftReady: 'REPLACE_DRAFT_READY_TEMPLATE_ID',
+}
+
+interface RegistrationVM extends Registration {
+  statusLabel: string
 }
 
 Page({
@@ -11,7 +15,16 @@ Page({
     matchId: '' as string,
     match: null as Match | null,
     registrations: [] as Registration[],
+    confirmedList: [] as RegistrationVM[],
+    waitlistList: [] as RegistrationVM[],
     myReg: null as Registration | null,
+    myRegStatusLabel: '',
+    confirmedCount: 0,
+    waitlistCount: 0,
+    canRegister: false,
+    dateStr: '',
+    statusLabel: '',
+    statusBadge: '',
     loading: true,
     isAdmin: false,
   },
@@ -41,10 +54,30 @@ Page({
 
       const myReg = user ? registrations.find(r => r.uid === user._id) ?? null : null
 
+      const active = registrations.filter(r => r.status !== 'withdrawn' && r.status !== 'excused')
+      const confirmedList: RegistrationVM[] = active
+        .filter(r => r.status === 'confirmed' || r.status === 'promoted')
+        .map(r => ({ ...r, statusLabel: REG_STATUS_LABEL[r.status] ?? r.status }))
+      const waitlistList: RegistrationVM[] = active
+        .filter(r => r.status === 'waitlist')
+        .sort((a, b) => (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))
+        .map(r => ({ ...r, statusLabel: REG_STATUS_LABEL[r.status] ?? r.status }))
+
+      const canRegister = !myReg || myReg.status === 'withdrawn' || myReg.status === 'excused'
+
       this.setData({
         match,
         registrations,
+        confirmedList,
+        waitlistList,
         myReg,
+        myRegStatusLabel: myReg ? (REG_STATUS_LABEL[myReg.status] ?? myReg.status) : '',
+        confirmedCount: confirmedList.length,
+        waitlistCount: waitlistList.length,
+        canRegister,
+        dateStr: formatDate(match.date),
+        statusLabel: STATUS_LABEL[match.status] ?? match.status,
+        statusBadge: STATUS_BADGE[match.status] ?? 'badge-grey',
         isAdmin: user?.role === 'admin',
       })
     } catch (err) {

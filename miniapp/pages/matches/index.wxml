@@ -1,17 +1,31 @@
 <view class="container">
-  <view wx:if="{{loading}}" class="text-muted" style="text-align:center;padding:40rpx;">加载中...</view>
+  <view wx:if="{{loading}}" style="text-align:center;padding:80rpx 0;">
+    <view class="text-muted">加载中...</view>
+  </view>
 
-  <view wx:elif="{{matches.length === 0}}" class="card text-muted" style="text-align:center;">
-    暂无比赛
+  <view wx:elif="{{matches.length === 0}}" style="text-align:center;padding:120rpx 0;">
+    <view style="font-size:80rpx;">⚽</view>
+    <view class="text-muted" style="margin-top:16rpx;">暂无比赛安排</view>
   </view>
 
   <view wx:else>
-    <view wx:for="{{matches}}" wx:key="id" class="card" bindtap="goToDetail" data-id="{{item.id}}">
-      <view class="flex-row" style="justify-content:space-between;">
-        <text style="font-weight:600;">{{item.location}}</text>
-        <text class="text-muted" style="font-size:24rpx;">{{item.status}}</text>
+    <view
+      wx:for="{{matches}}"
+      wx:key="id"
+      class="card"
+      bindtap="goToDetail"
+      data-id="{{item.id}}">
+      <view class="flex-row" style="justify-content:space-between;align-items:flex-start;">
+        <view style="flex:1;">
+          <view style="font-size:34rpx;font-weight:600;">{{item.location}}</view>
+          <view class="text-muted" style="font-size:26rpx;margin-top:8rpx;">{{item.dateStr}}</view>
+        </view>
+        <view class="badge {{item.statusBadge}}" style="margin-left:16rpx;flex-shrink:0;">{{item.statusLabel}}</view>
       </view>
-      <text class="text-muted" style="font-size:26rpx;">{{item.date}}</text>
+      <view class="divider"></view>
+      <view class="flex-row text-muted" style="font-size:26rpx;gap:32rpx;">
+        <text>名额 {{item.maxPlayers}} 人</text>
+      </view>
     </view>
   </view>
 </view>

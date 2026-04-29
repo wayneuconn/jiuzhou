@@ -3,7 +3,7 @@ const POSITIONS = ['门将', '后卫', '中场', '前锋']
 Page({
   data: {
     displayName: '',
-    selectedPositions: [] as string[],
+    selectedMap: {} as Record<string, boolean>,
     POSITIONS,
     loading: false,
   },
@@ -14,10 +14,8 @@ Page({
 
   togglePosition(e: WechatMiniprogram.BaseEvent) {
     const pos = (e.currentTarget.dataset as { pos: string }).pos
-    const set = new Set(this.data.selectedPositions)
-    if (set.has(pos)) set.delete(pos)
-    else set.add(pos)
-    this.setData({ selectedPositions: Array.from(set) })
+    const key = `selectedMap.${pos}`
+    this.setData({ [key]: !this.data.selectedMap[pos] })
   },
 
   async onSubmit() {
@@ -27,11 +25,12 @@ Page({
     }
     this.setData({ loading: true })
     try {
+      const preferredPositions = POSITIONS.filter(p => this.data.selectedMap[p])
       await wx.cloud.callFunction({
         name: 'updateProfile',
         data: {
           displayName: this.data.displayName.trim(),
-          preferredPositions: this.data.selectedPositions,
+          preferredPositions,
         },
       })
       wx.switchTab({ url: '/pages/home/index' })
