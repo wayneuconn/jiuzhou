@@ -20,7 +20,7 @@ App<JiuzhouAppOption>({
       return
     }
     wx.cloud.init({
-      env: 'REPLACE_WITH_CLOUD_ENV_ID',
+      env: 'cloudbase-d5gycaytc310dac20',
       traceUser: true,
     })
   },
