@@ -10,4 +10,8 @@
     loading="{{loading}}">
     一键授权微信手机号
   </button>
+
+  <view style="margin-top:60rpx;text-align:center;">
+    <text class="text-muted" style="font-size:26rpx;" bindtap="skipForNow">暂时跳过 →</text>
+  </view>
 </view>

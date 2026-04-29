@@ -3,6 +3,10 @@ Page({
     loading: false,
   },
 
+  skipForNow() {
+    wx.redirectTo({ url: '/pages/onboard/profile/index' })
+  },
+
   async onGetPhone(e: WechatMiniprogram.ButtonGetPhoneNumber) {
     if (!e.detail.code) {
       wx.showToast({ title: '请授权手机号', icon: 'none' })
