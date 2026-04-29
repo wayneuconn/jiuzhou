@@ -8,14 +8,14 @@ exports.main = async (event, context) => {
 
   // Create collections by inserting a placeholder then deleting it,
   // since WeChat cloud DB creates a collection on first insert.
-  const collections = ['users', 'matches', 'announcements', 'payments', 'paymentEvents', 'inviteTokens']
+  const collections = ['users', 'matches', 'announcements', 'payments', 'paymentEvents', 'inviteTokens', 'config']
   for (const name of collections) {
     try {
-      const res = await db.collection(name).add({ data: { _init: true } })
-      await db.collection(name).doc(res._id).remove()
+      await db.createCollection(name)
       results[name] = 'created'
     } catch (e) {
-      results[name] = 'already exists or error: ' + e.message
+      // -502001 means collection already exists — that's fine
+      results[name] = e.message.includes('-502001') ? 'already exists' : 'error: ' + e.message
     }
   }
 
