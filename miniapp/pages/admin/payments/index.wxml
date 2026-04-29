@@ -1,0 +1,12 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="text-muted">加载中...</view>
+
+  <view wx:for="{{payments}}" wx:key="id" class="card flex-row" style="justify-content:space-between;align-items:center;">
+    <view>
+      <view style="font-weight:600;">{{item.displayName}}</view>
+      <view class="text-muted" style="font-size:26rpx;">¥{{item.amount}} · {{item.membershipType}}</view>
+    </view>
+    <button wx:if="{{item.status === 'pending'}}" size="mini" type="primary" catchtap="confirmPayment" data-id="{{item.id}}">确认</button>
+    <text wx:else style="color:#4caf50;font-size:26rpx;">已确认</text>
+  </view>
+</view>

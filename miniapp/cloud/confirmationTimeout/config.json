@@ -1,0 +1,9 @@
+{
+  "triggers": [
+    {
+      "name": "confirmationTimeout",
+      "type": "timer",
+      "config": "0 */5 * * * * *"
+    }
+  ]
+}

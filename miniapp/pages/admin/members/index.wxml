@@ -1,0 +1,11 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="text-muted">加载中...</view>
+
+  <view wx:for="{{members}}" wx:key="uid" class="card flex-row" style="justify-content:space-between;" bindtap="goMember" data-uid="{{item.uid}}">
+    <view>
+      <view style="font-weight:600;">{{item.displayName}}</view>
+      <view class="text-muted" style="font-size:26rpx;">{{item.phone}} · {{item.role}}</view>
+    </view>
+    <view class="text-muted" style="font-size:26rpx;">出勤 {{item.attendanceCount}}</view>
+  </view>
+</view>

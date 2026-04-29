@@ -1,0 +1,8 @@
+<view class="login-page">
+  <view class="logo">九州</view>
+  <view class="tagline">球队管理 · 一起踢球</view>
+
+  <button class="btn-primary login-btn" bindtap="onLogin" loading="{{loading}}" disabled="{{loading}}">
+    微信一键登录
+  </button>
+</view>

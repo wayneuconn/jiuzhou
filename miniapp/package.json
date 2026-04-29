@@ -1,0 +1,13 @@
+{
+  "name": "jiuzhou-miniapp",
+  "version": "0.1.0",
+  "description": "九州球队管理小程序（微信原生）",
+  "private": true,
+  "scripts": {
+    "tsc": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "miniprogram-api-typings": "^3.12.3",
+    "typescript": "^5.4.0"
+  }
+}

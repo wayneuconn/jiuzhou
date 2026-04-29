@@ -1,0 +1,13 @@
+<view class="container" style="padding-top:120rpx;">
+  <view style="font-size:40rpx;font-weight:600;text-align:center;">绑定手机号</view>
+  <view class="text-muted" style="text-align:center;margin-top:16rpx;">用于接收比赛通知</view>
+
+  <button
+    class="btn-primary"
+    style="margin-top:80rpx;"
+    open-type="getPhoneNumber"
+    bindgetphonenumber="onGetPhone"
+    loading="{{loading}}">
+    一键授权微信手机号
+  </button>
+</view>

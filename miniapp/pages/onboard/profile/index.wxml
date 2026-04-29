@@ -1,0 +1,24 @@
+<view class="container">
+  <view class="card">
+    <view style="font-weight:600;margin-bottom:16rpx;">昵称</view>
+    <input class="input" placeholder="请输入昵称" value="{{displayName}}" bindinput="onNameInput" />
+  </view>
+
+  <view class="card">
+    <view style="font-weight:600;margin-bottom:16rpx;">擅长位置（可多选）</view>
+    <view class="position-row">
+      <view
+        wx:for="{{POSITIONS}}"
+        wx:key="*this"
+        class="position-chip {{selectedPositions.indexOf(item) >= 0 ? 'selected' : ''}}"
+        bindtap="togglePosition"
+        data-pos="{{item}}">
+        {{item}}
+      </view>
+    </view>
+  </view>
+
+  <button class="btn-primary" bindtap="onSubmit" loading="{{loading}}" disabled="{{loading}}">
+    完成
+  </button>
+</view>

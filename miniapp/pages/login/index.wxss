@@ -1,0 +1,30 @@
+.login-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 0 60rpx;
+  background: linear-gradient(180deg, #1a73e8 0%, #4285f4 100%);
+  color: #ffffff;
+}
+
+.logo {
+  font-size: 96rpx;
+  font-weight: 700;
+  letter-spacing: 8rpx;
+}
+
+.tagline {
+  font-size: 28rpx;
+  opacity: 0.85;
+  margin-top: 16rpx;
+  margin-bottom: 120rpx;
+}
+
+.login-btn {
+  width: 100%;
+  background: #ffffff;
+  color: #1a73e8;
+  font-weight: 600;
+}

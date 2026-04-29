@@ -1,0 +1,21 @@
+.field-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.field-input {
+  text-align: right;
+  flex: 1;
+  margin-left: 24rpx;
+  font-size: 28rpx;
+}
+
+.field-textarea {
+  width: 100%;
+  font-size: 28rpx;
+  min-height: 120rpx;
+}

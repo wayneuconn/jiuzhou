@@ -1,0 +1,37 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="text-muted">加载中...</view>
+
+  <block wx:elif="{{match}}">
+    <view class="card">
+      <view style="font-size:36rpx;font-weight:600;">{{match.location}}</view>
+      <view class="text-muted" style="margin-top:8rpx;">{{match.date}}</view>
+      <view class="text-muted" style="margin-top:8rpx;">名额: {{match.maxPlayers}} · {{match.status}}</view>
+    </view>
+
+    <!-- 我的报名状态 -->
+    <view wx:if="{{myReg}}" class="card flex-row" style="justify-content:space-between;align-items:center;">
+      <text>我的状态: {{myReg.status}}</text>
+      <button wx:if="{{myReg.status !== 'withdrawn'}}" size="mini" bindtap="withdraw">退出</button>
+    </view>
+
+    <!-- 报名按钮 -->
+    <button
+      wx:if="{{!myReg || myReg.status === 'withdrawn'}}"
+      class="btn-primary"
+      bindtap="register"
+      style="margin-bottom:24rpx;">
+      我要报名
+    </button>
+
+    <!-- 报名列表 -->
+    <view class="card">
+      <view style="font-weight:600;margin-bottom:16rpx;">已报名 ({{registrations.length}})</view>
+      <view wx:for="{{registrations}}" wx:key="uid" class="flex-row" style="justify-content:space-between;padding:12rpx 0;">
+        <text>{{item.displayName}}</text>
+        <text class="text-muted" style="font-size:24rpx;">
+          {{item.status === 'confirmed' ? '✓' : item.status === 'waitlist' ? '候补' + item.waitlistPosition : item.status}}
+        </text>
+      </view>
+    </view>
+  </block>
+</view>

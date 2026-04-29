@@ -1,0 +1,25 @@
+{
+  "miniprogramRoot": "./",
+  "projectname": "jiuzhou",
+  "description": "九州球队管理小程序",
+  "appid": "REPLACE_WITH_YOUR_APPID",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "newFeature": true,
+    "uglifyFileName": true,
+    "useCompilerPlugins": ["typescript"],
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.5.5",
+  "cloudfunctionRoot": "cloud/",
+  "condition": {}
+}

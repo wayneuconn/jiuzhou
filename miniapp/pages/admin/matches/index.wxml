@@ -1,0 +1,13 @@
+<view class="container">
+  <button class="btn-primary" bindtap="createMatch" style="margin-bottom:24rpx;">+ 创建比赛</button>
+
+  <view wx:if="{{loading}}" class="text-muted">加载中...</view>
+
+  <view wx:for="{{matches}}" wx:key="id" class="card" bindtap="goDetail" data-id="{{item.id}}">
+    <view class="flex-row" style="justify-content:space-between;">
+      <text style="font-weight:600;">{{item.location}}</text>
+      <text class="text-muted" style="font-size:24rpx;">{{item.status}}</text>
+    </view>
+    <text class="text-muted" style="font-size:26rpx;">{{item.date}}</text>
+  </view>
+</view>

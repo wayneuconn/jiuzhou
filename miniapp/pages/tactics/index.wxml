@@ -1,0 +1,18 @@
+<view class="container">
+  <movable-area class="pitch" style="width:{{pitchWidth}}px;height:{{pitchHeight}}px;">
+    <movable-view
+      wx:for="{{players}}"
+      wx:key="uid"
+      class="player-token"
+      x="{{item.x}}"
+      y="{{item.y}}"
+      direction="all"
+      data-idx="{{index}}"
+      bindchange="onMove"
+      disabled="{{!isAdminOrCaptain}}">
+      {{item.name}}
+    </movable-view>
+  </movable-area>
+
+  <button wx:if="{{isAdminOrCaptain}}" class="btn-primary" bindtap="saveFormation" style="margin-top:24rpx;">保存阵型</button>
+</view>

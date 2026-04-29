@@ -1,0 +1,25 @@
+<view class="container">
+  <view class="flex-row" style="gap:16rpx;margin-bottom:16rpx;">
+    <view class="card stat-card">
+      <view class="stat-num">{{stats.members}}</view>
+      <view class="text-muted">会员</view>
+    </view>
+    <view class="card stat-card">
+      <view class="stat-num">{{stats.activeMatches}}</view>
+      <view class="text-muted">进行中比赛</view>
+    </view>
+  </view>
+
+  <view class="card menu-item" bindtap="go" data-url="/pages/admin/matches/index">
+    <text>比赛管理</text><text class="text-muted">›</text>
+  </view>
+  <view class="card menu-item" bindtap="go" data-url="/pages/admin/members/index">
+    <text>成员管理</text><text class="text-muted">›</text>
+  </view>
+  <view class="card menu-item" bindtap="go" data-url="/pages/admin/payments/index">
+    <text>缴费管理</text><text class="text-muted">›</text>
+  </view>
+  <view class="card menu-item" bindtap="go" data-url="/pages/admin/settings/index">
+    <text>系统设置</text><text class="text-muted">›</text>
+  </view>
+</view>

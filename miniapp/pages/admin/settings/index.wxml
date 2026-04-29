@@ -1,0 +1,32 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="text-muted">加载中...</view>
+
+  <block wx:elif="{{config}}">
+    <view class="card">
+      <view class="field-row">
+        <text>赛季</text>
+        <input class="field-input" value="{{config.season}}" data-field="season" bindinput="onInput" />
+      </view>
+      <view class="field-row">
+        <text>单次费用 (¥)</text>
+        <input class="field-input" type="digit" value="{{config.perSessionFee}}" data-field="perSessionFee" bindinput="onInput" />
+      </view>
+      <view class="field-row">
+        <text>补位确认时限 (分钟)</text>
+        <input class="field-input" type="number" value="{{config.waitlistConfirmMinutes}}" data-field="waitlistConfirmMinutes" bindinput="onInput" />
+      </view>
+    </view>
+
+    <view class="card">
+      <view style="font-weight:600;margin-bottom:16rpx;">默认公告</view>
+      <textarea
+        class="field-textarea"
+        value="{{config.defaultAnnouncement}}"
+        data-field="defaultAnnouncement"
+        bindinput="onInput"
+        auto-height />
+    </view>
+
+    <button class="btn-primary" bindtap="save" loading="{{saving}}">保存设置</button>
+  </block>
+</view>

@@ -1,0 +1,17 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="text-muted" style="text-align:center;padding:40rpx;">加载中...</view>
+
+  <view wx:elif="{{announcements.length === 0}}" class="card text-muted" style="text-align:center;">
+    暂无公告
+  </view>
+
+  <view wx:else>
+    <view wx:for="{{announcements}}" wx:key="id" class="card">
+      <view class="flex-row" style="justify-content:space-between;margin-bottom:12rpx;">
+        <text style="font-weight:600;font-size:32rpx;">{{item.title}}</text>
+        <text wx:if="{{item.pinned}}" style="color:#1a73e8;font-size:24rpx;">置顶</text>
+      </view>
+      <text style="color:#555;white-space:pre-wrap;">{{item.content}}</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,46 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/matches/index",
+    "pages/match-detail/index",
+    "pages/tactics/index",
+    "pages/profile/index",
+    "pages/login/index",
+    "pages/onboard/phone/index",
+    "pages/onboard/profile/index",
+    "pages/admin/dashboard/index",
+    "pages/admin/matches/index",
+    "pages/admin/members/index",
+    "pages/admin/payments/index",
+    "pages/admin/settings/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTitleText": "九州",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f5f5"
+  },
+  "tabBar": {
+    "color": "#888888",
+    "selectedColor": "#1a73e8",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "首页" },
+      { "pagePath": "pages/matches/index", "text": "比赛" },
+      { "pagePath": "pages/tactics/index", "text": "战术" },
+      { "pagePath": "pages/profile/index", "text": "我的" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "requiredPrivateInfos": ["getLocation"],
+  "requiredBackgroundModes": [],
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于显示比赛场地距离"
+    }
+  }
+}

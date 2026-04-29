@@ -1,0 +1,17 @@
+.stat-card {
+  flex: 1;
+  text-align: center;
+}
+
+.stat-num {
+  font-size: 56rpx;
+  font-weight: 700;
+  color: #1a73e8;
+}
+
+.menu-item {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
