@@ -2,7 +2,7 @@
   "miniprogramRoot": "./",
   "projectname": "jiuzhou",
   "description": "九州球队管理小程序",
-  "appid": "REPLACE_WITH_YOUR_APPID",
+  "appid": "wx482b791c3d822c6c",
   "setting": {
     "urlCheck": true,
     "es6": true,
