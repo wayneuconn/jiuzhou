@@ -17,13 +17,8 @@ Page({
   async loadAnnouncements() {
     this.setData({ loading: true })
     try {
-      const db = wx.cloud.database()
-      const res = await db.collection('announcements')
-        .orderBy('pinned', 'desc')
-        .orderBy('createdAt', 'desc')
-        .limit(20)
-        .get()
-      this.setData({ announcements: res.data as unknown as Announcement[] })
+      const res = await wx.cloud.callFunction({ name: 'getAnnouncements' }) as { result: { announcements: Announcement[] } }
+      this.setData({ announcements: res.result.announcements })
     } catch (err) {
       console.error('loadAnnouncements failed', err)
     } finally {

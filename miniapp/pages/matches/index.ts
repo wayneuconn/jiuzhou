@@ -17,12 +17,8 @@ Page({
   async loadMatches() {
     this.setData({ loading: true })
     try {
-      const db = wx.cloud.database()
-      const res = await db.collection('matches')
-        .orderBy('date', 'desc')
-        .limit(50)
-        .get()
-      this.setData({ matches: res.data as unknown as Match[] })
+      const res = await wx.cloud.callFunction({ name: 'getMatches' }) as { result: { matches: Match[] } }
+      this.setData({ matches: res.result.matches })
     } catch (err) {
       console.error('loadMatches failed', err)
     } finally {

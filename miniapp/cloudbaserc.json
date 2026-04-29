@@ -16,6 +16,9 @@
     { "name": "createMatch", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "updateMatchStatus", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "confirmPayment", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
-    { "name": "initDB", "config": { "timeout": 60, "runtime": "Nodejs16.13", "installDependency": true } }
+    { "name": "initDB", "config": { "timeout": 60, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "getAnnouncements", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "getMatches", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "getMatchDetail", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } }
   ]
 }

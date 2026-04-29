@@ -30,21 +30,19 @@ Page({
     if (!this.data.matchId) return
     this.setData({ loading: true })
     try {
-      const db = wx.cloud.database()
       const app = getApp<{ globalData: { userProfile: { _id: string; role: string } | null } }>()
       const user = app.globalData.userProfile
 
-      const [matchDoc, regsRes] = await Promise.all([
-        db.collection('matches').doc(this.data.matchId).get(),
-        db.collection('matches').doc(this.data.matchId)
-          .collection('registrations').orderBy('registeredAt', 'asc').get(),
-      ])
+      const cfRes = await wx.cloud.callFunction({
+        name: 'getMatchDetail',
+        data: { matchId: this.data.matchId },
+      }) as { result: { match: Match; registrations: Registration[] } }
+      const { match, registrations } = cfRes.result
 
-      const registrations = regsRes.data as unknown as Registration[]
       const myReg = user ? registrations.find(r => r.uid === user._id) ?? null : null
 
       this.setData({
-        match: matchDoc.data as unknown as Match,
+        match,
         registrations,
         myReg,
         isAdmin: user?.role === 'admin',
