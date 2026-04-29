@@ -1,0 +1,21 @@
+{
+  "envId": "cloudbase-d5gycaytc310dac20",
+  "functionRoot": "cloud",
+  "functions": [
+    { "name": "loginWithCode", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "bindPhone", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "getCurrentUser", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "updateProfile", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "registerForMatch", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "withdrawFromMatch", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "processDraftPick", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "generateInviteLink", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "confirmationTimeout", "config": { "timeout": 60, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "saveFormation", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "sendSubscribeMsg", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "createMatch", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "updateMatchStatus", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "confirmPayment", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "initDB", "config": { "timeout": 60, "runtime": "Nodejs16.13", "installDependency": true } }
+  ]
+}
