@@ -38,12 +38,10 @@ App<JiuzhouAppOption>({
       this.globalData.openid = result.openid
       this.globalData.userProfile = result.user
 
-      if (!result.user?.phone) {
-        setTimeout(() => wx.redirectTo({ url: '/pages/onboard/phone/index' }), 0)
-      } else if (!result.user?.displayName) {
+      if (!result.user?.displayName) {
         setTimeout(() => wx.redirectTo({ url: '/pages/onboard/profile/index' }), 0)
       }
-      // If user is complete, stay on home (first page in app.json)
+      // If user has a displayName they're good; phone binding is optional
     } catch (err) {
       console.error('autoLogin failed', err)
       setTimeout(() => wx.redirectTo({ url: '/pages/login/index' }), 0)

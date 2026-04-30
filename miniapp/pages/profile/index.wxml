@@ -99,6 +99,8 @@
       {{saved ? '✓ 已保存' : saving ? '保存中...' : '保存'}}
     </button>
 
+    <button wx:if="{{!user.phone}}" class="btn-ghost" bindtap="goBindPhone">绑定手机号</button>
+
     <button wx:if="{{isAdmin}}" class="btn-ghost" bindtap="goAdmin">进入管理后台</button>
     <button wx:if="{{isAdmin}}" class="btn-ghost" bindtap="goAttendance">出勤统计</button>
 

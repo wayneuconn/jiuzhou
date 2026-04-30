@@ -19,9 +19,7 @@ Page({
       app.globalData.openid = result.openid
       app.globalData.userProfile = result.user
 
-      if (!result.user) {
-        wx.redirectTo({ url: '/pages/onboard/phone/index' })
-      } else if (!result.user.displayName) {
+      if (!result.user || !result.user.displayName) {
         wx.redirectTo({ url: '/pages/onboard/profile/index' })
       } else {
         wx.switchTab({ url: '/pages/home/index' })

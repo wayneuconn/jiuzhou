@@ -5,26 +5,24 @@
   justify-content: center;
   min-height: 100vh;
   padding: 0 60rpx;
-  background: linear-gradient(180deg, #1a73e8 0%, #4285f4 100%);
-  color: #ffffff;
+  background: #0D1117;
 }
 
 .logo {
-  font-size: 96rpx;
-  font-weight: 700;
-  letter-spacing: 8rpx;
+  font-size: 120rpx;
+  font-weight: 900;
+  color: #00C9A7;
+  letter-spacing: 12rpx;
 }
 
 .tagline {
-  font-size: 28rpx;
-  opacity: 0.85;
+  font-size: 26rpx;
+  color: #7A8FA6;
   margin-top: 16rpx;
   margin-bottom: 120rpx;
+  letter-spacing: 2rpx;
 }
 
 .login-btn {
   width: 100%;
-  background: #ffffff;
-  color: #1a73e8;
-  font-weight: 600;
 }
