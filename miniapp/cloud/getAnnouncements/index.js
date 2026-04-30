@@ -9,7 +9,7 @@ exports.main = async (event, context) => {
     db.collection('matches')
       .where({ status: _.in(['registration_r1', 'registration_r2', 'drafting', 'ready']) })
       .orderBy('date', 'asc').limit(1).get(),
-    db.collection('config').doc('appConfig').get(),
+    db.collection('config').doc('app').get().catch(() => ({ data: null })),
   ])
   return {
     announcements: annRes.data,

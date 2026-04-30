@@ -7,7 +7,7 @@ exports.main = async (event, context) => {
   const [matchSnap, regsSnap, configSnap] = await Promise.all([
     db.collection('matches').doc(matchId).get(),
     db.collection('matches').doc(matchId).collection('registrations').orderBy('registeredAt', 'asc').get(),
-    db.collection('config').doc('appConfig').get(),
+    db.collection('config').doc('app').get().catch(() => ({ data: null })),
   ])
 
   // Normalize any server timestamp fields in registrations to ms numbers

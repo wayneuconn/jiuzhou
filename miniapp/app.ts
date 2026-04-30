@@ -38,14 +38,14 @@ App<JiuzhouAppOption>({
       this.globalData.userProfile = result.user
 
       if (!result.user?.phone) {
-        wx.redirectTo({ url: '/pages/onboard/phone/index' })
+        setTimeout(() => wx.redirectTo({ url: '/pages/onboard/phone/index' }), 0)
       } else if (!result.user?.displayName) {
-        wx.redirectTo({ url: '/pages/onboard/profile/index' })
+        setTimeout(() => wx.redirectTo({ url: '/pages/onboard/profile/index' }), 0)
       }
       // If user is complete, stay on home (first page in app.json)
     } catch (err) {
       console.error('autoLogin failed', err)
-      wx.redirectTo({ url: '/pages/login/index' })
+      setTimeout(() => wx.redirectTo({ url: '/pages/login/index' }), 0)
     }
   },
 
