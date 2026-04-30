@@ -1,18 +1,47 @@
-.pitch {
-  background: #2e7d32;
-  border-radius: 16rpx;
+.pitch-wrap {
   position: relative;
+  background: #2D7A2D;
+  border: 3rpx solid #1E5C1E;
+  border-radius: 12rpx;
+  overflow: hidden;
 }
 
 .player-token {
-  width: 80rpx;
-  height: 80rpx;
   border-radius: 50%;
-  background: #ffffff;
-  color: #1f1f1f;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22rpx;
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
+}
+
+.token-a {
+  background: #00C9A7;
+  border: 3rpx solid rgba(255, 255, 255, 0.6);
+}
+
+.token-b {
+  background: #F0B429;
+  border: 3rpx solid rgba(255, 255, 255, 0.6);
+}
+
+.token-none {
+  background: #4A5568;
+  border: 3rpx solid rgba(255, 255, 255, 0.3);
+}
+
+.token-name {
+  font-size: 20rpx;
+  font-weight: 700;
+  color: #0D1117;
+  text-align: center;
+  line-height: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 4rpx;
+}
+
+.legend-dot {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 50%;
 }
