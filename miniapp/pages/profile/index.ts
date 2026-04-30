@@ -129,10 +129,6 @@ Page({
     }
   },
 
-  goBindPhone() {
-    wx.navigateTo({ url: '/pages/onboard/phone/index' })
-  },
-
   goAdmin() {
     wx.navigateTo({ url: '/pages/admin/dashboard/index' })
   },

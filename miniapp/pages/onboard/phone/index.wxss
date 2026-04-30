@@ -1,1 +1,29 @@
-/* page-specific styles */
+.phone-input-wrap {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 16rpx;
+  padding: 24rpx 28rpx;
+}
+
+.phone-input {
+  flex: 1;
+  font-size: 32rpx;
+  color: #e8f0eb;
+}
+
+.code-input {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 16rpx;
+  padding: 28rpx;
+  font-size: 48rpx;
+  font-weight: 700;
+  color: #00C9A7;
+  text-align: center;
+  letter-spacing: 16rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
