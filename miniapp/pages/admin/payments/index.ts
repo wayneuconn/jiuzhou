@@ -1,39 +1,35 @@
-import type { Payment, PaymentEvent } from '../../../types/index'
+import type { Payment } from '../../../types/index'
 
 Page({
   data: {
-    events: [] as PaymentEvent[],
-    payments: [] as Payment[],
+    pending: [] as (Payment & { id: string })[],
+    confirmed: [] as (Payment & { id: string })[],
     loading: true,
   },
 
-  onShow() {
-    this.loadData()
-  },
+  onShow() { this.loadData() },
 
   async loadData() {
     this.setData({ loading: true })
     try {
-      const db = wx.cloud.database()
-      const [eventsRes, paymentsRes] = await Promise.all([
-        db.collection('paymentEvents').orderBy('createdAt', 'desc').limit(10).get(),
-        db.collection('payments').orderBy('paidAt', 'desc').limit(100).get(),
-      ])
+      const res = await wx.cloud.callFunction({ name: 'adminGetPayments' }) as unknown as {
+        result: { payments: (Payment & { id: string })[] }
+      }
+      const payments = res.result.payments
       this.setData({
-        events: eventsRes.data as unknown as PaymentEvent[],
-        payments: paymentsRes.data as unknown as Payment[],
+        pending: payments.filter(p => p.status === 'pending'),
+        confirmed: payments.filter(p => p.status === 'confirmed'),
       })
-    } catch (err) {
-      console.error(err)
-    } finally {
-      this.setData({ loading: false })
-    }
+    } catch (err) { console.error(err) }
+    finally { this.setData({ loading: false }) }
   },
 
-  async confirmPayment(e: WechatMiniprogram.BaseEvent) {
+  async confirm(e: WechatMiniprogram.BaseEvent) {
     const id = (e.currentTarget.dataset as { id: string }).id
-    await wx.cloud.callFunction({ name: 'confirmPayment', data: { paymentId: id } })
-    wx.showToast({ title: '已确认', icon: 'success' })
-    this.loadData()
+    try {
+      await wx.cloud.callFunction({ name: 'confirmPayment', data: { paymentId: id } })
+      wx.showToast({ title: '已确认', icon: 'success' })
+      this.loadData()
+    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
   },
 })

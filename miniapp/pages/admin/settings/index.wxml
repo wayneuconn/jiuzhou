@@ -1,30 +1,34 @@
 <view class="container">
-  <view wx:if="{{loading}}" class="text-muted">加载中...</view>
+  <view style="font-size:48rpx;font-weight:900;margin-bottom:32rpx;">系统设置</view>
+
+  <view wx:if="{{loading}}" class="text-muted" style="text-align:center;padding:60rpx 0;">加载中...</view>
 
   <block wx:elif="{{config}}">
-    <view class="card">
-      <view class="field-row">
-        <text>赛季</text>
-        <input class="field-input" value="{{config.season}}" data-field="season" bindinput="onInput" />
+    <view class="card" style="margin-bottom:24rpx;">
+      <view style="font-size:24rpx;font-weight:700;color:#7A8FA6;margin-bottom:20rpx;text-transform:uppercase;letter-spacing:3rpx;">基本设置</view>
+
+      <view style="margin-bottom:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">赛季</view>
+        <input class="settings-input" value="{{config.season}}" data-field="season" bindinput="onInput" placeholder="例：2025-2026"/>
       </view>
-      <view class="field-row">
-        <text>单次费用 (¥)</text>
-        <input class="field-input" type="digit" value="{{config.perSessionFee}}" data-field="perSessionFee" bindinput="onInput" />
+      <view style="margin-bottom:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">单次参赛费用 (¥)</view>
+        <input class="settings-input" type="digit" value="{{config.perSessionFee}}" data-field="perSessionFee" bindinput="onInput"/>
       </view>
-      <view class="field-row">
-        <text>补位确认时限 (分钟)</text>
-        <input class="field-input" type="number" value="{{config.waitlistConfirmMinutes}}" data-field="waitlistConfirmMinutes" bindinput="onInput" />
+      <view>
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">补位确认时限 (分钟)</view>
+        <input class="settings-input" type="number" value="{{config.waitlistConfirmMinutes}}" data-field="waitlistConfirmMinutes" bindinput="onInput"/>
       </view>
     </view>
 
-    <view class="card">
-      <view style="font-weight:600;margin-bottom:16rpx;">默认公告</view>
-      <textarea
-        class="field-textarea"
-        value="{{config.defaultAnnouncement}}"
-        data-field="defaultAnnouncement"
-        bindinput="onInput"
-        auto-height />
+    <view class="card" style="margin-bottom:24rpx;">
+      <view style="font-size:24rpx;font-weight:700;color:#7A8FA6;margin-bottom:20rpx;text-transform:uppercase;letter-spacing:3rpx;">默认公告</view>
+      <textarea class="settings-textarea" value="{{config.defaultAnnouncement}}" data-field="defaultAnnouncement" bindinput="onInput" auto-height placeholder="首页公告内容..."/>
+    </view>
+
+    <view class="card" style="margin-bottom:32rpx;">
+      <view style="font-size:24rpx;font-weight:700;color:#7A8FA6;margin-bottom:20rpx;text-transform:uppercase;letter-spacing:3rpx;">默认报名协议</view>
+      <textarea class="settings-textarea" value="{{config.defaultAgreementText}}" data-field="defaultAgreementText" bindinput="onInput" auto-height placeholder="报名协议文本..."/>
     </view>
 
     <button class="btn-primary" bindtap="save" loading="{{saving}}">保存设置</button>

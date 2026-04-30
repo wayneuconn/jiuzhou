@@ -10,7 +10,7 @@
     { "name": "withdrawFromMatch", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "processDraftPick", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "generateInviteLink", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
-    { "name": "confirmationTimeout", "config": { "timeout": 60, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "confirmationTimeout", "config": { "timeout": 60, "runtime": "Nodejs16.13", "installDependency": true, "triggers": [{ "name": "timer", "type": "timer", "config": "0 */5 * * * * *" }] } },
     { "name": "saveFormation", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "sendSubscribeMsg", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "createMatch", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
@@ -22,6 +22,9 @@
     { "name": "getMatchDetail", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "confirmSpot", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "getAttendanceStats", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
-    { "name": "makeAdmin", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } }
+    { "name": "makeAdmin", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "adminGetMembers", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "adminGetPayments", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "adminUpdateUser", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } }
   ]
 }

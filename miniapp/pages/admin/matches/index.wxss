@@ -1,1 +1,27 @@
-/* page-specific styles */
+.form-input {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  color: #e8f0eb;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modal-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: flex-end;
+  z-index: 1000;
+}
+
+.modal-box {
+  background: #0F1923;
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 40rpx 32rpx;
+  width: 100%;
+  box-sizing: border-box;
+}

@@ -1,4 +1,6 @@
 {
   "usingComponents": {},
-  "navigationBarTitleText": "比赛管理"
+  "navigationBarTitleText": "比赛管理",
+  "navigationBarBackgroundColor": "#0F1923",
+  "navigationBarTextStyle": "white"
 }

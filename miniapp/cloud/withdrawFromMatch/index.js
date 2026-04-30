@@ -46,5 +46,20 @@ exports.main = async (event, context) => {
     },
   })
 
+  // Try to notify promoted player (fire-and-forget)
+  try {
+    const waiterUserSnap = await db.collection('users').doc(topWaiter.uid).get()
+    if (waiterUserSnap.data?.openid) {
+      await cloud.callFunction({
+        name: 'sendSubscribeMsg',
+        data: {
+          type: 'promoted',
+          toOpenid: waiterUserSnap.data.openid,
+          data: { page: `/pages/match-detail/index?id=${matchId}`, templateData: {} },
+        },
+      })
+    }
+  } catch (_) {}
+
   return { success: true, promoted: topWaiter.uid }
 }

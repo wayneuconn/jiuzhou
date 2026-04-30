@@ -1,21 +1,22 @@
-.field-row {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.field-input {
-  text-align: right;
-  flex: 1;
-  margin-left: 24rpx;
+.settings-input {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
   font-size: 28rpx;
-}
-
-.field-textarea {
+  color: #e8f0eb;
   width: 100%;
-  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+.settings-textarea {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  color: #e8f0eb;
+  width: 100%;
+  box-sizing: border-box;
   min-height: 120rpx;
 }

@@ -52,7 +52,17 @@
       "Bash(firebase storage:buckets:list:*)",
       "Bash(npm init:*)",
       "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' https://firebasestorage.googleapis.com/v0/b/jiuzhou-493217.firebasestorage.app/o)",
-      "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' -H 'x-goog-user-project: jiuzhou-493217' https://firebasestorage.googleapis.com/v1beta/projects/jiuzhou-493217/buckets/jiuzhou-493217.firebasestorage.app)"
+      "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' -H 'x-goog-user-project: jiuzhou-493217' https://firebasestorage.googleapis.com/v1beta/projects/jiuzhou-493217/buckets/jiuzhou-493217.firebasestorage.app)",
+      "Bash(ls /Users/wayne/Documents/Working/jiuzhou/README*)",
+      "Bash(npm ls:*)",
+      "Bash(npm list *)",
+      "Bash(tcb *)",
+      "Bash(kill %1)",
+      "Bash(pkill -f \"tcb fn deploy\")",
+      "Bash(wait)",
+      "Bash(npx tsc *)",
+      "Bash(npx tcb *)",
+      "Bash(chmod +x *)"
     ]
   }
 }

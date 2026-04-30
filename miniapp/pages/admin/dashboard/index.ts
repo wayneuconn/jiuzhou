@@ -1,30 +1,37 @@
-import type { User, Match } from '../../../types/index'
+import type { Match, User } from '../../../types/index'
 
 Page({
   data: {
-    stats: { members: 0, activeMatches: 0 },
+    memberCount: 0,
+    activeMatchCount: 0,
     loading: true,
   },
 
-  onShow() {
+  onLoad() {
+    const app = getApp<{ globalData: { userProfile: { role: string } | null } }>()
+    if (app.globalData.userProfile?.role !== 'admin') {
+      wx.showToast({ title: '无权限', icon: 'error' })
+      wx.navigateBack()
+      return
+    }
     this.loadStats()
   },
+
+  onShow() { this.loadStats() },
 
   async loadStats() {
     this.setData({ loading: true })
     try {
-      const db = wx.cloud.database()
-      const _ = db.command
-      const [members, activeMatches] = await Promise.all([
-        db.collection('users').where({ role: _.neq('guest') }).count(),
-        db.collection('matches').where({ status: _.in(['registration_r1', 'registration_r2', 'drafting', 'ready']) }).count(),
+      const [matchRes, memberRes] = await Promise.all([
+        wx.cloud.callFunction({ name: 'getMatches' }) as unknown as Promise<{ result: { matches: Match[] } }>,
+        wx.cloud.callFunction({ name: 'adminGetMembers' }) as unknown as Promise<{ result: { members: User[] } }>,
       ])
-      this.setData({ stats: { members: members.total, activeMatches: activeMatches.total } })
-    } catch (err) {
-      console.error(err)
-    } finally {
-      this.setData({ loading: false })
-    }
+      const active = matchRes.result.matches.filter((m: Match) =>
+        !['completed', 'cancelled', 'draft'].includes(m.status)
+      ).length
+      this.setData({ activeMatchCount: active, memberCount: memberRes.result.members.length })
+    } catch (err) { console.error(err) }
+    finally { this.setData({ loading: false }) }
   },
 
   go(e: WechatMiniprogram.BaseEvent) {
