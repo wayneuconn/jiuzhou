@@ -1,4 +1,4 @@
-import type { Match, Registration } from '../../types/index'
+import type { Match, Registration, MatchTag } from '../../types/index'
 import { formatDate, STATUS_LABEL, STATUS_BADGE, REG_STATUS_LABEL } from '../../utils/format'
 
 const SUBSCRIBE_TEMPLATES = {
@@ -95,7 +95,7 @@ Page({
       const cfRes = await wx.cloud.callFunction({
         name: 'getMatchDetail',
         data: { matchId: this.data.matchId },
-      }) as { result: { match: Match; registrations: Registration[]; agreementText: string } }
+      }) as unknown as { result: { match: Match; registrations: Registration[]; agreementText: string } }
 
       const { match, registrations, agreementText } = cfRes.result
       this._registrations = registrations
@@ -235,7 +235,7 @@ Page({
     const grp = POS_GROUPS.find(g => g.key === key)
     const filteredRoster = key === 'all'
       ? this._confirmedListRaw
-      : this._confirmedListRaw.filter(r => {
+      : this._confirmedListRaw.filter((r: RegVM) => {
           const first = (r.preferredPositions ?? [])[0]
           return first && (grp?.positions ?? []).includes(first)
         })
@@ -259,7 +259,7 @@ Page({
       const res = await wx.cloud.callFunction({
         name: 'registerForMatch',
         data: { matchId: this.data.matchId },
-      }) as { result: { status: string } }
+      }) as unknown as { result: { status: string } }
       wx.showToast({ title: res.result.status === 'waitlist' ? '已加入候补' : '报名成功', icon: 'success' })
       this.loadMatch()
     } catch (err: unknown) {
@@ -333,11 +333,11 @@ Page({
 
   async toggleTag(e: WechatMiniprogram.BaseEvent) {
     const { uid, tag } = e.currentTarget.dataset as { uid: string; tag: 'late' | 'dangerous' }
-    const reg = this._registrations.find(r => r.uid === uid)
+    const reg = this._registrations.find((r: Registration) => r.uid === uid)
     if (!reg) return
-    const tags = reg.tags ?? []
+    const tags: MatchTag[] = reg.tags ?? []
     const has = tags.includes(tag)
-    const newTags = has ? tags.filter(t => t !== tag) : [...tags, tag]
+    const newTags = has ? tags.filter((t: MatchTag) => t !== tag) : [...tags, tag]
     try {
       await wx.cloud.callFunction({
         name: 'updateMatchStatus',
@@ -349,9 +349,9 @@ Page({
     }
   },
 
-  async setCaptain(e: WechatMiniprogram.BaseEvent) {
+  async setCaptain(e: WechatMiniprogram.BaseEvent & { detail: { value: number } }) {
     const slot = (e.currentTarget.dataset as { slot: string }).slot
-    const idx = (e.detail as { value: number }).value
+    const idx = e.detail.value
     const uid = this.data.confirmedList[idx]?.uid ?? null
     try {
       await wx.cloud.callFunction({

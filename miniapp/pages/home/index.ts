@@ -17,7 +17,7 @@ Page({
   async loadData() {
     this.setData({ loading: true })
     try {
-      const res = await wx.cloud.callFunction({ name: 'getAnnouncements' }) as {
+      const res = await wx.cloud.callFunction({ name: 'getAnnouncements' }) as unknown as {
         result: { announcements: Announcement[]; nextMatch: Match | null; season: string }
       }
       const { announcements, nextMatch, season } = res.result

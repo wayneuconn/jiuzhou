@@ -4,7 +4,9 @@
   "description": "九州球队管理小程序（微信原生）",
   "private": true,
   "scripts": {
-    "tsc": "tsc --noEmit"
+    "tsc": "tsc --noEmit",
+    "test": "tsc --noEmit && bash scripts/smoke-test.sh",
+    "smoke": "bash scripts/smoke-test.sh"
   },
   "devDependencies": {
     "miniprogram-api-typings": "^3.12.3",

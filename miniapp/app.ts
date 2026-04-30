@@ -5,6 +5,7 @@ interface JiuzhouAppOption {
     userProfile: User | null
     openid: string | null
   }
+  autoLogin: () => Promise<void>
   refreshUserProfile: () => Promise<User | null>
 }
 

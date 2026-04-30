@@ -22,7 +22,7 @@ Page({
   async loadMatches() {
     this.setData({ loading: true })
     try {
-      const res = await wx.cloud.callFunction({ name: 'getMatches' }) as { result: { matches: Match[] } }
+      const res = await wx.cloud.callFunction({ name: 'getMatches' }) as unknown as { result: { matches: Match[] } }
       const all: MatchVM[] = res.result.matches.map(m => ({
         ...m,
         dateStr: formatDate(m.date),
