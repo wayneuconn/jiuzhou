@@ -7,5 +7,5 @@ exports.main = async (event, context) => {
     .orderBy('date', 'desc')
     .limit(50)
     .get()
-  return { matches: res.data }
+  return { matches: res.data.map(m => ({ ...m, id: m._id })) }
 }

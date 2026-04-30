@@ -18,9 +18,10 @@ exports.main = async (event, context) => {
     confirmDeadline: r.confirmDeadline?._seconds  ? r.confirmDeadline._seconds * 1000  : (r.confirmDeadline ?? null),
   }))
 
+  const match = matchSnap.data ? { ...matchSnap.data, id: matchSnap.data._id } : null
   return {
-    match: matchSnap.data,
-    registrations,
+    match,
+    registrations: registrations.map(r => ({ ...r, id: r._id })),
     agreementText: configSnap.data?.defaultAgreementText ?? '',
   }
 }

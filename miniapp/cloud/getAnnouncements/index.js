@@ -11,9 +11,10 @@ exports.main = async (event, context) => {
       .orderBy('date', 'asc').limit(1).get(),
     db.collection('config').doc('app').get().catch(() => ({ data: null })),
   ])
+  const nextMatch = matchRes.data[0] ?? null
   return {
-    announcements: annRes.data,
-    nextMatch: matchRes.data[0] ?? null,
+    announcements: annRes.data.map(a => ({ ...a, id: a._id })),
+    nextMatch: nextMatch ? { ...nextMatch, id: nextMatch._id } : null,
     season: configRes.data?.season ?? '',
   }
 }
