@@ -13,7 +13,7 @@ exports.main = async (event, context) => {
   const user = userSnap.data[0]
   if (!user || user.role !== 'admin') throw new Error('admins only')
 
-  // ── status update (legacy action) ───────────────────────────────────────
+  // ── status update ──────────────────────────────────────────────────────────
   if (!action || action === 'setStatus') {
     const { status } = event
     if (!VALID_STATUSES.includes(status)) throw new Error('invalid status')
@@ -21,22 +21,19 @@ exports.main = async (event, context) => {
     return { success: true }
   }
 
-  // ── assign player to team ────────────────────────────────────────────────
+  // ── assign player to team ──────────────────────────────────────────────────
   if (action === 'assignTeam') {
     const { uid, team } = event
-    await db.collection('matches').doc(matchId)
-      .collection('registrations').doc(uid)
-      .update({ data: { team: team ?? null } })
+    const regId = matchId + '_' + uid
+    await db.collection('registrations').doc(regId).update({ data: { team: team ?? null } })
     return { success: true }
   }
 
-  // ── toggle late/dangerous tag on a registration ──────────────────────────
+  // ── toggle late/dangerous tag ──────────────────────────────────────────────
   if (action === 'toggleTag') {
     const { uid, tags } = event
-    const field = (tags || []).includes('late') !== (tags || []).includes('dangerous')
-      ? null : null // compute delta below
-    const regSnap = await db.collection('matches').doc(matchId)
-      .collection('registrations').doc(uid).get()
+    const regId = matchId + '_' + uid
+    const regSnap = await db.collection('registrations').doc(regId).get()
     const oldTags = regSnap.data?.tags ?? []
     const newTags = tags ?? []
 
@@ -45,44 +42,35 @@ exports.main = async (event, context) => {
     const hadDangerous = oldTags.includes('dangerous')
     const hasDangerous = newTags.includes('dangerous')
 
-    const batch = db.batch ? null : null // CloudBase doesn't support batch the same way; do sequential
-    await db.collection('matches').doc(matchId)
-      .collection('registrations').doc(uid)
-      .update({ data: { tags: newTags } })
+    await db.collection('registrations').doc(regId).update({ data: { tags: newTags } })
 
     if (hadLate !== hasLate) {
-      await db.collection('users').doc(uid).update({
-        data: { lateCount: _.inc(hasLate ? 1 : -1) },
-      })
+      await db.collection('users').doc(uid).update({ data: { lateCount: _.inc(hasLate ? 1 : -1) } })
     }
     if (hadDangerous !== hasDangerous) {
-      await db.collection('users').doc(uid).update({
-        data: { dangerousCount: _.inc(hasDangerous ? 1 : -1) },
-      })
+      await db.collection('users').doc(uid).update({ data: { dangerousCount: _.inc(hasDangerous ? 1 : -1) } })
     }
     return { success: true }
   }
 
-  // ── set captain ──────────────────────────────────────────────────────────
+  // ── set captain ────────────────────────────────────────────────────────────
   if (action === 'setCaptain') {
-    const { slot, uid } = event  // slot: 'captainA' | 'captainB', uid: string | null
+    const { slot, uid } = event
 
     // Clear old captain's team assignment
     const matchSnap = await db.collection('matches').doc(matchId).get()
     const prevUid = matchSnap.data?.[slot]
     if (prevUid && prevUid !== uid) {
-      await db.collection('matches').doc(matchId)
-        .collection('registrations').doc(prevUid)
-        .update({ data: { team: null } })
+      const prevRegId = matchId + '_' + prevUid
+      await db.collection('registrations').doc(prevRegId).update({ data: { team: null } }).catch(() => {})
     }
 
     await db.collection('matches').doc(matchId).update({ data: { [slot]: uid ?? null } })
 
     if (uid) {
       const team = slot === 'captainA' ? 'A' : 'B'
-      await db.collection('matches').doc(matchId)
-        .collection('registrations').doc(uid)
-        .update({ data: { team } })
+      const regId = matchId + '_' + uid
+      await db.collection('registrations').doc(regId).update({ data: { team } })
     }
     return { success: true }
   }

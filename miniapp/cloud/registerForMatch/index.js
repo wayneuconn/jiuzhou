@@ -7,11 +7,12 @@ exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
   const { matchId } = event
 
-  const [userSnap, matchSnap, regsSnap] = await Promise.all([
+  const [userSnap, matchSnap, confirmedSnap] = await Promise.all([
     db.collection('users').where({ openid: OPENID }).limit(1).get(),
     db.collection('matches').doc(matchId).get(),
-    db.collection('matches').doc(matchId).collection('registrations')
-      .where({ status: _.in(['confirmed', 'promoted']) }).get(),
+    db.collection('registrations')
+      .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+      .count(),
   ])
 
   const user = userSnap.data[0]
@@ -21,44 +22,47 @@ exports.main = async (event, context) => {
   if (!['registration_r1', 'registration_r2'].includes(match.status)) {
     throw new Error('registration not open')
   }
-
-  // r1: members only; r2: guests allowed
   if (match.status === 'registration_r1' && user.membershipType === 'none') {
     throw new Error('r1 members only')
   }
 
-  const existing = await db.collection('matches').doc(matchId)
-    .collection('registrations').doc(user._id).get().catch(() => null)
+  const regId = matchId + '_' + user._id
+  const existingSnap = await db.collection('registrations').doc(regId).get().catch(() => ({ data: null }))
 
-  if (existing?.data) {
-    if (['confirmed', 'promoted', 'waitlist'].includes(existing.data.status)) {
+  if (existingSnap.data) {
+    if (['confirmed', 'promoted', 'waitlist'].includes(existingSnap.data.status)) {
       throw new Error('already registered')
     }
-    // Re-register after withdrawal
-    await db.collection('matches').doc(matchId).collection('registrations').doc(user._id).update({
+    // Re-register after withdrawal/excused
+    await db.collection('registrations').doc(regId).update({
       data: { status: 'confirmed', registeredAt: db.serverDate(), tags: [] },
     })
     return { status: 'confirmed' }
   }
 
-  const confirmedCount = regsSnap.data.length
+  const confirmedCount = confirmedSnap.total ?? 0
   const isWaitlist = confirmedCount >= match.maxPlayers
 
-  const waitlistSnap = isWaitlist
-    ? await db.collection('matches').doc(matchId).collection('registrations')
-        .where({ status: 'waitlist' }).count()
-    : null
+  let waitlistPosition = null
+  if (isWaitlist) {
+    const wlSnap = await db.collection('registrations')
+      .where({ matchId, status: 'waitlist' })
+      .count()
+    waitlistPosition = (wlSnap.total ?? 0) + 1
+  }
 
-  await db.collection('matches').doc(matchId).collection('registrations').doc(user._id).set({
+  await db.collection('registrations').doc(regId).set({
     data: {
+      matchId,
       uid: user._id,
       displayName: user.displayName,
       preferredPositions: user.preferredPositions ?? [],
       registeredAt: db.serverDate(),
       status: isWaitlist ? 'waitlist' : 'confirmed',
-      waitlistPosition: isWaitlist ? (waitlistSnap?.total ?? 0) + 1 : null,
+      waitlistPosition: isWaitlist ? waitlistPosition : null,
       team: null,
       tags: [],
+      autoAccept: event.autoAccept !== undefined ? event.autoAccept : true,
     },
   })
 

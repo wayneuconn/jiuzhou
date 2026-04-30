@@ -10,17 +10,12 @@ exports.main = async (event, context) => {
   const user = userSnap.data[0]
   if (!user) throw new Error('user not found')
 
-  const regSnap = await db.collection('matches').doc(matchId)
-    .collection('registrations').doc(user._id).get()
-
+  const regId = matchId + '_' + user._id
+  const regSnap = await db.collection('registrations').doc(regId).get().catch(() => ({ data: null }))
   if (!regSnap.data || regSnap.data.status !== 'promoted') {
     throw new Error('not in promoted state')
   }
 
-  await db.collection('matches').doc(matchId)
-    .collection('registrations').doc(user._id).update({
-      data: { status: 'confirmed' },
-    })
-
+  await db.collection('registrations').doc(regId).update({ data: { status: 'confirmed' } })
   return { success: true }
 }
