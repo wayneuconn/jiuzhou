@@ -100,6 +100,7 @@
     </button>
 
     <button wx:if="{{isAdmin}}" class="btn-ghost" bindtap="goAdmin">进入管理后台</button>
+    <button wx:if="{{isAdmin}}" class="btn-ghost" bindtap="goAttendance">出勤统计</button>
 
     <button class="btn-ghost btn-danger" bindtap="logout">退出登录</button>
 

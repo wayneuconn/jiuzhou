@@ -12,7 +12,8 @@
     "pages/admin/matches/index",
     "pages/admin/members/index",
     "pages/admin/payments/index",
-    "pages/admin/settings/index"
+    "pages/admin/settings/index",
+    "pages/admin/attendance/index"
   ],
   "window": {
     "backgroundTextStyle": "light",

@@ -133,6 +133,10 @@ Page({
     wx.navigateTo({ url: '/pages/admin/dashboard/index' })
   },
 
+  goAttendance() {
+    wx.navigateTo({ url: '/pages/admin/attendance/index' })
+  },
+
   async logout() {
     const res = await wx.showModal({ title: '确认退出？', content: '', confirmColor: '#E53E3E' })
     if (!res.confirm) return

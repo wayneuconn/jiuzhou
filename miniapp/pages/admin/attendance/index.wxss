@@ -1,0 +1,27 @@
+.date-picker-val {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  color: #e8f0eb;
+}
+
+.stat-row {
+  margin-bottom: 16rpx;
+}
+
+.rank-badge {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #7A8FA6;
+  flex-shrink: 0;
+}

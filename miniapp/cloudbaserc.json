@@ -20,6 +20,8 @@
     { "name": "getAnnouncements", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "getMatches", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "getMatchDetail", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
-    { "name": "confirmSpot", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } }
+    { "name": "confirmSpot", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "getAttendanceStats", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "makeAdmin", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } }
   ]
 }
