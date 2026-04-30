@@ -1,4 +1,4 @@
-const POSITIONS = ['门将', '后卫', '中场', '前锋']
+const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST']
 
 Page({
   data: {

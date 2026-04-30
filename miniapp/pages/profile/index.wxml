@@ -4,43 +4,104 @@
   </view>
 
   <block wx:elif="{{user}}">
-    <!-- 头像 + 名字 -->
-    <view class="card" style="text-align:center;padding:48rpx 32rpx;">
-      <view style="display:flex;justify-content:center;margin-bottom:20rpx;">
-        <image wx:if="{{user.avatar}}" src="{{user.avatar}}" style="width:140rpx;height:140rpx;border-radius:50%;" mode="aspectFill" />
-        <view wx:else class="avatar-placeholder">{{user.displayName[0]}}</view>
+
+    <!-- Player card -->
+    <view class="player-card" style="border-color:{{tierColor}};">
+      <view class="flex-row" style="justify-content:space-between;margin-bottom:24rpx;">
+        <view class="flex-row" style="gap:8rpx;align-items:flex-end;">
+          <view style="font-size:32rpx;font-weight:900;color:#e8f0eb;">{{user.attendanceCount}}</view>
+          <view class="text-muted" style="font-size:22rpx;margin-bottom:2rpx;">场</view>
+        </view>
+        <view wx:if="{{hasNextTier}}" style="font-size:22rpx;font-weight:700;color:{{tierColor}};">再 {{nextTierGamesLeft}} 场 →</view>
       </view>
-      <view style="font-size:38rpx;font-weight:700;">{{user.displayName}}</view>
-      <view style="margin-top:8rpx;">
-        <view class="badge badge-blue" wx:if="{{user.role === 'admin'}}">管理员</view>
-        <view class="badge badge-grey" wx:elif="{{user.role === 'member'}}">会员</view>
-        <view class="badge badge-grey" wx:else>访客</view>
+      <view style="text-align:center;">
+        <view class="avatar-circle-large" style="border-color:{{tierColor}};">
+          <text style="font-size:48rpx;font-weight:900;color:{{tierColor}};">{{user.displayName[0]}}</text>
+        </view>
+        <view style="font-size:36rpx;font-weight:900;margin-top:16rpx;color:#e8f0eb;">{{user.displayName}}</view>
+        <view wx:if="{{priorityPositions.length > 0}}" style="display:flex;flex-direction:row;justify-content:center;gap:12rpx;margin-top:12rpx;flex-wrap:wrap;">
+          <view wx:for="{{priorityPositions}}" wx:key="pos"
+            class="pos-chip {{index === 0 ? 'pos-chip-primary' : 'pos-chip-secondary'}}">{{item.pos}}</view>
+        </view>
       </view>
     </view>
 
-    <!-- 出勤统计 -->
+    <!-- Badges row -->
+    <view class="flex-row" style="gap:12rpx;flex-wrap:wrap;margin-bottom:20rpx;">
+      <view class="badge {{membershipBadge}}">{{membershipLabel}}</view>
+      <view wx:if="{{tierLabel}}" class="badge" style="color:{{tierColor}};border-color:{{tierColor}};">{{tierLabel}}</view>
+      <view wx:if="{{user.role === 'admin'}}" class="badge badge-gold">管理员</view>
+    </view>
+
+    <!-- Stats -->
     <view class="card">
-      <view style="font-weight:600;font-size:28rpx;color:#888;margin-bottom:16rpx;">球员数据</view>
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:20rpx;">球员数据</view>
       <view class="flex-row" style="justify-content:space-around;text-align:center;">
         <view>
-          <view style="font-size:44rpx;font-weight:700;color:#1a73e8;">{{user.attendanceCount}}</view>
-          <view class="text-muted" style="font-size:24rpx;margin-top:4rpx;">出勤</view>
+          <view style="font-size:48rpx;font-weight:900;color:#00C9A7;">{{user.attendanceCount}}</view>
+          <view class="text-muted" style="font-size:22rpx;margin-top:4rpx;">出勤</view>
         </view>
-        <view style="width:1rpx;background:#f0f0f0;"></view>
+        <view style="width:1rpx;background:#1E2D3D;height:60rpx;align-self:center;"></view>
         <view>
-          <view style="font-size:44rpx;font-weight:700;color:{{user.lateCount > 0 ? '#ef6c00' : '#1f1f1f'}};">{{user.lateCount}}</view>
-          <view class="text-muted" style="font-size:24rpx;margin-top:4rpx;">迟到</view>
+          <view style="font-size:48rpx;font-weight:900;color:{{user.lateCount > 0 ? '#F0B429' : '#e8f0eb'}};">{{user.lateCount}}</view>
+          <view class="text-muted" style="font-size:22rpx;margin-top:4rpx;">迟到</view>
         </view>
-        <view style="width:1rpx;background:#f0f0f0;"></view>
+        <view style="width:1rpx;background:#1E2D3D;height:60rpx;align-self:center;"></view>
         <view>
-          <view style="font-size:44rpx;font-weight:700;color:{{user.dangerousCount > 0 ? '#e53935' : '#1f1f1f'}};">{{user.dangerousCount}}</view>
-          <view class="text-muted" style="font-size:24rpx;margin-top:4rpx;">危险动作</view>
+          <view style="font-size:48rpx;font-weight:900;color:{{user.dangerousCount > 0 ? '#E53E3E' : '#e8f0eb'}};">{{user.dangerousCount}}</view>
+          <view class="text-muted" style="font-size:22rpx;margin-top:4rpx;">危险动作</view>
         </view>
       </view>
     </view>
 
-    <!-- 操作 -->
-    <button wx:if="{{user.role === 'admin'}}" class="btn-primary" bindtap="goAdmin" style="margin-bottom:16rpx;">进入管理后台</button>
-    <button class="btn-ghost" bindtap="logout">退出登录</button>
+    <!-- Edit name -->
+    <view class="card">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">名字</view>
+      <input
+        value="{{displayName}}"
+        bindinput="onNameInput"
+        placeholder="输入你的名字"
+        placeholder-style="color:#3A4E63"
+        style="font-size:32rpx;font-weight:700;color:#e8f0eb;background:transparent;width:100%;" />
+    </view>
+
+    <!-- Edit positions -->
+    <view class="card">
+      <view class="flex-row" style="justify-content:space-between;margin-bottom:16rpx;">
+        <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;">惯用位置</view>
+        <view class="text-muted" style="font-size:22rpx;">按优先级选最多 3 个</view>
+      </view>
+
+      <!-- Priority display (selected) -->
+      <view wx:if="{{priorityPositions.length > 0}}" style="display:flex;flex-direction:row;gap:16rpx;margin-bottom:20rpx;">
+        <view wx:for="{{priorityPositions}}" wx:key="pos" style="text-align:center;">
+          <view style="font-size:18rpx;font-weight:900;color:#00C9A7;text-transform:uppercase;margin-bottom:8rpx;">{{item.priorityLabel}}</view>
+          <view class="pos-chip-selected" bindtap="removePosition" data-pos="{{item.pos}}">{{item.pos}}</view>
+        </view>
+      </view>
+
+      <!-- Available positions -->
+      <view style="display:flex;flex-direction:row;flex-wrap:wrap;gap:12rpx;">
+        <view
+          wx:for="{{availablePositions}}"
+          wx:key="*this"
+          class="pos-chip-avail {{selectedCount >= 3 ? 'pos-chip-disabled' : ''}}"
+          bindtap="addPosition"
+          data-pos="{{item}}">
+          {{item}}
+        </view>
+      </view>
+      <view wx:if="{{priorityPositions.length > 0}}" class="text-muted" style="font-size:22rpx;margin-top:12rpx;">点击已选位置可移除</view>
+    </view>
+
+    <!-- Save -->
+    <button class="btn-primary" bindtap="saveProfile" disabled="{{saving || !displayName}}">
+      {{saved ? '✓ 已保存' : saving ? '保存中...' : '保存'}}
+    </button>
+
+    <button wx:if="{{isAdmin}}" class="btn-ghost" bindtap="goAdmin">进入管理后台</button>
+
+    <button class="btn-ghost btn-danger" bindtap="logout">退出登录</button>
+
   </block>
 </view>

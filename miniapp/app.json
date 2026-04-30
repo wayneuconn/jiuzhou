@@ -16,15 +16,15 @@
   ],
   "window": {
     "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarBackgroundColor": "#0F1923",
     "navigationBarTitleText": "九州",
-    "navigationBarTextStyle": "black",
-    "backgroundColor": "#f5f5f5"
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0D1117"
   },
   "tabBar": {
-    "color": "#888888",
-    "selectedColor": "#1a73e8",
-    "backgroundColor": "#ffffff",
+    "color": "#7A8FA6",
+    "selectedColor": "#00C9A7",
+    "backgroundColor": "#0F1923",
     "borderStyle": "black",
     "list": [
       { "pagePath": "pages/home/index", "text": "首页" },

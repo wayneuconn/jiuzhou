@@ -3,29 +3,51 @@
     <view class="text-muted">加载中...</view>
   </view>
 
-  <view wx:elif="{{matches.length === 0}}" style="text-align:center;padding:120rpx 0;">
-    <view style="font-size:80rpx;">⚽</view>
-    <view class="text-muted" style="margin-top:16rpx;">暂无比赛安排</view>
-  </view>
+  <block wx:else>
+    <view style="font-size:48rpx;font-weight:900;margin-bottom:32rpx;">比赛</view>
 
-  <view wx:else>
-    <view
-      wx:for="{{matches}}"
-      wx:key="id"
-      class="card"
-      bindtap="goToDetail"
-      data-id="{{item.id}}">
-      <view class="flex-row" style="justify-content:space-between;align-items:flex-start;">
-        <view style="flex:1;">
-          <view style="font-size:34rpx;font-weight:600;">{{item.location}}</view>
-          <view class="text-muted" style="font-size:26rpx;margin-top:8rpx;">{{item.dateStr}}</view>
+    <!-- Upcoming -->
+    <view wx:if="{{upcoming.length > 0}}">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">即将进行</view>
+      <view
+        wx:for="{{upcoming}}"
+        wx:key="id"
+        class="match-card"
+        bindtap="goToDetail"
+        data-id="{{item.id}}">
+        <view class="flex-row" style="justify-content:space-between;align-items:flex-start;">
+          <view style="flex:1;">
+            <view class="flex-row" style="gap:12rpx;margin-bottom:8rpx;">
+              <view class="status-dot {{item.statusDot}}"></view>
+              <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:2rpx;text-transform:uppercase;">{{item.statusLabel}}</view>
+            </view>
+            <view style="font-size:30rpx;font-weight:700;color:#e8f0eb;">{{item.dateStr}}</view>
+            <view class="text-muted" style="font-size:26rpx;margin-top:4rpx;">{{item.location}}</view>
+          </view>
+          <view wx:if="{{item.isOpen}}" class="badge badge-teal" style="flex-shrink:0;margin-left:16rpx;">报名 →</view>
+          <view wx:elif="{{item.status !== 'draft'}}" class="text-muted" style="font-size:36rpx;margin-left:16rpx;">→</view>
         </view>
-        <view class="badge {{item.statusBadge}}" style="margin-left:16rpx;flex-shrink:0;">{{item.statusLabel}}</view>
-      </view>
-      <view class="divider"></view>
-      <view class="flex-row text-muted" style="font-size:26rpx;gap:32rpx;">
-        <text>名额 {{item.maxPlayers}} 人</text>
       </view>
     </view>
-  </view>
+
+    <!-- Empty state -->
+    <view wx:if="{{upcoming.length === 0 && past.length === 0}}" class="card" style="text-align:center;padding:80rpx 0;">
+      <view style="font-size:80rpx;">⚽</view>
+      <view class="text-muted" style="margin-top:16rpx;">暂无比赛安排</view>
+    </view>
+
+    <!-- Past -->
+    <view wx:if="{{past.length > 0}}" style="margin-top:{{upcoming.length > 0 ? '32rpx' : '0'}};">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">往期</view>
+      <view
+        wx:for="{{past}}"
+        wx:key="id"
+        class="match-card match-card-past"
+        bindtap="goToDetail"
+        data-id="{{item.id}}">
+        <view style="font-size:30rpx;font-weight:700;color:#7A8FA6;">{{item.dateStr}}</view>
+        <view class="text-muted" style="font-size:26rpx;margin-top:4rpx;">{{item.location}}</view>
+      </view>
+    </view>
+  </block>
 </view>

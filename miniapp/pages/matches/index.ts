@@ -1,37 +1,42 @@
 import type { Match } from '../../types/index'
-import { formatDateShort, STATUS_LABEL, STATUS_BADGE } from '../../utils/format'
+import { formatDate, STATUS_LABEL, STATUS_BADGE } from '../../utils/format'
 
 interface MatchVM extends Match {
   dateStr: string
   statusLabel: string
   statusBadge: string
+  statusDot: string
+  isOpen: boolean
 }
 
 Page({
   data: {
-    matches: [] as MatchVM[],
+    upcoming: [] as MatchVM[],
+    past: [] as MatchVM[],
     loading: true,
   },
 
-  onShow() {
-    this.loadMatches()
-  },
-
-  onPullDownRefresh() {
-    this.loadMatches().finally(() => wx.stopPullDownRefresh())
-  },
+  onShow() { this.loadMatches() },
+  onPullDownRefresh() { this.loadMatches().finally(() => wx.stopPullDownRefresh()) },
 
   async loadMatches() {
     this.setData({ loading: true })
     try {
       const res = await wx.cloud.callFunction({ name: 'getMatches' }) as { result: { matches: Match[] } }
-      const matches: MatchVM[] = res.result.matches.map(m => ({
+      const all: MatchVM[] = res.result.matches.map(m => ({
         ...m,
-        dateStr: formatDateShort(m.date),
+        dateStr: formatDate(m.date),
         statusLabel: STATUS_LABEL[m.status] ?? m.status,
         statusBadge: STATUS_BADGE[m.status] ?? 'badge-grey',
+        statusDot: m.status === 'drafting' ? 'dot-pulse'
+          : ['registration_r1', 'registration_r2', 'ready'].includes(m.status) ? 'dot-teal'
+          : m.status === 'cancelled' ? 'dot-red'
+          : 'dot-grey',
+        isOpen: m.status === 'registration_r1' || m.status === 'registration_r2',
       }))
-      this.setData({ matches })
+      const upcoming = all.filter(m => m.status !== 'completed' && m.status !== 'draft' && m.status !== 'cancelled')
+      const past = all.filter(m => m.status === 'completed')
+      this.setData({ upcoming, past })
     } catch (err) {
       console.error('loadMatches failed', err)
     } finally {

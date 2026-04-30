@@ -1,6 +1,6 @@
 <view class="container">
   <view style="padding:48rpx 0 32rpx;text-align:center;">
-    <view style="font-size:44rpx;font-weight:700;">完善资料</view>
+    <view style="font-size:44rpx;font-weight:900;color:#e8f0eb;">完善资料</view>
     <view class="text-muted" style="margin-top:12rpx;font-size:28rpx;">让队友认识你</view>
   </view>
 
@@ -9,7 +9,7 @@
     <input
       class="field-input"
       placeholder="输入你在队里的名字"
-      placeholder-style="color:#bbb"
+      placeholder-style="color:#3A4E63"
       value="{{displayName}}"
       bindinput="onNameInput"
       maxlength="20" />

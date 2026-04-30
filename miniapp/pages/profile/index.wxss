@@ -1,12 +1,46 @@
-.avatar-placeholder {
-  width: 120rpx;
-  height: 120rpx;
+.player-card {
+  background: linear-gradient(180deg, #1A2535, #0F1923);
+  border: 2rpx solid;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  margin-bottom: 20rpx;
+}
+
+.avatar-circle-large {
+  width: 140rpx;
+  height: 140rpx;
   border-radius: 50%;
-  background: #1a73e8;
-  color: #ffffff;
+  border: 3rpx solid;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40rpx;
-  font-weight: 600;
+  margin: 0 auto;
+}
+
+/* Selected position chip (teal, tappable to remove) */
+.pos-chip-selected {
+  padding: 12rpx 28rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  font-weight: 900;
+  background: #00C9A7;
+  color: #0D1117;
+  border: none;
+  display: inline-block;
+}
+
+/* Available (unselected) position chip */
+.pos-chip-avail {
+  padding: 14rpx 24rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  background: transparent;
+  color: #7A8FA6;
+  border: 1rpx solid #1E2D3D;
+  display: inline-block;
+}
+
+.pos-chip-disabled {
+  opacity: 0.4;
 }

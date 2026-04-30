@@ -1,8 +1,8 @@
 page {
-  background-color: #f2f3f7;
+  background-color: #0D1117;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
   font-size: 28rpx;
-  color: #1f1f1f;
+  color: #e8f0eb;
   line-height: 1.6;
   box-sizing: border-box;
 }
@@ -15,7 +15,8 @@ page {
 
 /* Cards */
 .card {
-  background: #ffffff;
+  background: #0F1923;
+  border: 1rpx solid #1E2D3D;
   border-radius: 20rpx;
   padding: 28rpx 32rpx;
   margin-bottom: 20rpx;
@@ -24,7 +25,7 @@ page {
 .card-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1f1f1f;
+  color: #e8f0eb;
   margin-bottom: 16rpx;
 }
 
@@ -32,39 +33,48 @@ page {
 .btn-primary {
   display: block;
   width: 100%;
-  background: #1a73e8;
-  color: #ffffff;
-  border-radius: 999rpx;
+  background: #00C9A7;
+  color: #0D1117;
+  border-radius: 20rpx;
   padding: 28rpx 40rpx;
   font-size: 32rpx;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
   border: none;
   line-height: 1.4;
+  margin-bottom: 20rpx;
 }
 
 .btn-primary[disabled] {
-  background: #a8c7f5;
+  opacity: 0.4;
 }
 
 .btn-ghost {
   display: block;
   width: 100%;
   background: transparent;
-  color: #1a73e8;
-  border-radius: 999rpx;
+  color: #7A8FA6;
+  border-radius: 20rpx;
   padding: 24rpx 40rpx;
   font-size: 30rpx;
-  font-weight: 500;
+  font-weight: 600;
   text-align: center;
-  border: 2rpx solid #1a73e8;
+  border: 1rpx solid #1E2D3D;
+  margin-bottom: 20rpx;
+}
+
+.btn-danger {
+  color: #E53E3E;
+  border-color: rgba(229,62,62,0.3);
 }
 
 /* Text helpers */
-.text-muted { color: #999; }
-.text-danger { color: #e53935; }
-.text-success { color: #43a047; }
-.text-primary { color: #1a73e8; }
+.text-muted { color: #7A8FA6; }
+.text-teal { color: #00C9A7; }
+.text-gold { color: #F0B429; }
+.text-danger { color: #E53E3E; }
+.text-success { color: #00C9A7; }
+.text-primary { color: #00C9A7; }
 
 /* Layout */
 .flex-row {
@@ -81,21 +91,38 @@ page {
 /* Divider */
 .divider {
   height: 1rpx;
-  background: #f0f0f0;
+  background: #1E2D3D;
   margin: 16rpx 0;
 }
 
-/* Status badges */
+/* Badges — pill style */
 .badge {
   display: inline-block;
   padding: 4rpx 16rpx;
   border-radius: 999rpx;
-  font-size: 22rpx;
-  font-weight: 500;
+  font-size: 20rpx;
+  font-weight: 700;
+  border: 1rpx solid transparent;
 }
 
-.badge-blue { background: #e8f0fe; color: #1a73e8; }
-.badge-green { background: #e8f5e9; color: #43a047; }
-.badge-orange { background: #fff3e0; color: #ef6c00; }
-.badge-grey { background: #f5f5f5; color: #888; }
-.badge-red { background: #fce8e6; color: #e53935; }
+.badge-teal   { background: rgba(0,201,167,0.1);   color: #00C9A7; border-color: rgba(0,201,167,0.25); }
+.badge-gold   { background: rgba(240,180,41,0.1);   color: #F0B429; border-color: rgba(240,180,41,0.25); }
+.badge-blue   { background: rgba(59,130,246,0.1);   color: #3B82F6; border-color: rgba(59,130,246,0.25); }
+.badge-red    { background: rgba(229,62,62,0.1);    color: #E53E3E; border-color: rgba(229,62,62,0.25); }
+.badge-grey   { background: #1E2D3D;                color: #7A8FA6; border-color: #1E2D3D; }
+
+/* Legacy aliases used by older pages */
+.badge-green  { background: rgba(0,201,167,0.1);   color: #00C9A7; border-color: rgba(0,201,167,0.25); }
+.badge-orange { background: rgba(240,180,41,0.1);   color: #F0B429; border-color: rgba(240,180,41,0.25); }
+
+/* Position chips (shared across pages) */
+.pos-chip {
+  display: inline-block;
+  padding: 4rpx 14rpx;
+  border-radius: 8rpx;
+  font-size: 20rpx;
+  font-weight: 900;
+  border: 1rpx solid transparent;
+}
+.pos-chip-primary   { background: rgba(0,201,167,0.1); color: #00C9A7; border-color: rgba(0,201,167,0.4); }
+.pos-chip-secondary { background: transparent;          color: #7A8FA6; border-color: #1E2D3D; }

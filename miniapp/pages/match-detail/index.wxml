@@ -4,78 +4,272 @@
   </view>
 
   <block wx:elif="{{match}}">
-    <!-- 比赛信息 -->
-    <view class="card">
+
+    <!-- ── Match header ───────────────────────────────────────────────── -->
+    <view class="match-header">
+      <view class="header-accent"></view>
+      <view style="padding:32rpx;">
+        <view class="flex-row" style="justify-content:space-between;align-items:flex-start;gap:24rpx;">
+          <view style="flex:1;">
+            <view style="font-size:22rpx;font-weight:900;color:#00C9A7;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:12rpx;">Match Day</view>
+            <view style="font-size:36rpx;font-weight:900;color:#e8f0eb;line-height:1.2;">{{dateStr}}</view>
+            <view class="text-muted" style="font-size:28rpx;margin-top:6rpx;">{{match.location}}</view>
+          </view>
+          <button open-type="share" class="share-btn">分享</button>
+        </view>
+        <view class="flex-row" style="gap:12rpx;flex-wrap:wrap;margin-top:20rpx;">
+          <view class="badge {{statusBadge}}">{{statusLabel}}</view>
+          <view wx:if="{{captainAName}}" class="badge badge-team-a">队长A · {{captainAName}}</view>
+          <view wx:if="{{captainBName}}" class="badge badge-team-b">队长B · {{captainBName}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ── Action area ────────────────────────────────────────────────── -->
+
+    <!-- cancelled -->
+    <view wx:if="{{actionState === 'cancelled'}}" class="action-card action-cancelled">
+      <view style="font-size:30rpx;font-weight:900;color:#E53E3E;">比赛已取消</view>
+      <view class="text-muted" style="font-size:26rpx;margin-top:8rpx;">本场比赛已被取消，请关注后续通知</view>
+    </view>
+
+    <!-- promoted (countdown) -->
+    <view wx:elif="{{actionState === 'promoted'}}" class="action-card action-promoted">
       <view class="flex-row" style="justify-content:space-between;align-items:flex-start;">
         <view style="flex:1;">
-          <view style="font-size:36rpx;font-weight:700;">{{match.location}}</view>
-          <view class="text-muted" style="font-size:28rpx;margin-top:8rpx;">{{dateStr}}</view>
-        </view>
-        <view class="badge {{statusBadge}}" style="margin-left:16rpx;flex-shrink:0;">{{statusLabel}}</view>
-      </view>
-      <view class="divider"></view>
-      <view class="flex-row text-muted" style="font-size:26rpx;gap:32rpx;">
-        <text>名额 {{match.maxPlayers}} 人</text>
-        <text>已报 {{confirmedCount}} 人</text>
-        <text wx:if="{{waitlistCount > 0}}">候补 {{waitlistCount}} 人</text>
-      </view>
-    </view>
-
-    <!-- 我的状态 -->
-    <view wx:if="{{myReg && myReg.status !== 'withdrawn' && myReg.status !== 'excused'}}" class="card">
-      <view class="flex-row" style="justify-content:space-between;align-items:center;">
-        <view>
-          <view style="font-size:28rpx;font-weight:600;">我的报名</view>
-          <view class="text-muted" style="font-size:26rpx;margin-top:6rpx;">
-            {{myRegStatusLabel}}
-            <text wx:if="{{myReg.status === 'waitlist'}}"> · 第 {{myReg.waitlistPosition}} 位</text>
+          <view style="font-size:28rpx;font-weight:900;color:#F0B429;letter-spacing:2rpx;">有名额等你！</view>
+          <view class="text-muted" style="font-size:24rpx;margin-top:6rpx;">
+            <text wx:if="{{timeLeftMs > 0}}">请在 {{timeLeftStr}} 内确认，超时自动跳过</text>
+            <text wx:else>确认窗口已过期</text>
           </view>
         </view>
-        <button size="mini" class="btn-ghost" style="margin:0;" bindtap="withdraw">退出报名</button>
+        <view wx:if="{{timeLeftMs > 0}}" style="font-size:52rpx;font-weight:900;color:#F0B429;">{{timeLeftStr}}</view>
+      </view>
+      <view wx:if="{{timeLeftMs > 0}}" class="flex-row" style="gap:16rpx;margin-top:24rpx;">
+        <button class="action-btn-ghost" bindtap="withdraw" disabled="{{busy}}">放弃</button>
+        <button class="action-btn-teal" bindtap="confirmSpot" disabled="{{busy}}">确认报名</button>
       </view>
     </view>
 
-    <!-- 报名按钮 -->
-    <button
-      wx:if="{{canRegister && match.status === 'registration_r1' || canRegister && match.status === 'registration_r2'}}"
-      class="btn-primary"
-      bindtap="register"
-      style="margin-bottom:24rpx;">
-      我要报名
+    <!-- confirmed -->
+    <view wx:elif="{{actionState === 'confirmed'}}" class="action-card action-confirmed">
+      <view class="flex-row" style="justify-content:space-between;align-items:center;">
+        <view>
+          <view style="font-size:28rpx;font-weight:900;color:#00C9A7;letter-spacing:2rpx;">已报名</view>
+          <view class="text-muted" style="font-size:24rpx;margin-top:6rpx;">
+            第 {{myRoster}} 位<text wx:if="{{myReg.team}}"> · Team {{myReg.team}}</text>
+          </view>
+        </view>
+        <button wx:if="{{match.status === 'registration_r1' || match.status === 'registration_r2'}}"
+          class="inline-btn" bindtap="withdraw" disabled="{{busy}}">请假</button>
+      </view>
+    </view>
+
+    <!-- waitlist -->
+    <view wx:elif="{{actionState === 'waitlist'}}" class="action-card">
+      <view class="flex-row" style="justify-content:space-between;align-items:center;">
+        <view>
+          <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;">候补</view>
+          <view class="text-muted" style="font-size:24rpx;margin-top:6rpx;">#{{myReg.waitlistPosition}}</view>
+        </view>
+        <button class="inline-btn-danger" bindtap="withdraw" disabled="{{busy}}">退出</button>
+      </view>
+    </view>
+
+    <!-- excused -->
+    <view wx:elif="{{actionState === 'excused'}}" class="action-card">
+      <view class="flex-row" style="justify-content:space-between;align-items:center;">
+        <view>
+          <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;">已请假</view>
+          <view class="text-muted" style="font-size:24rpx;margin-top:6rpx;">可随时重新报名</view>
+        </view>
+        <button class="inline-btn" bindtap="openAgreementModal">重新报名</button>
+      </view>
+    </view>
+
+    <!-- canRegister -->
+    <button wx:elif="{{actionState === 'canRegister'}}" class="btn-primary" bindtap="openAgreementModal" disabled="{{busy}}">
+      报名参加 — 还剩 {{slotsLeft}} 个名额
     </button>
 
-    <!-- 确认名单 -->
-    <view class="card" wx:if="{{confirmedCount > 0}}">
-      <view style="font-weight:600;font-size:30rpx;margin-bottom:16rpx;">确认名单（{{confirmedCount}}）</view>
+    <!-- canWaitlist -->
+    <button wx:elif="{{actionState === 'canWaitlist'}}" class="btn-waitlist" bindtap="openWaitlistModal" disabled="{{busy}}">
+      加入候补 — 名额已满 ({{confirmedCount}}/{{match.maxPlayers}})
+    </button>
+
+    <!-- r1Blocked -->
+    <view wx:elif="{{actionState === 'r1Blocked'}}" class="action-card action-neutral">
+      <view style="font-size:28rpx;font-weight:700;">R1 阶段仅限年卡会员</view>
+      <view class="text-muted" style="font-size:24rpx;margin-top:8rpx;">R2 开放后所有成员均可报名</view>
+    </view>
+
+    <!-- closed -->
+    <view wx:elif="{{actionState === 'closed'}}" class="action-card action-neutral">
+      <view class="text-muted">报名已关闭</view>
+    </view>
+
+    <!-- ── Roster ──────────────────────────────────────────────────────── -->
+    <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">
+      名单 <text style="color:#00C9A7;">{{confirmedCount}}/{{match.maxPlayers}}</text>
+    </view>
+
+    <!-- Position filter tabs -->
+    <scroll-view wx:if="{{confirmedCount > 0}}" scroll-x style="white-space:nowrap;margin-bottom:16rpx;">
       <view
-        wx:for="{{confirmedList}}"
-        wx:key="uid"
-        class="flex-row"
-        style="justify-content:space-between;padding:14rpx 0;border-bottom:1rpx solid #f0f0f0;">
-        <text style="font-size:28rpx;">{{item.displayName}}</text>
-        <view class="flex-row" style="gap:12rpx;align-items:center;">
-          <text wx:if="{{item.status === 'promoted'}}" class="badge badge-orange" style="font-size:22rpx;padding:2rpx 10rpx;">待确认</text>
-          <text class="text-muted" style="font-size:24rpx;">{{item.preferredPositions[0]}}</text>
+        wx:for="{{posGroups}}"
+        wx:key="key"
+        class="pos-filter-btn {{posFilter === item.key ? 'active' : ''}}"
+        style="display:inline-block;"
+        bindtap="setPosFilter"
+        data-key="{{item.key}}">
+        {{item.label}}
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{confirmedCount === 0}}" class="text-muted" style="font-size:28rpx;margin-bottom:24rpx;">暂无人报名</view>
+
+    <view wx:else class="card" style="padding-bottom:8rpx;">
+      <view wx:for="{{filteredRoster}}" wx:key="uid" class="player-row">
+        <view style="width:40rpx;text-align:center;font-size:22rpx;font-weight:900;color:#3A4E63;flex-shrink:0;">{{index + 1}}</view>
+        <view style="flex:1;margin-left:16rpx;">
+          <view style="font-size:28rpx;font-weight:600;color:#e8f0eb;">{{item.displayName}}</view>
+          <view wx:if="{{item.preferredPositions.length > 0}}" style="display:flex;flex-direction:row;gap:8rpx;margin-top:4rpx;flex-wrap:wrap;">
+            <view wx:for="{{item.preferredPositions}}" wx:key="*this" wx:for-item="pos" wx:for-index="pi"
+              class="pos-chip {{pi === 0 ? 'pos-chip-primary' : 'pos-chip-secondary'}}">{{pos}}</view>
+          </view>
+        </view>
+        <view wx:if="{{item.isCaptainA}}" class="badge badge-team-a" style="margin-left:8rpx;">队长A</view>
+        <view wx:elif="{{item.isCaptainB}}" class="badge badge-team-b" style="margin-left:8rpx;">队长B</view>
+        <view wx:elif="{{item.teamLabel}}" class="badge {{item.teamLabel === 'A' ? 'badge-team-a' : 'badge-team-b'}}" style="margin-left:8rpx;">{{item.teamLabel}}</view>
+        <view wx:if="{{item.status === 'promoted'}}" class="badge badge-gold" style="margin-left:8rpx;">待确认</view>
+      </view>
+      <view wx:if="{{filteredRoster.length === 0}}" class="text-muted" style="font-size:26rpx;padding:16rpx 0;">该位置暂无人</view>
+    </view>
+
+    <!-- ── Waitlist ───────────────────────────────────────────────────── -->
+    <view wx:if="{{waitlistCount > 0}}" style="margin-top:8rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">候补 ({{waitlistCount}})</view>
+      <view class="card" style="padding-bottom:8rpx;">
+        <view wx:for="{{waitlistList}}" wx:key="uid" class="player-row">
+          <view style="width:40rpx;text-align:center;font-size:22rpx;font-weight:900;color:#3A4E63;flex-shrink:0;">#{{item.waitlistPosition}}</view>
+          <view style="flex:1;margin-left:16rpx;font-size:28rpx;color:#7A8FA6;">{{item.displayName}}</view>
         </view>
       </view>
     </view>
 
-    <!-- 候补名单 -->
-    <view class="card" wx:if="{{waitlistCount > 0}}">
-      <view style="font-weight:600;font-size:30rpx;margin-bottom:16rpx;">候补名单（{{waitlistCount}}）</view>
-      <view
-        wx:for="{{waitlistList}}"
-        wx:key="uid"
-        class="flex-row"
-        style="justify-content:space-between;padding:14rpx 0;border-bottom:1rpx solid #f0f0f0;">
-        <text style="font-size:28rpx;">{{item.displayName}}</text>
-        <text class="text-muted" style="font-size:24rpx;">第 {{item.waitlistPosition}} 位</text>
+    <!-- ── Excused ────────────────────────────────────────────────────── -->
+    <view wx:if="{{excusedList.length > 0}}" style="margin-top:8rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">请假 ({{excusedList.length}})</view>
+      <view class="card" style="padding-bottom:8rpx;opacity:0.6;">
+        <view wx:for="{{excusedList}}" wx:key="uid" class="player-row">
+          <view style="flex:1;font-size:28rpx;color:#7A8FA6;">{{item.displayName}}</view>
+        </view>
       </view>
     </view>
 
-    <!-- 暂无报名 -->
-    <view wx:if="{{confirmedCount === 0 && waitlistCount === 0}}" style="text-align:center;padding:60rpx 0;">
-      <view class="text-muted" style="font-size:28rpx;">暂无人报名</view>
+    <!-- ── Admin: captain pickers ────────────────────────────────────── -->
+    <view wx:if="{{showAdminCaptain}}" class="card" style="margin-top:8rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:20rpx;">队长设置</view>
+      <view style="margin-bottom:20rpx;">
+        <view class="text-muted" style="font-size:24rpx;margin-bottom:8rpx;">队长 A</view>
+        <picker range="{{confirmedList}}" range-key="displayName" value="{{captainAIndex}}"
+          bindchange="setCaptain" data-slot="captainA">
+          <view class="picker-row">{{captainAName || '— 未设置 —'}}</view>
+        </picker>
+      </view>
+      <view>
+        <view class="text-muted" style="font-size:24rpx;margin-bottom:8rpx;">队长 B</view>
+        <picker range="{{confirmedList}}" range-key="displayName" value="{{captainBIndex}}"
+          bindchange="setCaptain" data-slot="captainB">
+          <view class="picker-row">{{captainBName || '— 未设置 —'}}</view>
+        </picker>
+      </view>
     </view>
+
+    <!-- ── Draft: team assignment ─────────────────────────────────────── -->
+    <view wx:if="{{showDraft}}" style="margin-top:8rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">选人</view>
+      <view wx:if="{{unassignedList.length > 0}}" class="card" style="padding-bottom:8rpx;">
+        <view class="text-muted" style="font-size:24rpx;margin-bottom:12rpx;">待分配 · {{unassignedList.length}} 人</view>
+        <view wx:for="{{unassignedList}}" wx:key="uid" class="player-row">
+          <view style="flex:1;">
+            <view style="font-size:28rpx;font-weight:600;color:#e8f0eb;">{{item.displayName}}</view>
+            <view wx:if="{{item.preferredPositions[0]}}" style="font-size:22rpx;color:#00C9A7;margin-top:4rpx;">{{item.preferredPositions[0]}}</view>
+          </view>
+          <button class="tag-btn tag-btn-a" bindtap="assignTeam" data-uid="{{item.uid}}" data-team="A" disabled="{{busy}}">→ A</button>
+          <button class="tag-btn tag-btn-b" bindtap="assignTeam" data-uid="{{item.uid}}" data-team="B" disabled="{{busy}}" style="margin-left:12rpx;">→ B</button>
+        </view>
+      </view>
+      <view wx:else class="text-muted" style="font-size:28rpx;margin-bottom:16rpx;">所有球员已分配完毕</view>
+
+      <view style="display:flex;flex-direction:row;gap:16rpx;margin-top:8rpx;">
+        <view class="team-box team-box-a" style="flex:1;">
+          <view style="font-size:22rpx;font-weight:900;color:#3B82F6;margin-bottom:12rpx;">A队 · {{teamAList.length}} 人</view>
+          <view wx:for="{{teamAList}}" wx:key="uid" style="padding:4rpx 0;font-size:26rpx;color:#e8f0eb;">{{item.displayName}}</view>
+        </view>
+        <view class="team-box team-box-b" style="flex:1;">
+          <view style="font-size:22rpx;font-weight:900;color:#EF4444;margin-bottom:12rpx;">B队 · {{teamBList.length}} 人</view>
+          <view wx:for="{{teamBList}}" wx:key="uid" style="padding:4rpx 0;font-size:26rpx;color:#e8f0eb;">{{item.displayName}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ── Admin: behavior tags ───────────────────────────────────────── -->
+    <view wx:if="{{showBehaviorTags}}" style="margin-top:8rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">行为记录</view>
+      <view class="card" style="padding-bottom:8rpx;">
+        <view wx:for="{{confirmedList}}" wx:key="uid" class="player-row">
+          <view style="flex:1;font-size:28rpx;font-weight:600;color:#e8f0eb;">{{item.displayName}}</view>
+          <button class="tag-btn {{item.isLate ? 'tag-btn-gold-on' : 'tag-btn-off'}}"
+            bindtap="toggleTag" data-uid="{{item.uid}}" data-tag="late">迟到</button>
+          <button class="tag-btn {{item.isDangerous ? 'tag-btn-red-on' : 'tag-btn-off'}}"
+            bindtap="toggleTag" data-uid="{{item.uid}}" data-tag="dangerous" style="margin-left:12rpx;">危险动作</button>
+        </view>
+      </view>
+    </view>
+
   </block>
+
+  <!-- ── Agreement modal ───────────────────────────────────────────────── -->
+  <view wx:if="{{showAgreementModal}}" class="modal-overlay" bindtap="closeAgreementModal">
+    <view class="modal-sheet" catchtap="">
+      <view class="modal-handle"></view>
+      <view style="font-size:36rpx;font-weight:900;color:#e8f0eb;margin-bottom:20rpx;">报名须知</view>
+      <scroll-view scroll-y style="max-height:320rpx;margin-bottom:32rpx;">
+        <view style="font-size:26rpx;line-height:1.8;color:#7A8FA6;white-space:pre-wrap;">{{agreementText}}</view>
+      </scroll-view>
+      <view class="flex-row" style="gap:16rpx;">
+        <button class="modal-btn-ghost" bindtap="closeAgreementModal">取消</button>
+        <button class="modal-btn-teal" bindtap="register" disabled="{{busy}}">{{busy ? '处理中...' : '同意并报名'}}</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ── Waitlist modal ────────────────────────────────────────────────── -->
+  <view wx:if="{{showWaitlistModal}}" class="modal-overlay" bindtap="closeWaitlistModal">
+    <view class="modal-sheet" catchtap="">
+      <view class="modal-handle"></view>
+      <view style="font-size:36rpx;font-weight:900;color:#e8f0eb;margin-bottom:12rpx;">加入候补</view>
+      <view class="text-muted" style="font-size:26rpx;margin-bottom:24rpx;line-height:1.7;">
+        名额已满，你将排在 <text style="color:#e8f0eb;font-weight:700;">候补 #{{waitlistCount + 1}}</text>，有人退出时按顺序通知。
+      </view>
+      <view class="flex-row" style="gap:20rpx;margin-bottom:16rpx;" bindtap="toggleAutoAccept">
+        <view class="toggle-track {{autoAccept ? 'toggle-on' : 'toggle-off'}}">
+          <view class="toggle-thumb {{autoAccept ? 'toggle-thumb-on' : 'toggle-thumb-off'}}"></view>
+        </view>
+        <view style="flex:1;">
+          <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;">自动接受晋升</view>
+          <view class="text-muted" style="font-size:24rpx;">轮到你时直接确认，无需手动操作</view>
+        </view>
+      </view>
+      <view wx:if="{{!autoAccept}}" class="waitlist-note">
+        晋升后有 30 分钟窗口，超时将跳至下一位候补。
+      </view>
+      <view class="flex-row" style="gap:16rpx;">
+        <button class="modal-btn-ghost" bindtap="closeWaitlistModal">取消</button>
+        <button class="modal-btn-teal" bindtap="registerWaitlist" disabled="{{busy}}">{{busy ? '处理中...' : '加入候补'}}</button>
+      </view>
+    </view>
+  </view>
+
 </view>

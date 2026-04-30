@@ -1,1 +1,19 @@
-/* page-specific styles */
+.hero-card {
+  position: relative;
+  background: linear-gradient(135deg, #0f2320, #0F1923);
+  border: 1rpx solid rgba(0,201,167,0.25);
+  border-radius: 20rpx;
+  padding: 40rpx 32rpx 32rpx;
+  margin-bottom: 32rpx;
+  overflow: hidden;
+}
+
+.hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4rpx;
+  background: linear-gradient(90deg, #00C9A7, rgba(0,201,167,0.3), transparent);
+}

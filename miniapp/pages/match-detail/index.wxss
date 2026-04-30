@@ -1,1 +1,277 @@
-/* page-specific styles */
+/* ── Match header ─────────────────────────────────────────────────────────── */
+.match-header {
+  position: relative;
+  background: linear-gradient(180deg, #1A2535, #0F1923);
+  border: 1rpx solid #1E2D3D;
+  border-radius: 20rpx;
+  margin-bottom: 20rpx;
+  overflow: hidden;
+}
+
+.header-accent {
+  height: 4rpx;
+  background: linear-gradient(90deg, #00C9A7, rgba(0,201,167,0.3), transparent);
+}
+
+.share-btn {
+  background: rgba(0,201,167,0.1);
+  color: #00C9A7;
+  border: 1rpx solid rgba(0,201,167,0.25);
+  border-radius: 16rpx;
+  padding: 8rpx 24rpx;
+  font-size: 24rpx;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+/* ── Action cards ────────────────────────────────────────────────────────── */
+.action-card {
+  background: #0F1923;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 20rpx;
+  padding: 28rpx 32rpx;
+  margin-bottom: 20rpx;
+}
+
+.action-cancelled {
+  background: rgba(229,62,62,0.05);
+  border-color: rgba(229,62,62,0.2);
+}
+
+.action-promoted {
+  background: rgba(240,180,41,0.05);
+  border-color: rgba(240,180,41,0.25);
+}
+
+.action-confirmed {
+  background: rgba(0,201,167,0.05);
+  border-color: rgba(0,201,167,0.2);
+}
+
+.action-neutral {
+  text-align: center;
+}
+
+/* ── Inline action buttons (inside cards) ───────────────────────────────── */
+.inline-btn {
+  background: transparent;
+  color: #7A8FA6;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 10rpx 24rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.inline-btn-danger {
+  background: transparent;
+  color: #E53E3E;
+  border: 1rpx solid rgba(229,62,62,0.3);
+  border-radius: 12rpx;
+  padding: 10rpx 24rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* two-up action buttons (promoted state) */
+.action-btn-ghost {
+  flex: 1;
+  background: transparent;
+  color: #7A8FA6;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 16rpx;
+  padding: 20rpx 0;
+  font-size: 28rpx;
+  font-weight: 700;
+  text-align: center;
+}
+
+.action-btn-teal {
+  flex: 1;
+  background: #00C9A7;
+  color: #0D1117;
+  border: none;
+  border-radius: 16rpx;
+  padding: 20rpx 0;
+  font-size: 28rpx;
+  font-weight: 900;
+  text-align: center;
+}
+
+/* waitlist button variant */
+.btn-waitlist {
+  display: block;
+  width: 100%;
+  background: transparent;
+  color: #00C9A7;
+  border: 1rpx solid rgba(0,201,167,0.35);
+  border-radius: 20rpx;
+  padding: 28rpx 40rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 20rpx;
+}
+
+/* ── Position filter tabs ────────────────────────────────────────────────── */
+.pos-filter-btn {
+  display: inline-block;
+  padding: 10rpx 24rpx;
+  border-radius: 12rpx;
+  font-size: 22rpx;
+  font-weight: 900;
+  border: 1rpx solid #1E2D3D;
+  color: #7A8FA6;
+  margin-right: 12rpx;
+  margin-bottom: 4rpx;
+}
+
+.pos-filter-btn.active {
+  background: #00C9A7;
+  color: #0D1117;
+  border-color: #00C9A7;
+}
+
+/* ── Player rows ─────────────────────────────────────────────────────────── */
+.player-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid #1E2D3D;
+}
+
+.player-row:last-child {
+  border-bottom: none;
+}
+
+/* ── Team A/B badges ─────────────────────────────────────────────────────── */
+.badge-team-a { background: rgba(59,130,246,0.1);  color: #3B82F6; border-color: rgba(59,130,246,0.25); }
+.badge-team-b { background: rgba(239,68,68,0.1);   color: #EF4444; border-color: rgba(239,68,68,0.25); }
+
+/* ── Admin: picker row ───────────────────────────────────────────────────── */
+.picker-row {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 18rpx 24rpx;
+  font-size: 28rpx;
+  color: #e8f0eb;
+}
+
+/* ── Draft team boxes ────────────────────────────────────────────────────── */
+.team-box {
+  border-radius: 16rpx;
+  padding: 20rpx;
+}
+
+.team-box-a { background: rgba(59,130,246,0.05);  border: 1rpx solid rgba(59,130,246,0.2); }
+.team-box-b { background: rgba(239,68,68,0.05);   border: 1rpx solid rgba(239,68,68,0.2); }
+
+/* ── Tag buttons (draft assign & behavior) ───────────────────────────────── */
+.tag-btn {
+  font-size: 22rpx;
+  font-weight: 900;
+  border-radius: 999rpx;
+  padding: 6rpx 20rpx;
+  flex-shrink: 0;
+}
+
+.tag-btn-a   { background: rgba(59,130,246,0.1); color: #3B82F6; border: 1rpx solid rgba(59,130,246,0.3); }
+.tag-btn-b   { background: rgba(239,68,68,0.1);  color: #EF4444; border: 1rpx solid rgba(239,68,68,0.3); }
+
+.tag-btn-off      { background: transparent; color: #7A8FA6; border: 1rpx solid #1E2D3D; }
+.tag-btn-gold-on  { background: rgba(240,180,41,0.15); color: #F0B429; border: 1rpx solid rgba(240,180,41,0.4); }
+.tag-btn-red-on   { background: rgba(229,62,62,0.15);  color: #E53E3E; border: 1rpx solid rgba(229,62,62,0.4); }
+
+/* ── Modal overlay / bottom sheet ───────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.modal-sheet {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 32rpx 32rpx 0 0;
+  width: 100%;
+  padding: 24rpx 40rpx 48rpx;
+}
+
+.modal-handle {
+  width: 80rpx;
+  height: 8rpx;
+  background: #1E2D3D;
+  border-radius: 999rpx;
+  margin: 0 auto 32rpx;
+}
+
+.modal-btn-ghost {
+  flex: 1;
+  background: transparent;
+  color: #7A8FA6;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 16rpx;
+  padding: 24rpx 0;
+  font-size: 28rpx;
+  font-weight: 700;
+  text-align: center;
+}
+
+.modal-btn-teal {
+  flex: 1;
+  background: #00C9A7;
+  color: #0D1117;
+  border: none;
+  border-radius: 16rpx;
+  padding: 24rpx 0;
+  font-size: 28rpx;
+  font-weight: 900;
+  text-align: center;
+}
+
+/* ── Toggle switch ───────────────────────────────────────────────────────── */
+.toggle-track {
+  width: 96rpx;
+  height: 48rpx;
+  border-radius: 999rpx;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.toggle-on  { background: #00C9A7; }
+.toggle-off { background: #1E2D3D; }
+
+.toggle-thumb {
+  position: absolute;
+  top: 4rpx;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.2s;
+}
+
+.toggle-thumb-on  { left: 52rpx; }
+.toggle-thumb-off { left: 4rpx; }
+
+.waitlist-note {
+  font-size: 24rpx;
+  color: #7A8FA6;
+  background: #0F1923;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+  line-height: 1.7;
+}
