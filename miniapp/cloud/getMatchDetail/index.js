@@ -7,7 +7,7 @@ exports.main = async (event, context) => {
   const { matchId } = event
   const [matchSnap, regsSnap, configSnap] = await Promise.all([
     db.collection('matches').doc(matchId).get(),
-    db.collection('registrations').where({ matchId }).orderBy('registeredAt', 'asc').get(),
+    db.collection('registrations').where({ matchId }).orderBy('registeredAt', 'asc').get().catch(() => ({ data: [] })),
     db.collection('config').doc('app').get().catch(() => ({ data: null })),
   ])
 
