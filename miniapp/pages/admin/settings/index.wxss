@@ -9,6 +9,11 @@
   box-sizing: border-box;
 }
 
+input.settings-input {
+  height: 88rpx;
+  padding: 0 20rpx;
+}
+
 .settings-textarea {
   background: #1A2535;
   border: 1rpx solid #1E2D3D;
