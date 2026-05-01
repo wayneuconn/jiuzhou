@@ -22,8 +22,11 @@ exports.main = async (event, context) => {
   if (!['registration_r1', 'registration_r2'].includes(match.status)) {
     throw new Error('registration not open')
   }
-  if (match.status === 'registration_r1' && user.membershipType === 'none') {
-    throw new Error('r1 members only')
+  if (match.status === 'registration_r1' && user.membershipType !== 'annual') {
+    throw new Error('r1 annual members only')
+  }
+  if (user.banGamesLeft > 0) {
+    throw new Error(`账号已被禁赛，还剩 ${user.banGamesLeft} 场`)
   }
 
   const regId = matchId + '_' + user._id
@@ -33,11 +36,23 @@ exports.main = async (event, context) => {
     if (['confirmed', 'promoted', 'waitlist'].includes(existingSnap.data.status)) {
       throw new Error('already registered')
     }
-    // Re-register after withdrawal/excused
+    // Re-register after withdrawal/excused — recheck capacity
+    const reConfirmedCount = confirmedSnap.total ?? 0
+    const reIsWaitlist = reConfirmedCount >= match.maxPlayers
+    let reWaitlistPosition = null
+    if (reIsWaitlist) {
+      const wlSnap = await db.collection('registrations').where({ matchId, status: 'waitlist' }).count()
+      reWaitlistPosition = (wlSnap.total ?? 0) + 1
+    }
     await db.collection('registrations').doc(regId).update({
-      data: { status: 'confirmed', registeredAt: db.serverDate(), tags: [] },
+      data: {
+        status: reIsWaitlist ? 'waitlist' : 'confirmed',
+        waitlistPosition: reIsWaitlist ? reWaitlistPosition : null,
+        registeredAt: db.serverDate(),
+        tags: [],
+      },
     })
-    return { status: 'confirmed' }
+    return { status: reIsWaitlist ? 'waitlist' : 'confirmed' }
   }
 
   const confirmedCount = confirmedSnap.total ?? 0

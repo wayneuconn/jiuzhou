@@ -14,9 +14,8 @@ Page({
   async loadConfig() {
     this.setData({ loading: true })
     try {
-      const db = wx.cloud.database()
-      const res = await db.collection('config').doc('app').get()
-      this.setData({ config: res.data as unknown as AppConfig })
+      const res = await wx.cloud.callFunction({ name: 'adminGetConfig' }) as unknown as { result: { config: AppConfig } }
+      this.setData({ config: res.result.config })
     } catch (err) {
       console.error(err)
     } finally {
@@ -26,15 +25,16 @@ Page({
 
   onInput(e: WechatMiniprogram.Input) {
     const field = (e.currentTarget.dataset as { field: string }).field
-    this.setData({ [`config.${field}`]: e.detail.value })
+    const numericFields = ['waitlistConfirmMinutes', 'perSessionFee']
+    const value = numericFields.includes(field) ? parseFloat(e.detail.value) || 0 : e.detail.value
+    this.setData({ [`config.${field}`]: value })
   },
 
   async save() {
     if (!this.data.config) return
     this.setData({ saving: true })
     try {
-      const db = wx.cloud.database()
-      await db.collection('config').doc('app').set({ data: this.data.config })
+      await wx.cloud.callFunction({ name: 'adminSaveConfig', data: { config: this.data.config } })
       wx.showToast({ title: '已保存', icon: 'success' })
     } catch (err) {
       console.error(err)

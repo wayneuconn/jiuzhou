@@ -9,7 +9,7 @@ exports.main = async (event, context) => {
   const user = userSnap.data[0]
   if (!user || user.role !== 'admin') throw new Error('admins only')
 
-  const configSnap = await db.collection('config').doc('app').get()
+  const configSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
   const config = configSnap.data ?? {}
 
   const res = await db.collection('matches').add({

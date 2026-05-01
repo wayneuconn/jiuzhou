@@ -34,32 +34,31 @@ exports.main = async (event, context) => {
   if (waitlistSnap.data.length === 0) return { success: true }
 
   const topWaiter = waitlistSnap.data[0]
-  const deadline = new Date(Date.now() + waitlistMinutes * 60 * 1000)
   const topWaiterId = matchId + '_' + topWaiter.uid
 
-  await db.collection('registrations').doc(topWaiterId).update({
-    data: {
-      status: 'promoted',
-      promotedAt: db.serverDate(),
-      confirmDeadline: deadline,
-      waitlistPosition: null,
-    },
-  })
-
-  // Try to notify promoted player (fire-and-forget)
-  try {
-    const waiterUserSnap = await db.collection('users').doc(topWaiter.uid).get()
-    if (waiterUserSnap.data?.openid) {
-      await cloud.callFunction({
-        name: 'sendSubscribeMsg',
-        data: {
-          type: 'promoted',
-          toOpenid: waiterUserSnap.data.openid,
-          data: { page: `/pages/match-detail/index?id=${matchId}`, templateData: {} },
-        },
-      })
-    }
-  } catch (_) {}
+  if (topWaiter.autoAccept) {
+    await db.collection('registrations').doc(topWaiterId).update({
+      data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null },
+    })
+  } else {
+    const deadline = new Date(Date.now() + waitlistMinutes * 60 * 1000)
+    await db.collection('registrations').doc(topWaiterId).update({
+      data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadline, waitlistPosition: null },
+    })
+    try {
+      const waiterUserSnap = await db.collection('users').doc(topWaiter.uid).get()
+      if (waiterUserSnap.data?.openid) {
+        await cloud.callFunction({
+          name: 'sendSubscribeMsg',
+          data: {
+            type: 'promoted',
+            toOpenid: waiterUserSnap.data.openid,
+            data: { page: `/pages/match-detail/index?id=${matchId}`, templateData: {} },
+          },
+        })
+      }
+    } catch (_) {}
+  }
 
   return { success: true, promoted: topWaiter.uid }
 }

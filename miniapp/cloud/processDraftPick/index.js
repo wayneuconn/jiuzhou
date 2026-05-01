@@ -21,8 +21,7 @@ exports.main = async (event, context) => {
 
     const team = callerUid === match.captainA ? 'A' : 'B'
 
-    await db.collection('matches').doc(matchId)
-      .collection('registrations').doc(pickedUid).update({ data: { team } })
+    await db.collection('registrations').doc(matchId + '_' + pickedUid).update({ data: { team } })
 
     const picks = [...(draftState.picks || []), {
       uid: pickedUid,
@@ -35,7 +34,7 @@ exports.main = async (event, context) => {
       ? draftState.pickOrder[nextIndex]
       : null
 
-    transaction.update(db.collection('matches').doc(matchId), {
+    await transaction.update(db.collection('matches').doc(matchId), {
       data: {
         'draftState.picks': picks,
         'draftState.currentTurn': nextTurn,
