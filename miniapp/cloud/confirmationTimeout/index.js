@@ -4,12 +4,18 @@ const db = cloud.database()
 const _ = db.command
 
 function nextMatchDate(config) {
+  const days = (config.recurringDays && config.recurringDays.length > 0)
+    ? config.recurringDays
+    : [config.recurringDayOfWeek ?? 0]
   const now = new Date()
-  const targetDay = config.recurringDayOfWeek ?? 0
-  let daysAhead = (targetDay - now.getDay() + 7) % 7
-  if (daysAhead === 0) daysAhead = 7
+  let minDaysAhead = 8
+  for (const targetDay of days) {
+    let d = (targetDay - now.getDay() + 7) % 7
+    if (d === 0) d = 7
+    if (d < minDaysAhead) minDaysAhead = d
+  }
   const next = new Date(now)
-  next.setDate(next.getDate() + daysAhead)
+  next.setDate(next.getDate() + minDaysAhead)
   next.setHours(config.recurringHour ?? 20, config.recurringMinute ?? 0, 0, 0)
   return next
 }

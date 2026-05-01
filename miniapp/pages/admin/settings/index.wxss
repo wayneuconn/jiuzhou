@@ -14,6 +14,21 @@ input.settings-input {
   padding: 0 20rpx;
 }
 
+.day-chip {
+  padding: 14rpx 20rpx;
+  border-radius: 40rpx;
+  border: 1rpx solid #2a3a2e;
+  font-size: 26rpx;
+  color: #7A8FA6;
+  background: #1A2535;
+}
+
+.day-chip-active {
+  border-color: #00C9A7;
+  color: #00C9A7;
+  background: rgba(0, 201, 167, 0.12);
+}
+
 .settings-textarea {
   background: #1A2535;
   border: 1rpx solid #1E2D3D;

@@ -127,7 +127,7 @@ export interface AppConfig {
   defaultAnnouncement: string
   perSessionFee: number
   autoRecurring: boolean
-  recurringDayOfWeek: number
+  recurringDays: number[]
   recurringHour: number
   recurringMinute: number
   recurringLocation: string

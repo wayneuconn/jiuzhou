@@ -8,6 +8,7 @@ Page({
     loading: true,
     saving: false,
     weekdays: WEEKDAYS,
+    recurringDaysMap: {} as Record<number, boolean>,
   },
 
   onShow() {
@@ -18,6 +19,7 @@ Page({
     this.setData({ loading: true })
     try {
       const res = await wx.cloud.callFunction({ name: 'adminGetConfig' }) as unknown as { result: { config: AppConfig } }
+      const raw = res.result.config ?? {}
       const config: AppConfig = {
         season: '',
         cardThresholds: { bronze: 5, silver: 15, gold: 30, blue: 50 },
@@ -26,16 +28,18 @@ Page({
         defaultAnnouncement: '',
         perSessionFee: 0,
         autoRecurring: false,
-        recurringDayOfWeek: 0,
+        recurringDays: [],
         recurringHour: 20,
         recurringMinute: 0,
         recurringLocation: '',
         recurringMaxPlayers: 22,
         winterBreakStart: '',
         winterBreakEnd: '',
-        ...res.result.config,
+        ...raw,
       }
-      this.setData({ config })
+      const recurringDaysMap: Record<number, boolean> = {}
+      config.recurringDays.forEach(d => { recurringDaysMap[d] = true })
+      this.setData({ config, recurringDaysMap })
     } catch (err) {
       console.error(err)
     } finally {
@@ -55,8 +59,15 @@ Page({
     this.setData({ [`config.${field}`]: e.detail.value })
   },
 
-  onDayPicker(e: WechatMiniprogram.PickerChange) {
-    this.setData({ 'config.recurringDayOfWeek': Number(e.detail.value) })
+  toggleDay(e: WechatMiniprogram.BaseEvent) {
+    const day = Number((e.currentTarget.dataset as { day: string }).day)
+    const days = [...(this.data.config?.recurringDays ?? [])]
+    const idx = days.indexOf(day)
+    if (idx >= 0) days.splice(idx, 1)
+    else { days.push(day); days.sort((a, b) => a - b) }
+    const recurringDaysMap: Record<number, boolean> = {}
+    days.forEach(d => { recurringDaysMap[d] = true })
+    this.setData({ 'config.recurringDays': days, recurringDaysMap })
   },
 
   onDatePicker(e: WechatMiniprogram.PickerChange) {
