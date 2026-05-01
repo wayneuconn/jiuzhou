@@ -3,27 +3,54 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+// Returns how many minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
+function etOffsetMinutes(date) {
+  const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC' })
+  const etStr  = date.toLocaleString('en-US', { timeZone: 'America/New_York' })
+  return Math.round((new Date(utcStr) - new Date(etStr)) / 60000)
+}
+
+// ET date string YYYY-MM-DD for a given UTC Date
+function etDateStr(date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date)
+  const y = parts.find(p => p.type === 'year').value
+  const m = parts.find(p => p.type === 'month').value.padStart(2, '0')
+  const d = parts.find(p => p.type === 'day').value.padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 function nextMatchDate(config) {
   const days = (config.recurringDays && config.recurringDays.length > 0)
-    ? config.recurringDays
-    : [config.recurringDayOfWeek ?? 0]
+    ? config.recurringDays : [config.recurringDayOfWeek ?? 0]
+  const etHour = config.recurringHour ?? 19
+  const etMin  = config.recurringMinute ?? 0
+
   const now = new Date()
-  let minDaysAhead = 8
-  for (const targetDay of days) {
-    let d = (targetDay - now.getDay() + 7) % 7
-    if (d === 0) d = 7
-    if (d < minDaysAhead) minDaysAhead = d
+  // "Fake" Date whose .getDay()/.getDate() etc. return ET values (parsed as server local)
+  const nowET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+
+  for (let ahead = 1; ahead <= 14; ahead++) {
+    const targetET = new Date(nowET)
+    targetET.setDate(nowET.getDate() + ahead)
+    if (!days.includes(targetET.getDay())) continue
+
+    // UTC timestamp: ET midnight for this date + ET hours
+    const utcBase   = new Date(Date.UTC(targetET.getFullYear(), targetET.getMonth(), targetET.getDate()))
+    const offsetMin = etOffsetMinutes(utcBase)  // 300 (EST) or 240 (EDT)
+    return new Date(utcBase.getTime() + offsetMin * 60000 + etHour * 3600000 + etMin * 60000)
   }
+
+  // Fallback: 7 days from now
   const next = new Date(now)
-  next.setDate(next.getDate() + minDaysAhead)
-  next.setHours(config.recurringHour ?? 20, config.recurringMinute ?? 0, 0, 0)
+  next.setDate(next.getDate() + 7)
   return next
 }
 
 function isInWinterBreak(date, config) {
   if (!config.winterBreakStart || !config.winterBreakEnd) return false
-  const d = date.toISOString().slice(0, 10)
-  return d >= config.winterBreakStart && d <= config.winterBreakEnd
+  return etDateStr(date) >= config.winterBreakStart && etDateStr(date) <= config.winterBreakEnd
 }
 
 exports.main = async (event, context) => {

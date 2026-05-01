@@ -11,6 +11,6 @@ exports.main = async (event) => {
   const { config } = event
   if (!config) throw new Error('config required')
 
-  await db.collection('config').doc('app').update({ data: config })
+  await db.collection('config').doc('app').set({ data: config })
   return { success: true }
 }
