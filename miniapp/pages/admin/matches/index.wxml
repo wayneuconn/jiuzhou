@@ -1,6 +1,6 @@
 <view class="container">
   <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:24rpx;">
-    <view style="font-size:48rpx;font-weight:900;">比赛管理</view>
+    <view style="font-size:48rpx;font-weight:900;flex-shrink:0;">比赛管理</view>
     <view class="flex-row" style="gap:12rpx;">
       <button class="btn-ghost" style="padding:12rpx 20rpx;font-size:22rpx;" bindtap="toggleShowAll">{{showAll ? '隐藏已结束' : '显示全部'}}</button>
       <button class="btn-primary" style="padding:12rpx 28rpx;font-size:26rpx;" bindtap="openCreateModal">+ 新建</button>
