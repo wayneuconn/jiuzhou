@@ -21,6 +21,7 @@ export interface User {
   attendanceCount: number
   lateCount: number
   dangerousCount: number
+  banGamesLeft: number
   createdAt: number
 }
 
@@ -125,4 +126,12 @@ export interface AppConfig {
   defaultAgreementText: string
   defaultAnnouncement: string
   perSessionFee: number
+  autoRecurring: boolean
+  recurringDayOfWeek: number
+  recurringHour: number
+  recurringMinute: number
+  recurringLocation: string
+  recurringMaxPlayers: number
+  winterBreakStart: string
+  winterBreakEnd: string
 }

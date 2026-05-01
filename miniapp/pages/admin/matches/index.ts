@@ -23,6 +23,8 @@ const todayDateStr = () => new Date().toISOString().slice(0, 10)
 Page({
   data: {
     matches: [] as MatchVM[],
+    filteredMatches: [] as MatchVM[],
+    showAll: false,
     loading: true,
     showCreateModal: false,
     creating: false,
@@ -44,9 +46,21 @@ Page({
         nextStatusLabel: STATUS_LABEL[STATUS_NEXT[m.status]] ?? '',
         canAdvance: !!STATUS_NEXT[m.status] && m.status !== 'completed' && m.status !== 'cancelled',
       }))
-      this.setData({ matches })
+      this.setData({ matches }, () => this.applyFilter())
     } catch (err) { console.error(err) }
     finally { this.setData({ loading: false }) }
+  },
+
+  applyFilter() {
+    const { matches, showAll } = this.data
+    const filteredMatches = showAll
+      ? matches
+      : matches.filter(m => m.status !== 'completed' && m.status !== 'cancelled')
+    this.setData({ filteredMatches })
+  },
+
+  toggleShowAll() {
+    this.setData({ showAll: !this.data.showAll }, () => this.applyFilter())
   },
 
   openCreateModal() { this.setData({ showCreateModal: true }) },
