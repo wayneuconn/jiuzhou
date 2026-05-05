@@ -1,6 +1,14 @@
 import type { Match, Registration, MatchTag } from '../../types/index'
 import { formatDate, STATUS_LABEL, STATUS_BADGE, REG_STATUS_LABEL } from '../../utils/format'
 
+const STATUS_NEXT: Record<string, string> = {
+  draft: 'registration_r1',
+  registration_r1: 'registration_r2',
+  registration_r2: 'drafting',
+  drafting: 'ready',
+  ready: 'completed',
+}
+
 function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
@@ -77,6 +85,9 @@ Page({
     showDraft: false,
     showBehaviorTags: false,
     showAdminCaptain: false,
+    nextStatus: '',
+    nextStatusLabel: '',
+    canAdvance: false,
   },
 
   _timerInterval: null as ReturnType<typeof setInterval> | null,
@@ -188,6 +199,10 @@ Page({
       const showBehaviorTags = isAdmin && (match.status === 'ready' || match.status === 'completed') && confirmedCount > 0
       const showAdminCaptain = isAdmin && confirmedCount > 0
 
+      const nextStatus = STATUS_NEXT[match.status] ?? ''
+      const nextStatusLabel = STATUS_LABEL[nextStatus] ?? ''
+      const canAdvance = isAdmin && !!nextStatus
+
       this._confirmedListRaw = confirmedList
 
       this.setData({
@@ -216,6 +231,9 @@ Page({
         showDraft,
         showBehaviorTags,
         showAdminCaptain,
+        nextStatus,
+        nextStatusLabel,
+        canAdvance,
         filteredRoster: confirmedList,
         posFilter: 'all',
       })
@@ -379,6 +397,35 @@ Page({
       this.loadMatch()
     } catch {
       wx.showToast({ title: '设置失败', icon: 'error' })
+    }
+  },
+
+  async advanceStatus() {
+    const { matchId, nextStatus, nextStatusLabel } = this.data
+    const res = await wx.showModal({ title: `确认改为「${nextStatusLabel}」？`, content: '', confirmColor: '#00C9A7' })
+    if (!res.confirm) return
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId, status: nextStatus } })
+      this.loadMatch()
+    } catch {
+      wx.showToast({ title: '操作失败', icon: 'error' })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  async cancelMatch() {
+    const res = await wx.showModal({ title: '取消比赛？', content: '此操作不可撤销', confirmColor: '#E53E3E', confirmText: '取消比赛' })
+    if (!res.confirm) return
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: this.data.matchId, status: 'cancelled' } })
+      this.loadMatch()
+    } catch {
+      wx.showToast({ title: '操作失败', icon: 'error' })
+    } finally {
+      this.setData({ busy: false })
     }
   },
 
