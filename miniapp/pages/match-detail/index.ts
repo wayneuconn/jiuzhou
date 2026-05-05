@@ -73,6 +73,7 @@ Page({
     autoAccept: true,
     loading: true,
     busy: false,
+    isEntry: false,
     isAdmin: false,
     showDraft: false,
     showBehaviorTags: false,
@@ -86,7 +87,8 @@ Page({
 
   onLoad(options: Record<string, string>) {
     const matchId = options.id || ''
-    this.setData({ matchId })
+    const isEntry = getCurrentPages().length === 1
+    this.setData({ matchId, isEntry })
     this.loadMatch()
   },
 
@@ -259,6 +261,8 @@ Page({
         })
     this.setData({ posFilter: key, filteredRoster })
   },
+
+  goHome() { wx.switchTab({ url: '/pages/home/index' }) },
 
   openAgreementModal()  { this.setData({ showAgreementModal: true }) },
   closeAgreementModal() { this.setData({ showAgreementModal: false }) },

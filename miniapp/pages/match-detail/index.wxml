@@ -1,4 +1,9 @@
 <view class="container">
+  <view wx:if="{{isEntry}}" bindtap="goHome"
+    style="display:flex;align-items:center;gap:8rpx;padding:20rpx 0 8rpx;color:#7A8FA6;font-size:26rpx;">
+    <text style="font-size:30rpx;">‹</text><text>返回首页</text>
+  </view>
+
   <view wx:if="{{loading}}" style="text-align:center;padding:80rpx 0;">
     <view class="text-muted">加载中...</view>
   </view>
