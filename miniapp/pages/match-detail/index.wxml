@@ -25,17 +25,6 @@
       </view>
     </view>
 
-    <!-- ── Admin phase controls ─────────────────────────────────────── -->
-    <view wx:if="{{isAdmin && match.status !== 'completed' && match.status !== 'cancelled'}}"
-      class="flex-row" style="gap:12rpx;margin-bottom:16rpx;">
-      <button wx:if="{{canAdvance}}" class="btn-primary" style="flex:1;font-size:26rpx;height:72rpx;line-height:72rpx;"
-        bindtap="advanceStatus" disabled="{{busy}}">
-        → {{nextStatusLabel}}
-      </button>
-      <button class="inline-btn-danger" style="flex-shrink:0;"
-        bindtap="cancelMatch" disabled="{{busy}}">取消比赛</button>
-    </view>
-
     <!-- ── Action area ────────────────────────────────────────────────── -->
 
     <!-- cancelled -->
