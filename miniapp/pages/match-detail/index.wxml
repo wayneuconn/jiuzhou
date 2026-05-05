@@ -272,4 +272,6 @@
     </view>
   </view>
 
+  <canvas type="2d" id="share-canvas" style="position:fixed;left:-9999px;top:-9999px;width:500px;height:400px;"/>
+
 </view>

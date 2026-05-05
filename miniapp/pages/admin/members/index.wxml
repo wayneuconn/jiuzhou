@@ -15,6 +15,9 @@
       <view class="flex-row" style="gap:10rpx;flex-shrink:0;margin-left:12rpx;">
         <view class="badge {{item.membershipBadge}}" bindtap="changeMembership" data-id="{{item.id}}" data-current="{{item.membershipType}}">{{item.membershipLabel}}</view>
         <view class="badge badge-grey" bindtap="changeRole" data-id="{{item.id}}" data-current="{{item.role}}">{{item.roleLabel}}</view>
+        <view class="badge {{item.isBanned ? 'badge-red' : 'badge-grey'}}" bindtap="banPlayer" data-id="{{item.id}}" data-current="{{item.banGamesLeft}}">
+          {{item.isBanned ? '禁赛' + item.banGamesLeft : '禁赛'}}
+        </view>
       </view>
     </view>
     <view wx:if="{{item.lateCount > 0 || item.dangerousCount > 0}}" class="flex-row" style="gap:12rpx;">

@@ -1,6 +1,20 @@
 import type { Match, Registration, MatchTag } from '../../types/index'
 import { formatDate, STATUS_LABEL, STATUS_BADGE, REG_STATUS_LABEL } from '../../utils/format'
 
+function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.arcTo(x + w, y, x + w, y + r, r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
+  ctx.lineTo(x + r, y + h)
+  ctx.arcTo(x, y + h, x, y + h - r, r)
+  ctx.lineTo(x, y + r)
+  ctx.arcTo(x, y, x + r, y, r)
+  ctx.closePath()
+}
+
 const SUBSCRIBE_TEMPLATES = {
   promoted: 'REPLACE_PROMOTED_TEMPLATE_ID',
   draftReady: 'REPLACE_DRAFT_READY_TEMPLATE_ID',
@@ -68,6 +82,7 @@ Page({
   _timerInterval: null as ReturnType<typeof setInterval> | null,
   _registrations: [] as Registration[],
   _confirmedListRaw: [] as RegVM[],
+  _shareTempPath: '' as string,
 
   onLoad(options: Record<string, string>) {
     const matchId = options.id || ''
@@ -206,6 +221,9 @@ Page({
       })
 
       this._startTimer(myReg)
+      wx.nextTick(() => {
+        this._generateShareImage().then((p: string) => { this._shareTempPath = p })
+      })
     } catch (err) {
       console.error('loadMatch failed', err)
     } finally {
@@ -364,10 +382,129 @@ Page({
     }
   },
 
-  onShareAppMessage() {
-    return {
-      title: this.data.match ? `${this.data.match.location} - 一起踢球` : '九州比赛',
-      path: `/pages/match-detail/index?id=${this.data.matchId}`,
+  _generateShareImage(): Promise<string> {
+    return new Promise((resolve) => {
+      wx.createSelectorQuery()
+        .select('#share-canvas')
+        .fields({ node: true, size: true })
+        .exec((res: any[]) => {
+          if (!res[0]?.node) { resolve(''); return }
+          const canvas = res[0].node
+          const ctx = canvas.getContext('2d')
+          const dpr = Math.min(wx.getSystemInfoSync().pixelRatio, 2)
+          const W = 500, H = 400
+          canvas.width = W * dpr
+          canvas.height = H * dpr
+          ctx.scale(dpr, dpr)
+
+          const { match, confirmedCount } = this.data
+          if (!match) { resolve(''); return }
+
+          const d2 = new Date(match.date)
+          const wds = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+          const dateLine = `${d2.getMonth() + 1}月${d2.getDate()}日  ${wds[d2.getDay()]}`
+          const timeLine = `${d2.getHours().toString().padStart(2, '0')}:${d2.getMinutes().toString().padStart(2, '0')}`
+
+          const SC: Record<string, string> = {
+            registration_r1: '#00C9A7', registration_r2: '#00C9A7',
+            drafting: '#F0B429', ready: '#3B82F6',
+            completed: '#6B7280', cancelled: '#EF4444', draft: '#4B5563',
+          }
+          const SL: Record<string, string> = {
+            registration_r1: '报名 R1 →', registration_r2: '报名 R2 →',
+            drafting: '选人中', ready: '即将开踢', completed: '已结束',
+            cancelled: '已取消', draft: '草稿',
+          }
+          const sc = SC[match.status] ?? '#6B7280'
+          const sl = SL[match.status] ?? match.status
+
+          // Background
+          ctx.fillStyle = '#0B1A10'
+          ctx.fillRect(0, 0, W, H)
+          // Left accent
+          ctx.fillStyle = '#00C9A7'
+          ctx.fillRect(0, 0, 6, H)
+
+          // Club name
+          ctx.fillStyle = '#00C9A7'
+          ctx.font = 'bold 15px sans-serif'
+          ctx.fillText('JIUZHOU  ⚽', 26, 44)
+
+          // Status badge (top-right)
+          ctx.font = 'bold 14px sans-serif'
+          const slW = ctx.measureText(sl).width + 28
+          const slX = W - slW - 20
+          ctx.fillStyle = sc + '30'
+          roundRect(ctx, slX, 20, slW, 28, 14)
+          ctx.fill()
+          ctx.fillStyle = sc
+          ctx.fillText(sl, slX + 14, 39)
+
+          // Date
+          ctx.fillStyle = '#E8F0EB'
+          ctx.font = 'bold 38px sans-serif'
+          ctx.fillText(dateLine, 26, 140)
+          // Time
+          ctx.fillStyle = '#00C9A7'
+          ctx.font = 'bold 28px sans-serif'
+          ctx.fillText(timeLine, 26, 183)
+          // Location
+          ctx.fillStyle = '#7A8FA6'
+          ctx.font = '22px sans-serif'
+          const loc = match.location.length > 20 ? match.location.slice(0, 19) + '…' : match.location
+          ctx.fillText(loc, 26, 222)
+
+          // Divider
+          ctx.fillStyle = '#1A2E1C'
+          ctx.fillRect(26, 244, W - 52, 1)
+
+          // Player count
+          const max = match.maxPlayers, count = confirmedCount
+          ctx.fillStyle = '#E8F0EB'
+          ctx.font = 'bold 24px sans-serif'
+          const cntStr = `${count}`
+          ctx.fillText(cntStr, 26, 288)
+          ctx.fillStyle = '#7A8FA6'
+          ctx.font = '22px sans-serif'
+          ctx.fillText(` / ${max} 人已报名`, 26 + ctx.measureText(cntStr).width, 288)
+
+          // Progress bar
+          const bX = 26, bY = 302, bW = W - 52, bH = 10
+          ctx.fillStyle = '#1A2E1C'
+          roundRect(ctx, bX, bY, bW, bH, 5)
+          ctx.fill()
+          ctx.fillStyle = count >= max ? '#F0B429' : '#00C9A7'
+          roundRect(ctx, bX, bY, Math.max(bW * Math.min(count / Math.max(max, 1), 1), 4), bH, 5)
+          ctx.fill()
+
+          // Footer
+          ctx.fillStyle = '#253C27'
+          ctx.font = '15px sans-serif'
+          ctx.fillText('长按识别小程序码  立即报名', 26, H - 20)
+          ctx.font = 'bold 15px sans-serif'
+          ctx.textAlign = 'right'
+          ctx.fillText('九州足球', W - 26, H - 20)
+          ctx.textAlign = 'left'
+
+          wx.canvasToTempFilePath({
+            canvas,
+            success: (r: any) => resolve(r.tempFilePath),
+            fail: () => resolve(''),
+          })
+        })
+    })
+  },
+
+  onShareAppMessage(): any {
+    const { match, dateStr, matchId } = this.data
+    if (!match) return { title: '九州比赛', path: '/pages/matches/index' }
+    const base = {
+      title: `${dateStr.split(' ').slice(0, 2).join(' ')} · ${match.location}`,
+      path: `/pages/match-detail/index?id=${matchId}`,
     }
+    if (this._shareTempPath) return { ...base, imageUrl: this._shareTempPath }
+    return this._generateShareImage()
+      .then((imageUrl: string) => imageUrl ? { ...base, imageUrl } : base)
+      .catch(() => base)
   },
 })

@@ -41,7 +41,7 @@ Page({
     // state
     matchId: '',
     matchTitle: '',
-    isAdminOrCaptain: false,
+    isCaptain: false,
     loading: true,
     empty: false,
   },
@@ -98,7 +98,6 @@ Page({
       }) as unknown as { result: { match: Match & { id: string }; registrations: (Registration & { uid: string })[] } }
 
       const { match, registrations } = detailRes.result
-      const isAdmin = user?.role === 'admin'
       const isCaptainA = !!match.captainA && user?._id === match.captainA
       const isCaptainB = !!match.captainB && user?._id === match.captainB
 
@@ -129,7 +128,7 @@ Page({
         players,
         matchId: match.id,
         matchTitle: `${dateStr} ${match.location}`,
-        isAdminOrCaptain: isAdmin || isCaptainA || isCaptainB,
+        isCaptain: isCaptainA || isCaptainB,
         empty: false,
       })
     } catch (err) {
@@ -141,7 +140,7 @@ Page({
   },
 
   onMove(e: WechatMiniprogram.BaseEvent & { detail: { x: number; y: number; source: string } }) {
-    if (!this.data.isAdminOrCaptain) return
+    if (!this.data.isCaptain) return
     if (e.detail.source !== 'touch') return
     const idx = (e.currentTarget.dataset as { idx: number }).idx
     const players = [...this.data.players]

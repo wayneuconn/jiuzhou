@@ -1,11 +1,12 @@
 import type { Match, Announcement } from '../../types/index'
-import { formatDate, STATUS_LABEL, STATUS_BADGE } from '../../utils/format'
+import { formatDate, STATUS_LABEL, STATUS_BADGE, markdownToHtml } from '../../utils/format'
 
 type NextMatchVM = Match & { dateStr: string; statusLabel: string; statusBadge: string }
+type AnnVM = Announcement & { contentHtml: string }
 
 Page({
   data: {
-    announcements: [] as Announcement[],
+    announcements: [] as AnnVM[],
     nextMatch: null as NextMatchVM | null,
     season: '',
     loading: true,
@@ -22,7 +23,7 @@ Page({
       }
       const { announcements, nextMatch, season } = res.result
       this.setData({
-        announcements,
+        announcements: announcements.map(a => ({ ...a, contentHtml: markdownToHtml(a.content) })),
         season,
         nextMatch: nextMatch ? {
           ...nextMatch,

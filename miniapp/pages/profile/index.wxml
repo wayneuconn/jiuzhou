@@ -103,6 +103,7 @@
     <button wx:if="{{isAdmin}}" class="btn-ghost" bindtap="goAttendance">出勤统计</button>
 
     <button class="btn-ghost btn-danger" bindtap="logout">退出登录</button>
+    <navigator url="/pages/privacy/index" style="text-align:center;display:block;margin-top:24rpx;font-size:22rpx;color:#3A4E63;">隐私政策</navigator>
 
   </block>
 </view>

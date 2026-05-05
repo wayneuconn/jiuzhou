@@ -49,7 +49,7 @@
           direction="all"
           data-idx="{{index}}"
           bindchange="onMove"
-          disabled="{{!isAdminOrCaptain}}">
+          disabled="{{!isCaptain}}">
           <view class="token-name">{{item.name}}</view>
         </movable-view>
       </movable-area>
@@ -72,12 +72,12 @@
     </view>
 
     <button
-      wx:if="{{isAdminOrCaptain}}"
+      wx:if="{{isCaptain}}"
       class="btn-primary"
       style="margin-top:24rpx;"
       bindtap="saveFormation">
       保存阵型
     </button>
-    <view wx:else class="text-muted" style="text-align:center;font-size:24rpx;margin-top:20rpx;">仅队长/管理员可编辑</view>
+    <view wx:else class="text-muted" style="text-align:center;font-size:24rpx;margin-top:20rpx;">仅队长可编辑</view>
   </block>
 </view>

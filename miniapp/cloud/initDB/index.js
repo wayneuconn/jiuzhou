@@ -8,7 +8,7 @@ exports.main = async (event, context) => {
 
   // Create collections by inserting a placeholder then deleting it,
   // since WeChat cloud DB creates a collection on first insert.
-  const collections = ['users', 'matches', 'registrations', 'announcements', 'payments', 'paymentEvents', 'inviteTokens', 'config']
+  const collections = ['users', 'matches', 'registrations', 'announcements', 'payments', 'paymentEvents', 'inviteTokens', 'config', 'formations']
   for (const name of collections) {
     try {
       await db.createCollection(name)
@@ -34,22 +34,6 @@ exports.main = async (event, context) => {
     results['config/app'] = 'seeded'
   } catch (e) {
     results['config/app'] = 'error: ' + e.message
-  }
-
-  // Seed a pinned welcome announcement
-  try {
-    await db.collection('announcements').add({
-      data: {
-        title: '欢迎来到九州',
-        content: '这里是九州球队管理平台，比赛报名、阵型安排、成员管理都在这里。',
-        pinned: true,
-        createdAt: db.serverDate(),
-        updatedAt: db.serverDate(),
-      },
-    })
-    results['announcement'] = 'seeded'
-  } catch (e) {
-    results['announcement'] = 'error: ' + e.message
   }
 
   return results

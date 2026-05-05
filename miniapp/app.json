@@ -13,7 +13,9 @@
     "pages/admin/members/index",
     "pages/admin/payments/index",
     "pages/admin/settings/index",
-    "pages/admin/attendance/index"
+    "pages/admin/attendance/index",
+    "pages/admin/announcements/index",
+    "pages/privacy/index"
   ],
   "window": {
     "backgroundTextStyle": "light",

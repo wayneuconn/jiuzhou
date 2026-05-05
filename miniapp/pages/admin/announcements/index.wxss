@@ -1,4 +1,4 @@
-.form-input {
+.ann-input {
   background: #1A2535;
   border: 1rpx solid #1E2D3D;
   border-radius: 12rpx;
@@ -8,6 +8,18 @@
   color: #e8f0eb;
   width: 100%;
   box-sizing: border-box;
+}
+
+.ann-textarea {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  color: #e8f0eb;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 400rpx;
 }
 
 .modal-mask {
@@ -29,4 +41,9 @@
   box-sizing: border-box;
   max-height: 80vh;
   overflow-y: auto;
+}
+
+.btn-danger {
+  color: #E53E3E;
+  border-color: rgba(229,62,62,0.3);
 }

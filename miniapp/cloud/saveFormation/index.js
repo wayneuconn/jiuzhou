@@ -2,7 +2,7 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
-exports.main = async (event, context) => {
+exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext()
   const { matchId, positions } = event
 
@@ -15,13 +15,15 @@ exports.main = async (event, context) => {
   if (!match) throw new Error('match not found')
 
   const isCaptain = user._id === match.captainA || user._id === match.captainB
-  if (!isCaptain && user.role !== 'admin') throw new Error('captain or admin only')
+  if (!isCaptain) throw new Error('captains only')
 
   const team = user._id === match.captainA ? 'A' : 'B'
-  const formationRef = db.collection('matches').doc(matchId).collection('formations').doc(team)
+  const docId = matchId + '_' + team
 
-  await formationRef.set({
+  await db.collection('formations').doc(docId).set({
     data: {
+      matchId,
+      team,
       captainUid: user._id,
       positions,
       updatedAt: db.serverDate(),

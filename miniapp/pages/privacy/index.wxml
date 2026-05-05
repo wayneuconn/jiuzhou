@@ -1,0 +1,46 @@
+<scroll-view scroll-y style="height:100vh;" class="container">
+  <view style="font-size:36rpx;font-weight:900;color:#e8f0eb;margin-bottom:24rpx;">隐私政策</view>
+  <view class="text-muted" style="font-size:22rpx;margin-bottom:32rpx;">最后更新：2026年5月</view>
+
+  <view class="card" style="margin-bottom:20rpx;">
+    <view style="font-size:26rpx;font-weight:700;color:#e8f0eb;margin-bottom:12rpx;">1. 我们收集的信息</view>
+    <view class="text-muted" style="font-size:24rpx;line-height:1.7;">
+      本小程序（九州足球队）在您使用过程中收集以下信息：\n• 微信 OpenID（用于账号识别，不对外展示）\n• 您填写的显示名称\n• 您选择的惯用位置\n• 出勤记录（由管理员标记）
+    </view>
+  </view>
+
+  <view class="card" style="margin-bottom:20rpx;">
+    <view style="font-size:26rpx;font-weight:700;color:#e8f0eb;margin-bottom:12rpx;">2. 信息用途</view>
+    <view class="text-muted" style="font-size:24rpx;line-height:1.7;">
+      所收集信息仅用于：\n• 球队比赛报名与管理\n• 阵型编排与出勤统计\n• 向您发送比赛相关通知
+    </view>
+  </view>
+
+  <view class="card" style="margin-bottom:20rpx;">
+    <view style="font-size:26rpx;font-weight:700;color:#e8f0eb;margin-bottom:12rpx;">3. 信息共享</view>
+    <view class="text-muted" style="font-size:24rpx;line-height:1.7;">
+      您的信息仅在九州足球队内部成员之间可见，不会出售或提供给任何第三方。
+    </view>
+  </view>
+
+  <view class="card" style="margin-bottom:20rpx;">
+    <view style="font-size:26rpx;font-weight:700;color:#e8f0eb;margin-bottom:12rpx;">4. 数据存储</view>
+    <view class="text-muted" style="font-size:24rpx;line-height:1.7;">
+      数据存储于微信云开发（腾讯云），受腾讯云安全策略保护。
+    </view>
+  </view>
+
+  <view class="card" style="margin-bottom:20rpx;">
+    <view style="font-size:26rpx;font-weight:700;color:#e8f0eb;margin-bottom:12rpx;">5. 您的权利</view>
+    <view class="text-muted" style="font-size:24rpx;line-height:1.7;">
+      您可随时通过「我的」页面修改个人信息，或联系管理员申请删除账号及相关数据。
+    </view>
+  </view>
+
+  <view class="card" style="margin-bottom:40rpx;">
+    <view style="font-size:26rpx;font-weight:700;color:#e8f0eb;margin-bottom:12rpx;">6. 联系方式</view>
+    <view class="text-muted" style="font-size:24rpx;line-height:1.7;">
+      如有隐私相关问题，请通过球队管理员联系我们。
+    </view>
+  </view>
+</scroll-view>

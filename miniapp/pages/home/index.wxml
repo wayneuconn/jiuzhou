@@ -38,7 +38,7 @@
         <view style="font-size:30rpx;font-weight:700;flex:1;color:#e8f0eb;">{{item.title}}</view>
         <view wx:if="{{item.pinned}}" class="badge badge-gold" style="margin-left:16rpx;flex-shrink:0;">置顶</view>
       </view>
-      <view style="color:#7A8FA6;font-size:26rpx;line-height:1.7;white-space:pre-wrap;">{{item.content}}</view>
+      <rich-text nodes="{{item.contentHtml}}" style="display:block;font-size:26rpx;line-height:1.7;"/>
     </view>
   </block>
 </view>

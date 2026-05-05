@@ -112,12 +112,16 @@ Page({
           preferredPositions: this._currentPositions,
         },
       })
-      this.setData({ saved: true })
+      const trimmed = this.data.displayName.trim()
+      this.setData({
+        saved: true,
+        'user.displayName': trimmed,
+      })
       const app = getApp<{ globalData: { userProfile: User | null } }>()
       if (app.globalData.userProfile) {
         app.globalData.userProfile = {
           ...app.globalData.userProfile,
-          displayName: this.data.displayName.trim(),
+          displayName: trimmed,
           preferredPositions: this._currentPositions,
         }
       }
