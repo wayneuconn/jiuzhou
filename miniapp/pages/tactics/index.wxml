@@ -36,7 +36,7 @@
         <movable-view
           wx:for="{{players}}"
           wx:key="uid"
-          class="player-token {{item.team === 'A' ? 'token-a' : 'token-b'}} {{item.isMe ? 'token-me' : ''}}"
+          class="token-wrap"
           style="width:{{tokenPx}}px;height:{{tokenPx}}px;"
           x="{{item.x}}"
           y="{{item.y}}"
@@ -44,8 +44,11 @@
           data-idx="{{index}}"
           bindchange="onMove"
           disabled="{{!canEdit}}">
-          <view class="token-name">{{item.name}}{{item.isMe ? ' ★' : ''}}</view>
-          <view wx:if="{{item.position}}" class="token-pos">{{item.position}}</view>
+          <view class="player-token {{item.team === 'A' ? 'token-a' : 'token-b'}} {{item.isMe ? 'token-me' : ''}}">
+            <view class="token-initial">{{item.initial}}</view>
+          </view>
+          <view wx:if="{{item.position}}" class="position-tag">{{item.position}}</view>
+          <view class="name-label">{{item.name}}{{item.isMe ? ' ★' : ''}}</view>
         </movable-view>
       </movable-area>
     </view>

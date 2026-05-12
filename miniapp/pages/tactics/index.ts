@@ -3,6 +3,7 @@ import type { Match, Registration } from '../../types/index'
 interface PitchPlayer {
   uid: string
   name: string
+  initial: string
   position: string
   x: number
   y: number
@@ -46,7 +47,7 @@ Page({
     const sys = wx.getSystemInfoSync()
     const pw = sys.windowWidth - 32
     const ph = Math.round(pw * 1.6)
-    const tokenPx = Math.round(pw * 0.13)
+    const tokenPx = Math.round(pw * 0.085)
 
     const circleR = Math.round(pw * 0.12)
     const penW = Math.round(pw * 0.60)
@@ -151,12 +152,13 @@ Page({
       const players: PitchPlayer[] = myTeamPlayers.map((r, i) => {
         const saved = savedPositions[r.uid]
         const slot = SLOTS[i] ?? [0.5, 0.5]
-        // saved fractions represent top-left of token; defaults are token centers (subtract half)
         const x = saved ? Math.round(saved.x * pw) : Math.round(slot[0] * pw - half)
         const y = saved ? Math.round(saved.y * ph) : Math.round(slot[1] * ph - half)
+        const name = (r.displayName ?? '?').trim()
         return {
           uid: r.uid,
-          name: (r.displayName ?? '?').slice(0, 3),
+          name,
+          initial: name.charAt(0).toUpperCase() || '?',
           position: (r.preferredPositions ?? [])[0] ?? '',
           team: myTeam,
           x, y,
