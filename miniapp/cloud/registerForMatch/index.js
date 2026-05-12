@@ -3,6 +3,22 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+async function recalcMatchState(matchId) {
+  const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+  if (!matchSnap.data) return
+  const match = matchSnap.data
+  if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  const cnt = await db.collection('registrations')
+    .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+    .count().catch(() => ({ total: 0 }))
+  const count = cnt.total ?? 0
+  if (count >= match.maxPlayers && match.status !== 'ready') {
+    await db.collection('matches').doc(matchId).update({ data: { status: 'ready', autoReady: true } }).catch(() => {})
+  } else if (match.status === 'ready' && count < match.maxPlayers && match.autoReady === true) {
+    await db.collection('matches').doc(matchId).update({ data: { status: 'registration_r2', autoReady: false } }).catch(() => {})
+  }
+}
+
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
   const { matchId } = event
@@ -44,14 +60,19 @@ exports.main = async (event, context) => {
       const wlSnap = await db.collection('registrations').where({ matchId, status: 'waitlist' }).count()
       reWaitlistPosition = (wlSnap.total ?? 0) + 1
     }
+    const reAutoAccept = typeof event.autoAccept === 'boolean'
+      ? event.autoAccept
+      : (existingSnap.data.autoAccept ?? true)
     await db.collection('registrations').doc(regId).update({
       data: {
         status: reIsWaitlist ? 'waitlist' : 'confirmed',
         waitlistPosition: reIsWaitlist ? reWaitlistPosition : null,
         registeredAt: db.serverDate(),
         tags: [],
+        autoAccept: reAutoAccept,
       },
     })
+    await recalcMatchState(matchId)
     return { status: reIsWaitlist ? 'waitlist' : 'confirmed' }
   }
 
@@ -77,9 +98,10 @@ exports.main = async (event, context) => {
       waitlistPosition: isWaitlist ? waitlistPosition : null,
       team: null,
       tags: [],
-      autoAccept: event.autoAccept !== undefined ? event.autoAccept : true,
+      autoAccept: typeof event.autoAccept === 'boolean' ? event.autoAccept : true,
     },
   })
 
+  await recalcMatchState(matchId)
   return { status: isWaitlist ? 'waitlist' : 'confirmed' }
 }

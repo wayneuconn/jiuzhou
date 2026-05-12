@@ -18,6 +18,7 @@ exports.main = async (event, context) => {
       location: event.location ?? '待定',
       maxPlayers: event.maxPlayers ?? 22,
       status: 'draft',
+      autoReady: false,
       captainA: null,
       captainB: null,
       draftState: null,

@@ -1,6 +1,23 @@
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
+const _ = db.command
+
+async function recalcMatchState(matchId) {
+  const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+  if (!matchSnap.data) return
+  const match = matchSnap.data
+  if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  const cnt = await db.collection('registrations')
+    .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+    .count().catch(() => ({ total: 0 }))
+  const count = cnt.total ?? 0
+  if (count >= match.maxPlayers && match.status !== 'ready') {
+    await db.collection('matches').doc(matchId).update({ data: { status: 'ready', autoReady: true } }).catch(() => {})
+  } else if (match.status === 'ready' && count < match.maxPlayers && match.autoReady === true) {
+    await db.collection('matches').doc(matchId).update({ data: { status: 'registration_r2', autoReady: false } }).catch(() => {})
+  }
+}
 
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
@@ -16,6 +33,9 @@ exports.main = async (event, context) => {
     throw new Error('not in promoted state')
   }
 
-  await db.collection('registrations').doc(regId).update({ data: { status: 'confirmed' } })
+  await db.collection('registrations').doc(regId).update({
+    data: { status: 'confirmed', promotedAt: null, confirmDeadline: null },
+  })
+  await recalcMatchState(matchId)
   return { success: true }
 }

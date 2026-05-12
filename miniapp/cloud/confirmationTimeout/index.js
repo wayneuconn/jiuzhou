@@ -48,6 +48,22 @@ function nextMatchDate(config) {
   return next
 }
 
+async function recalcMatchState(matchId) {
+  const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+  if (!matchSnap.data) return
+  const match = matchSnap.data
+  if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  const cnt = await db.collection('registrations')
+    .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+    .count().catch(() => ({ total: 0 }))
+  const count = cnt.total ?? 0
+  if (count >= match.maxPlayers && match.status !== 'ready') {
+    await db.collection('matches').doc(matchId).update({ data: { status: 'ready', autoReady: true } }).catch(() => {})
+  } else if (match.status === 'ready' && count < match.maxPlayers && match.autoReady === true) {
+    await db.collection('matches').doc(matchId).update({ data: { status: 'registration_r2', autoReady: false } }).catch(() => {})
+  }
+}
+
 function isInWinterBreak(date, config) {
   if (!config.winterBreakStart || !config.winterBreakEnd) return false
   return etDateStr(date) >= config.winterBreakStart && etDateStr(date) <= config.winterBreakEnd
@@ -96,9 +112,9 @@ exports.main = async (event, context) => {
           data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null },
         }).catch(() => {})
       } else {
-        const deadline = new Date(Date.now() + waitlistMinutes * 60 * 1000)
+        const deadlineTs = Date.now() + waitlistMinutes * 60 * 1000
         await db.collection('registrations').doc(nextRegId).update({
-          data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadline, waitlistPosition: null },
+          data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadlineTs, waitlistPosition: null },
         }).catch(() => {})
         try {
           const userSnap = await db.collection('users').doc(next.uid).get()
@@ -111,7 +127,20 @@ exports.main = async (event, context) => {
         } catch (_) {}
       }
     }
+    await recalcMatchState(matchId)
     promoted++
+  }
+
+  // ── 1b. Auto-advance R1 → R2 within 8 hours of kickoff ──────────────────
+  const eightHoursMs = 8 * 60 * 60 * 1000
+  const r1Snap = await db.collection('matches')
+    .where({ status: 'registration_r1', date: _.and(_.gt(now.getTime()), _.lt(now.getTime() + eightHoursMs)) })
+    .get().catch(() => ({ data: [] }))
+  let advancedToR2 = 0
+  for (const m of r1Snap.data) {
+    await db.collection('matches').doc(m._id).update({ data: { status: 'registration_r2' } }).catch(() => {})
+    await recalcMatchState(m._id)
+    advancedToR2++
   }
 
   // ── 2. Auto-complete matches whose date has passed ───────────────────────
@@ -132,21 +161,15 @@ exports.main = async (event, context) => {
       .get()
       .catch(() => ({ data: [] }))
 
-    const attendeeUids = regsSnap.data.map(r => r.uid)
-    if (attendeeUids.length > 0) {
-      await Promise.all(attendeeUids.map(uid =>
-        db.collection('users').doc(uid).update({ data: { attendanceCount: _.inc(1) } })
-      ))
-      await Promise.all(attendeeUids.map(uid =>
-        db.collection('users').doc(uid).update({ data: { banGamesLeft: _.inc(-1) } }).catch(() => {})
-      ))
-      const negSnap = await db.collection('users')
-        .where({ _id: _.in(attendeeUids), banGamesLeft: _.lt(0) })
-        .get()
-        .catch(() => ({ data: [] }))
-      await Promise.all(negSnap.data.map(u =>
-        db.collection('users').doc(u._id).update({ data: { banGamesLeft: 0 } })
-      ))
+    for (const reg of regsSnap.data) {
+      const uSnap = await db.collection('users').doc(reg.uid).get().catch(() => ({ data: null }))
+      if (!uSnap.data) continue
+      const u = uSnap.data
+      const newAttendance = (u.attendanceCount ?? 0) + 1
+      const newBan = Math.max(0, (u.banGamesLeft ?? 0) - 1)
+      await db.collection('users').doc(reg.uid).update({
+        data: { attendanceCount: newAttendance, banGamesLeft: newBan },
+      }).catch(() => {})
     }
     autoCompleted++
   }
@@ -167,7 +190,8 @@ exports.main = async (event, context) => {
             date: nextDate.getTime(),
             location: config.recurringLocation ?? '待定',
             maxPlayers: config.recurringMaxPlayers ?? 22,
-            status: 'draft',
+            status: 'registration_r1',
+            autoReady: false,
             captainA: null,
             captainB: null,
             draftState: null,

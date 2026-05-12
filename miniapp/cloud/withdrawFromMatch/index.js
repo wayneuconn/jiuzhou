@@ -3,6 +3,25 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+// Auto state machine helper — call after any registration change.
+// R1/R2 + confirmed === maxPlayers → ready (autoReady: true)
+// ready + confirmed < maxPlayers + autoReady === true → registration_r2 (autoReady: false)
+async function recalcMatchState(matchId) {
+  const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+  if (!matchSnap.data) return
+  const match = matchSnap.data
+  if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  const cnt = await db.collection('registrations')
+    .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+    .count().catch(() => ({ total: 0 }))
+  const count = cnt.total ?? 0
+  if (count >= match.maxPlayers && match.status !== 'ready') {
+    await db.collection('matches').doc(matchId).update({ data: { status: 'ready', autoReady: true } }).catch(() => {})
+  } else if (match.status === 'ready' && count < match.maxPlayers && match.autoReady === true) {
+    await db.collection('matches').doc(matchId).update({ data: { status: 'registration_r2', autoReady: false } }).catch(() => {})
+  }
+}
+
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
   const { matchId } = event
@@ -19,7 +38,27 @@ exports.main = async (event, context) => {
 
   await db.collection('registrations').doc(regId).update({ data: { status: 'withdrawn' } })
 
-  if (!wasConfirmed) return { success: true }
+  // If they were a captain, clear that slot
+  const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+  const match = matchSnap.data
+  if (match) {
+    const clearData = {}
+    if (match.captainA === user._id) clearData.captainA = null
+    if (match.captainB === user._id) clearData.captainB = null
+    if (Object.keys(clearData).length > 0) {
+      // If currently drafting, also reset draftState (drafting cannot proceed without both captains)
+      if (match.status === 'drafting') {
+        clearData.status = 'registration_r2'
+        clearData.draftState = null
+      }
+      await db.collection('matches').doc(matchId).update({ data: clearData }).catch(() => {})
+    }
+  }
+
+  if (!wasConfirmed) {
+    await recalcMatchState(matchId)
+    return { success: true }
+  }
 
   // Promote top waitlisted player
   const configSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
@@ -31,7 +70,10 @@ exports.main = async (event, context) => {
     .limit(1)
     .get()
 
-  if (waitlistSnap.data.length === 0) return { success: true }
+  if (waitlistSnap.data.length === 0) {
+    await recalcMatchState(matchId)
+    return { success: true }
+  }
 
   const topWaiter = waitlistSnap.data[0]
   const topWaiterId = matchId + '_' + topWaiter.uid
@@ -41,9 +83,9 @@ exports.main = async (event, context) => {
       data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null },
     })
   } else {
-    const deadline = new Date(Date.now() + waitlistMinutes * 60 * 1000)
+    const deadlineTs = Date.now() + waitlistMinutes * 60 * 1000
     await db.collection('registrations').doc(topWaiterId).update({
-      data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadline, waitlistPosition: null },
+      data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadlineTs, waitlistPosition: null },
     })
     try {
       const waiterUserSnap = await db.collection('users').doc(topWaiter.uid).get()
@@ -60,5 +102,6 @@ exports.main = async (event, context) => {
     } catch (_) {}
   }
 
+  await recalcMatchState(matchId)
   return { success: true, promoted: topWaiter.uid }
 }

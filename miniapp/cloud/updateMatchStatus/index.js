@@ -5,6 +5,19 @@ const _ = db.command
 
 const VALID_STATUSES = ['draft', 'registration_r1', 'registration_r2', 'drafting', 'ready', 'completed', 'cancelled']
 
+// Build the snake draft pick order: A, B, B, A, A, B, B, A …
+// Captain A and B are auto-assigned to their teams before pick #1.
+function buildPickOrder(remainingCount) {
+  const order = []
+  let team = 'A', n = 0
+  for (let i = 0; i < remainingCount; i++) {
+    order.push(team)
+    n++
+    if (n === 2) { team = team === 'A' ? 'B' : 'A'; n = 0 }
+  }
+  return order
+}
+
 exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext()
   const { action, matchId } = event
@@ -17,40 +30,50 @@ exports.main = async (event) => {
   if (!action || action === 'setStatus') {
     const { status } = event
     if (!VALID_STATUSES.includes(status)) throw new Error('invalid status')
-    await db.collection('matches').doc(matchId).update({ data: { status } })
+
+    const matchSnap = await db.collection('matches').doc(matchId).get()
+    const match = matchSnap.data
+    if (!match) throw new Error('match not found')
+
+    const updateData = { status, autoReady: false }
+
+    // Initialize draftState when entering drafting
+    if (status === 'drafting' && match.status !== 'drafting') {
+      if (!match.captainA || !match.captainB) throw new Error('captains required before drafting')
+      // Assign captains to their teams immediately
+      const capAReg = matchId + '_' + match.captainA
+      const capBReg = matchId + '_' + match.captainB
+      await db.collection('registrations').doc(capAReg).update({ data: { team: 'A' } }).catch(() => {})
+      await db.collection('registrations').doc(capBReg).update({ data: { team: 'B' } }).catch(() => {})
+      // Count remaining picks (confirmed/promoted minus captains)
+      const remainingSnap = await db.collection('registrations')
+        .where({ matchId, status: _.in(['confirmed', 'promoted']), uid: _.nin([match.captainA, match.captainB]) })
+        .count().catch(() => ({ total: 0 }))
+      const remaining = remainingSnap.total ?? 0
+      updateData.draftState = {
+        pickOrder: buildPickOrder(remaining),
+        pickIndex: 0,
+        currentTurn: 'A',
+      }
+    }
+
+    await db.collection('matches').doc(matchId).update({ data: updateData })
 
     if (status === 'completed') {
-      // Get confirmed/promoted players for this match
       const regsSnap = await db.collection('registrations')
         .where({ matchId, status: _.in(['confirmed', 'promoted']) })
-        .get()
-        .catch(() => ({ data: [] }))
+        .get().catch(() => ({ data: [] }))
 
-      const attendeeUids = regsSnap.data.map(r => r.uid)
-
-      if (attendeeUids.length > 0) {
-        await Promise.all(attendeeUids.map(uid =>
-          db.collection('users').doc(uid).update({
-            data: { attendanceCount: _.inc(1) },
-          })
-        ))
-
-        // Decrement ban only for players who attended
-        await Promise.all(attendeeUids.map(uid =>
-          db.collection('users').doc(uid).update({
-            data: { banGamesLeft: _.inc(-1) },
-          }).catch(() => {})
-        ))
-
-        // Clamp banGamesLeft to 0 for those who were not banned (inc(-1) on 0 = -1)
-        // Use a separate pass to fix negatives
-        const usersSnap = await db.collection('users')
-          .where({ _id: _.in(attendeeUids), banGamesLeft: _.lt(0) })
-          .get()
-          .catch(() => ({ data: [] }))
-        await Promise.all(usersSnap.data.map(u =>
-          db.collection('users').doc(u._id).update({ data: { banGamesLeft: 0 } })
-        ))
+      const attendees = regsSnap.data
+      for (const reg of attendees) {
+        const uSnap = await db.collection('users').doc(reg.uid).get().catch(() => ({ data: null }))
+        if (!uSnap.data) continue
+        const u = uSnap.data
+        const newAttendance = (u.attendanceCount ?? 0) + 1
+        const newBan = Math.max(0, (u.banGamesLeft ?? 0) - 1)
+        await db.collection('users').doc(reg.uid).update({
+          data: { attendanceCount: newAttendance, banGamesLeft: newBan },
+        }).catch(() => {})
       }
     }
 
@@ -92,6 +115,15 @@ exports.main = async (event) => {
   // ── set captain ────────────────────────────────────────────────────────────
   if (action === 'setCaptain') {
     const { slot, uid } = event
+    if (slot !== 'captainA' && slot !== 'captainB') throw new Error('invalid slot')
+
+    if (uid) {
+      const regSnap = await db.collection('registrations').doc(matchId + '_' + uid).get().catch(() => ({ data: null }))
+      if (!regSnap.data || !['confirmed', 'promoted'].includes(regSnap.data.status)) {
+        throw new Error('captain must be a confirmed player')
+      }
+    }
+
     const matchSnap = await db.collection('matches').doc(matchId).get()
     const prevUid = matchSnap.data?.[slot]
     if (prevUid && prevUid !== uid) {
