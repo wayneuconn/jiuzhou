@@ -61,9 +61,9 @@ export type MatchStatus =
   | 'cancelled'
 
 export interface DraftState {
-  currentTurn: string
-  pickOrder: string[]
-  picks: { uid: string; pickedBy: string; pickNumber: number }[]
+  currentTurn: 'A' | 'B' | null
+  pickOrder: ('A' | 'B')[]
+  pickIndex: number
 }
 
 export interface Match {
