@@ -12,7 +12,10 @@ Page({
     loading: true,
   },
 
-  onShow() { this.loadData() },
+  onShow() {
+    wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
+    this.loadData()
+  },
   onPullDownRefresh() { this.loadData().finally(() => wx.stopPullDownRefresh()) },
 
   async loadData() {

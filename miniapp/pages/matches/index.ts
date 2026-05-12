@@ -28,7 +28,10 @@ Page({
     isAdmin: false,
   },
 
-  onShow() { this.loadMatches() },
+  onShow() {
+    wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
+    this.loadMatches()
+  },
   onPullDownRefresh() { this.loadMatches().finally(() => wx.stopPullDownRefresh()) },
 
   async loadMatches() {

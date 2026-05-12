@@ -93,6 +93,7 @@ Page({
   },
 
   onShow() {
+    wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
     if (this.data.matchId) this.loadMatch()
   },
 
