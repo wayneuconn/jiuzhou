@@ -152,15 +152,22 @@ exports.main = async (event) => {
     const { slot, uid } = event
     if (slot !== 'captainA' && slot !== 'captainB') throw new Error('invalid slot')
 
+    const matchSnap = await db.collection('matches').doc(matchId).get()
+    const matchDoc = matchSnap.data
+    if (!matchDoc) throw new Error('match not found')
+
     if (uid) {
+      const otherSlot = slot === 'captainA' ? 'captainB' : 'captainA'
+      if (matchDoc[otherSlot] === uid) {
+        throw new Error('一个人不能同时担任两边队长')
+      }
       const regSnap = await db.collection('registrations').doc(matchId + '_' + uid).get().catch(() => ({ data: null }))
       if (!regSnap.data || !['confirmed', 'promoted'].includes(regSnap.data.status)) {
         throw new Error('captain must be a confirmed player')
       }
     }
 
-    const matchSnap = await db.collection('matches').doc(matchId).get()
-    const prevUid = matchSnap.data?.[slot]
+    const prevUid = matchDoc[slot]
     if (prevUid && prevUid !== uid) {
       const prevRegId = matchId + '_' + prevUid
       await db.collection('registrations').doc(prevRegId).update({ data: { team: null } }).catch(() => {})
