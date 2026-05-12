@@ -10,12 +10,27 @@ exports.main = async (event, context) => {
     throw new Error('displayName required')
   }
 
-  await db.collection('users').where({ openid: OPENID }).update({
-    data: {
-      displayName: displayName.trim(),
-      preferredPositions: Array.isArray(preferredPositions) ? preferredPositions : [],
-    },
-  })
-
+  const existing = await db.collection('users').where({ openid: OPENID }).limit(1).get()
+  const profileData = {
+    displayName: displayName.trim(),
+    preferredPositions: Array.isArray(preferredPositions) ? preferredPositions : [],
+  }
+  if (existing.data.length > 0) {
+    await db.collection('users').where({ openid: OPENID }).update({ data: profileData })
+  } else {
+    await db.collection('users').add({
+      data: {
+        openid: OPENID,
+        phone: '',
+        role: 'guest',
+        membershipType: 'none',
+        attendanceCount: 0,
+        lateCount: 0,
+        dangerousCount: 0,
+        createdAt: db.serverDate(),
+        ...profileData,
+      },
+    })
+  }
   return { success: true }
 }
