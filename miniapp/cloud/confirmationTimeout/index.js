@@ -143,6 +143,20 @@ exports.main = async (event, context) => {
     advancedToR2++
   }
 
+  // ── 1c. Lock roster 1 hour before kickoff ───────────────────────────────
+  const oneHourMs = 60 * 60 * 1000
+  const cutoffSnap = await db.collection('matches')
+    .where({
+      status: _.in(['registration_r1', 'registration_r2']),
+      date: _.and(_.gt(now.getTime()), _.lt(now.getTime() + oneHourMs)),
+    })
+    .get().catch(() => ({ data: [] }))
+  let locked = 0
+  for (const m of cutoffSnap.data) {
+    await db.collection('matches').doc(m._id).update({ data: { status: 'ready', autoReady: false } }).catch(() => {})
+    locked++
+  }
+
   // ── 2. Auto-complete matches whose date has passed ───────────────────────
   const expiredMatchSnap = await db.collection('matches')
     .where({

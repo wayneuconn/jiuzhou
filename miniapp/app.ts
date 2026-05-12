@@ -1,9 +1,12 @@
 import type { User } from './types/index'
 
+interface CardThresholds { bronze: number; silver: number; gold: number; blue: number }
+
 interface JiuzhouAppOption {
   globalData: {
     userProfile: User | null
     openid: string | null
+    cardThresholds: CardThresholds | null
   }
   autoLogin: () => Promise<void>
   refreshUserProfile: () => Promise<User | null>
@@ -13,6 +16,7 @@ App<JiuzhouAppOption>({
   globalData: {
     userProfile: null,
     openid: null,
+    cardThresholds: null,
   },
 
   async onLaunch() {
@@ -51,8 +55,10 @@ App<JiuzhouAppOption>({
   async refreshUserProfile() {
     try {
       const res = await wx.cloud.callFunction({ name: 'getCurrentUser' })
-      const user = (res.result as { user: User | null } | undefined)?.user ?? null
+      const result = res.result as { user: User | null; cardThresholds: CardThresholds | null } | undefined
+      const user = result?.user ?? null
       this.globalData.userProfile = user
+      if (result?.cardThresholds) this.globalData.cardThresholds = result.cardThresholds
       return user
     } catch (err) {
       console.error('refreshUserProfile failed', err)

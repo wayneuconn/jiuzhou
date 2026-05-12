@@ -59,6 +59,27 @@ exports.main = async (event) => {
 
     await db.collection('matches').doc(matchId).update({ data: updateData })
 
+    // Notify confirmed/promoted players if match was cancelled
+    if (status === 'cancelled' && match.status !== 'cancelled') {
+      const regsSnap = await db.collection('registrations')
+        .where({ matchId, status: _.in(['confirmed', 'promoted', 'waitlist']) })
+        .get().catch(() => ({ data: [] }))
+      for (const reg of regsSnap.data) {
+        const uSnap = await db.collection('users').doc(reg.uid).get().catch(() => ({ data: null }))
+        if (!uSnap.data?.openid) continue
+        try {
+          await cloud.callFunction({
+            name: 'sendSubscribeMsg',
+            data: {
+              type: 'matchCancelled',
+              toOpenid: uSnap.data.openid,
+              data: { page: `/pages/match-detail/index?id=${matchId}`, templateData: {} },
+            },
+          })
+        } catch (_) {}
+      }
+    }
+
     if (status === 'completed') {
       const regsSnap = await db.collection('registrations')
         .where({ matchId, status: _.in(['confirmed', 'promoted']) })

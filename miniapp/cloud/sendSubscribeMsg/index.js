@@ -6,6 +6,7 @@ const TEMPLATES = {
   matchOpen: 'REPLACE_MATCH_OPEN_TEMPLATE_ID',
   promoted: 'REPLACE_PROMOTED_TEMPLATE_ID',
   draftReady: 'REPLACE_DRAFT_READY_TEMPLATE_ID',
+  matchCancelled: 'REPLACE_MATCH_CANCELLED_TEMPLATE_ID',
 }
 
 exports.main = async (event, context) => {
@@ -13,6 +14,8 @@ exports.main = async (event, context) => {
 
   const templateId = TEMPLATES[type]
   if (!templateId) throw new Error(`unknown message type: ${type}`)
+  // Skip silently if template hasn't been configured yet
+  if (templateId.startsWith('REPLACE_')) return { skipped: true, reason: 'template not configured' }
 
   await cloud.openapi.subscribeMessage.send({
     touser: toOpenid,

@@ -17,16 +17,34 @@
       </view>
       <view class="badge {{item.statusBadge}}" style="flex-shrink:0;margin-left:16rpx;">{{item.statusLabel}}</view>
     </view>
-    <view class="flex-row" style="gap:12rpx;">
+    <view class="flex-row" style="gap:12rpx;flex-wrap:wrap;">
       <button
         wx:if="{{item.canAdvance}}"
         size="mini"
         class="btn-primary"
-        style="flex:1;font-size:24rpx;"
+        style="flex:1;min-width:160rpx;font-size:24rpx;"
         catchtap="advanceStatus"
         data-id="{{item.id}}"
         data-next="{{item.nextStatus}}">
         → {{item.nextStatusLabel}}
+      </button>
+      <button
+        wx:if="{{item.canForceReady}}"
+        size="mini"
+        class="btn-ghost"
+        style="font-size:24rpx;"
+        catchtap="forceReady"
+        data-id="{{item.id}}">
+        强制就绪
+      </button>
+      <button
+        wx:if="{{item.canBackToR2}}"
+        size="mini"
+        class="btn-ghost"
+        style="font-size:24rpx;"
+        catchtap="backToR2"
+        data-id="{{item.id}}">
+        回到 R2
       </button>
       <button
         wx:if="{{item.status !== 'completed' && item.status !== 'cancelled'}}"

@@ -16,6 +16,8 @@ interface MatchVM extends Match {
   nextStatus: string
   nextStatusLabel: string
   canAdvance: boolean
+  canForceReady: boolean
+  canBackToR2: boolean
 }
 
 const todayDateStr = () => new Date().toISOString().slice(0, 10)
@@ -45,6 +47,8 @@ Page({
         nextStatus: STATUS_NEXT[m.status] ?? '',
         nextStatusLabel: STATUS_LABEL[STATUS_NEXT[m.status]] ?? '',
         canAdvance: !!STATUS_NEXT[m.status] && m.status !== 'completed' && m.status !== 'cancelled',
+        canForceReady: m.status === 'registration_r1' || m.status === 'registration_r2',
+        canBackToR2: m.status === 'ready',
       }))
       this.setData({ matches }, () => this.applyFilter())
     } catch (err) { console.error(err) }
@@ -95,6 +99,26 @@ Page({
     if (!res.confirm) return
     try {
       await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: next } })
+      this.loadMatches()
+    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
+  },
+
+  async forceReady(e: WechatMiniprogram.BaseEvent) {
+    const id = (e.currentTarget.dataset as { id: string }).id
+    const res = await wx.showModal({ title: '强制设为已就绪？', content: '即使人数不足也将锁定名单', confirmColor: '#00C9A7' })
+    if (!res.confirm) return
+    try {
+      await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: 'ready' } })
+      this.loadMatches()
+    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
+  },
+
+  async backToR2(e: WechatMiniprogram.BaseEvent) {
+    const id = (e.currentTarget.dataset as { id: string }).id
+    const res = await wx.showModal({ title: '回到 R2 报名？', content: '重新开放报名', confirmColor: '#F0B429' })
+    if (!res.confirm) return
+    try {
+      await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: 'registration_r2' } })
       this.loadMatches()
     } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
   },

@@ -31,7 +31,12 @@ Page({
   _currentPositions: [] as string[],
 
   async onShow() {
+    wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
     await this.loadProfile()
+  },
+
+  onShareAppMessage() {
+    return { title: '九州足球俱乐部', path: '/pages/home/index' }
   },
 
   async loadProfile() {
@@ -51,8 +56,10 @@ Page({
   },
 
   _applyUser(user: User) {
-    const tier = getCardTier(user.attendanceCount, DEFAULT_THRESHOLDS)
-    const nextTier = getNextTierInfo(user.attendanceCount, DEFAULT_THRESHOLDS)
+    const app = getApp<{ globalData: { cardThresholds: typeof DEFAULT_THRESHOLDS | null } }>()
+    const thresholds = app.globalData.cardThresholds ?? DEFAULT_THRESHOLDS
+    const tier = getCardTier(user.attendanceCount, thresholds)
+    const nextTier = getNextTierInfo(user.attendanceCount, thresholds)
     const priorityPositions: PriorityPosition[] = user.preferredPositions.map((pos, i) => ({
       pos,
       priorityLabel: PRIORITY_LABELS[i] ?? `${i + 1}`,

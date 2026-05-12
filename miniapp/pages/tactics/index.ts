@@ -74,7 +74,12 @@ Page({
   },
 
   onShow() {
+    wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
     this.loadData()
+  },
+
+  onShareAppMessage() {
+    return { title: '九州战术板', path: '/pages/home/index' }
   },
 
   async loadData() {

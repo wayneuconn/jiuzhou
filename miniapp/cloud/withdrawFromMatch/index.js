@@ -24,7 +24,8 @@ async function recalcMatchState(matchId) {
 
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
-  const { matchId } = event
+  const { matchId, mode } = event
+  const newStatus = mode === 'excuse' ? 'excused' : 'withdrawn'
 
   const userSnap = await db.collection('users').where({ openid: OPENID }).limit(1).get()
   const user = userSnap.data[0]
@@ -36,7 +37,7 @@ exports.main = async (event, context) => {
 
   const wasConfirmed = ['confirmed', 'promoted'].includes(regSnap.data.status)
 
-  await db.collection('registrations').doc(regId).update({ data: { status: 'withdrawn' } })
+  await db.collection('registrations').doc(regId).update({ data: { status: newStatus, waitlistPosition: null, promotedAt: null, confirmDeadline: null } })
 
   // If they were a captain, clear that slot
   const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))

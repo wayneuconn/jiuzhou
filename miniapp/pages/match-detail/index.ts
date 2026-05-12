@@ -331,8 +331,23 @@ Page({
     if (!res.confirm) return
     this.setData({ busy: true })
     try {
-      await wx.cloud.callFunction({ name: 'withdrawFromMatch', data: { matchId: this.data.matchId } })
+      await wx.cloud.callFunction({ name: 'withdrawFromMatch', data: { matchId: this.data.matchId, mode: 'withdraw' } })
       wx.showToast({ title: '已退出', icon: 'success' })
+      this.loadMatch()
+    } catch {
+      wx.showToast({ title: '操作失败', icon: 'error' })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  async excuse() {
+    const res = await wx.showModal({ title: '确认请假？', content: '请假后可随时重新报名', confirmColor: '#F0B429' })
+    if (!res.confirm) return
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({ name: 'withdrawFromMatch', data: { matchId: this.data.matchId, mode: 'excuse' } })
+      wx.showToast({ title: '已请假', icon: 'success' })
       this.loadMatch()
     } catch {
       wx.showToast({ title: '操作失败', icon: 'error' })
