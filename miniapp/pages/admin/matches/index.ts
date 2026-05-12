@@ -125,10 +125,17 @@ Page({
 
   async cancelMatch(e: WechatMiniprogram.BaseEvent) {
     const id = (e.currentTarget.dataset as { id: string }).id
-    const res = await wx.showModal({ title: '确认取消比赛？', content: '此操作不可撤销', confirmColor: '#E53E3E' })
+    const res = await wx.showModal({
+      title: '确认取消比赛？',
+      content: '此操作不可撤销，已报名球员将收到通知',
+      editable: true,
+      placeholderText: '取消原因（如：下雨、场地问题）',
+      confirmColor: '#E53E3E',
+    })
     if (!res.confirm) return
+    const reason = (res.content || '').trim() || '因故取消'
     try {
-      await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: 'cancelled' } })
+      await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: 'cancelled', reason } })
       this.loadMatches()
     } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
   },

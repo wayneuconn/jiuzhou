@@ -90,13 +90,25 @@ exports.main = async (event, context) => {
     })
     try {
       const waiterUserSnap = await db.collection('users').doc(topWaiter.uid).get()
-      if (waiterUserSnap.data?.openid) {
+      const matchSnap2 = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+      const m = matchSnap2.data
+      if (waiterUserSnap.data?.openid && m) {
+        const d = new Date(m.date)
+        const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
         await cloud.callFunction({
           name: 'sendSubscribeMsg',
           data: {
             type: 'promoted',
             toOpenid: waiterUserSnap.data.openid,
-            data: { page: `/pages/match-detail/index?id=${matchId}`, templateData: {} },
+            data: {
+              page: `/pages/match-detail/index?id=${matchId}`,
+              templateData: {
+                thing2: { value: '九州足球比赛' },
+                time4: { value: timeStr },
+                thing5: { value: (m.location || '待定').slice(0, 20) },
+                thing6: { value: `请在 ${waitlistMinutes} 分钟内确认报名` },
+              },
+            },
           },
         })
       }

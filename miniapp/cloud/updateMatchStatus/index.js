@@ -61,6 +61,13 @@ exports.main = async (event) => {
 
     // Notify confirmed/promoted players if match was cancelled
     if (status === 'cancelled' && match.status !== 'cancelled') {
+      const reason = (event.reason || '因故取消').toString().slice(0, 20)
+      const d = new Date(match.date)
+      const mdParts = new Intl.DateTimeFormat('zh-CN', {
+        timeZone: 'America/New_York', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+      }).formatToParts(d)
+      const get = (t) => mdParts.find(p => p.type === t)?.value || ''
+      const matchName = `${get('month')}月${get('day')}日 ${get('hour')}:${get('minute')} 比赛`
       const regsSnap = await db.collection('registrations')
         .where({ matchId, status: _.in(['confirmed', 'promoted', 'waitlist']) })
         .get().catch(() => ({ data: [] }))
@@ -73,7 +80,14 @@ exports.main = async (event) => {
             data: {
               type: 'matchCancelled',
               toOpenid: uSnap.data.openid,
-              data: { page: `/pages/match-detail/index?id=${matchId}`, templateData: {} },
+              data: {
+                page: `/pages/match-detail/index?id=${matchId}`,
+                templateData: {
+                  thing1: { value: matchName.slice(0, 20) },
+                  thing3: { value: reason },
+                  thing4: { value: '下次见，敬请关注后续安排' },
+                },
+              },
             },
           })
         } catch (_) {}

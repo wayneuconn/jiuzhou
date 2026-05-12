@@ -118,10 +118,26 @@ exports.main = async (event, context) => {
         }).catch(() => {})
         try {
           const userSnap = await db.collection('users').doc(next.uid).get()
-          if (userSnap.data?.openid) {
+          const mSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+          const m = mSnap.data
+          if (userSnap.data?.openid && m) {
+            const d = new Date(m.date)
+            const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
             await cloud.callFunction({
               name: 'sendSubscribeMsg',
-              data: { type: 'promoted', toOpenid: userSnap.data.openid, data: { page: `/pages/match-detail/index?id=${matchId}`, templateData: {} } },
+              data: {
+                type: 'promoted',
+                toOpenid: userSnap.data.openid,
+                data: {
+                  page: `/pages/match-detail/index?id=${matchId}`,
+                  templateData: {
+                    thing2: { value: '九州足球比赛' },
+                    time4: { value: timeStr },
+                    thing5: { value: (m.location || '待定').slice(0, 20) },
+                    thing6: { value: `请在 ${waitlistMinutes} 分钟内确认报名` },
+                  },
+                },
+              },
             })
           }
         } catch (_) {}

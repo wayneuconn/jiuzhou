@@ -16,8 +16,8 @@ function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: numb
 }
 
 const SUBSCRIBE_TEMPLATES = {
-  promoted: 'REPLACE_PROMOTED_TEMPLATE_ID',
-  draftReady: 'REPLACE_DRAFT_READY_TEMPLATE_ID',
+  promoted: 'Pd7bU1yJztmPwhicK6vI5nU0vqeRvXRw3aOl3IBTNdg',
+  matchCancelled: 'YzYbL382sXtwfSgiireQodg3dQwfCuUAe2eAu2xVJ9I',
 }
 
 const POS_GROUPS = [
@@ -276,7 +276,7 @@ Page({
     try {
       try {
         await wx.requestSubscribeMessage({
-          tmplIds: [SUBSCRIBE_TEMPLATES.promoted, SUBSCRIBE_TEMPLATES.draftReady],
+          tmplIds: [SUBSCRIBE_TEMPLATES.promoted, SUBSCRIBE_TEMPLATES.matchCancelled],
         })
       } catch (_) {}
       const res = await wx.cloud.callFunction({
@@ -297,7 +297,7 @@ Page({
     try {
       try {
         await wx.requestSubscribeMessage({
-          tmplIds: [SUBSCRIBE_TEMPLATES.promoted, SUBSCRIBE_TEMPLATES.draftReady],
+          tmplIds: [SUBSCRIBE_TEMPLATES.promoted, SUBSCRIBE_TEMPLATES.matchCancelled],
         })
       } catch (_) {}
       await wx.cloud.callFunction({

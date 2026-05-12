@@ -3,10 +3,8 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 // Template IDs — fill after creating templates in WeChat MP backend
 const TEMPLATES = {
-  matchOpen: 'REPLACE_MATCH_OPEN_TEMPLATE_ID',
-  promoted: 'REPLACE_PROMOTED_TEMPLATE_ID',
-  draftReady: 'REPLACE_DRAFT_READY_TEMPLATE_ID',
-  matchCancelled: 'REPLACE_MATCH_CANCELLED_TEMPLATE_ID',
+  promoted: 'Pd7bU1yJztmPwhicK6vI5nU0vqeRvXRw3aOl3IBTNdg',
+  matchCancelled: 'YzYbL382sXtwfSgiireQodg3dQwfCuUAe2eAu2xVJ9I',
 }
 
 exports.main = async (event, context) => {
