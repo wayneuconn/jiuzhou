@@ -79,6 +79,9 @@ Page({
     showBehaviorTags: false,
     showAdminCaptain: false,
     showTeams: false,
+    captainPickerTeam: '' as 'A' | 'B' | '',
+    draftTurnTeam: '' as 'A' | 'B' | '',
+    draftTurnLabel: '',
   },
 
   _timerInterval: null as ReturnType<typeof setInterval> | null,
@@ -191,6 +194,14 @@ Page({
       const showDraft = (isAdmin || isCaptainA || isCaptainB) && isDraftPhase && !!match.captainA && !!match.captainB
       const showBehaviorTags = isAdmin && (match.status === 'ready' || match.status === 'completed') && confirmedCount > 0
       const showAdminCaptain = isAdmin && confirmedCount > 0
+
+      // Captain picker team (drives the single-button captain UI)
+      const captainPickerTeam: 'A' | 'B' | '' = isCaptainA ? 'A' : isCaptainB ? 'B' : ''
+      // Whose turn it is in drafting
+      const draftTurnTeam = (isDraftPhase && match.draftState?.currentTurn) || ''
+      const draftTurnLabel = isDraftPhase
+        ? (draftTurnTeam === 'A' ? '现在队长 A 选人' : draftTurnTeam === 'B' ? '现在队长 B 选人' : '选人完成')
+        : ''
       // Hide team labels until drafting is fully complete (reveal moment), except for admins/captains.
       const draftComplete = match.status === 'ready' || match.status === 'completed'
       const showTeams = draftComplete || isAdmin || isCaptainA || isCaptainB
@@ -227,6 +238,9 @@ Page({
         showBehaviorTags,
         showAdminCaptain,
         showTeams,
+        captainPickerTeam,
+        draftTurnTeam,
+        draftTurnLabel,
         filteredRoster: confirmedList,
         posFilter: 'all',
       })
@@ -372,8 +386,28 @@ Page({
         data: { action: 'assignTeam', matchId: this.data.matchId, uid, team },
       })
       this.loadMatch()
-    } catch {
-      wx.showToast({ title: '操作失败', icon: 'error' })
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg
+        || (err as Error)?.message || '操作失败'
+      wx.showModal({ title: '操作失败', content: msg, showCancel: false })
+    }
+  },
+
+  async captainPick(e: WechatMiniprogram.BaseEvent) {
+    const { uid } = e.currentTarget.dataset as { uid: string }
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'processDraftPick',
+        data: { matchId: this.data.matchId, pickedUid: uid },
+      })
+      this.loadMatch()
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg
+        || (err as Error)?.message || '选人失败'
+      wx.showModal({ title: '选人失败', content: msg, showCancel: false })
+    } finally {
+      this.setData({ busy: false })
     }
   },
 
