@@ -82,7 +82,7 @@ export interface Match {
 
 export type RegistrationStatus = 'confirmed' | 'waitlist' | 'promoted' | 'withdrawn' | 'excused'
 export type PaymentSessionStatus = 'pending' | 'confirmed'
-export type MatchTag = 'late' | 'dangerous'
+export type MatchTag = 'late' | 'dangerous' | 'absent'
 
 export interface Registration {
   uid: string

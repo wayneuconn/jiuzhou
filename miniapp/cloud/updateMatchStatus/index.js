@@ -129,7 +129,7 @@ exports.main = async (event) => {
     return { success: true }
   }
 
-  // ── toggle late/dangerous tag ──────────────────────────────────────────────
+  // ── toggle late/dangerous/absent tag ──────────────────────────────────────
   if (action === 'toggleTag') {
     const { uid, tags } = event
     const regId = matchId + '_' + uid
@@ -141,6 +141,8 @@ exports.main = async (event) => {
     const hasLate      = newTags.includes('late')
     const hadDangerous = oldTags.includes('dangerous')
     const hasDangerous = newTags.includes('dangerous')
+    const hadAbsent    = oldTags.includes('absent')
+    const hasAbsent    = newTags.includes('absent')
 
     await db.collection('registrations').doc(regId).update({ data: { tags: newTags } })
 
@@ -149,6 +151,18 @@ exports.main = async (event) => {
     }
     if (hadDangerous !== hasDangerous) {
       await db.collection('users').doc(uid).update({ data: { dangerousCount: _.inc(hasDangerous ? 1 : -1) } })
+    }
+    if (hadAbsent !== hasAbsent) {
+      const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
+      if (uSnap.data) {
+        const current = uSnap.data.banGamesLeft ?? 0
+        const delta = hasAbsent ? 4 : -4
+        const newBan = Math.max(0, current + delta)
+        const newAbsentCount = Math.max(0, (uSnap.data.absentCount ?? 0) + (hasAbsent ? 1 : -1))
+        await db.collection('users').doc(uid).update({
+          data: { banGamesLeft: newBan, absentCount: newAbsentCount },
+        })
+      }
     }
     return { success: true }
   }

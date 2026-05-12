@@ -34,6 +34,7 @@ interface RegVM extends Registration {
   isCaptainB: boolean
   isLate: boolean
   isDangerous: boolean
+  isAbsent: boolean
   teamLabel: string
 }
 
@@ -129,6 +130,7 @@ Page({
         isCaptainB: r.uid === match.captainB,
         isLate: (r.tags ?? []).includes('late'),
         isDangerous: (r.tags ?? []).includes('dangerous'),
+        isAbsent: (r.tags ?? []).includes('absent'),
         teamLabel: r.team ?? '',
       })
 

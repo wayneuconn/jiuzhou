@@ -244,6 +244,8 @@
               bindtap="toggleTag" data-uid="{{item.uid}}" data-tag="late">迟到</view>
             <view class="pick-tap {{item.isDangerous ? 'pick-tap-danger-on' : 'pick-tap-off'}}"
               bindtap="toggleTag" data-uid="{{item.uid}}" data-tag="dangerous">危险</view>
+            <view class="pick-tap {{item.isAbsent ? 'pick-tap-danger-on' : 'pick-tap-off'}}"
+              bindtap="toggleTag" data-uid="{{item.uid}}" data-tag="absent">缺席</view>
           </view>
         </view>
       </view>
