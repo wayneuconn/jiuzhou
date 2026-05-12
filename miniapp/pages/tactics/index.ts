@@ -115,20 +115,12 @@ Page({
       const draftComplete = match.status === 'ready' || match.status === 'completed'
       const draftingNow = match.status === 'drafting'
 
-      if (!draftComplete && !draftingNow) {
+      // Captains can always see the board (to pre-plan/draft).
+      // Non-captains see only after drafting is fully complete.
+      if (!isCaptain && !draftComplete) {
         this.setData({
           state: 'not-yet',
-          lockMessage: '战术板将在选人开始后开放',
-          matchId: match.id,
-          matchTitle: `${new Date(match.date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })} ${match.location}`,
-        })
-        return
-      }
-
-      if (draftingNow && !isCaptain) {
-        this.setData({
-          state: 'not-yet',
-          lockMessage: '选人进行中，战术将在选人结束后揭晓',
+          lockMessage: draftingNow ? '选人进行中，战术将在选人结束后揭晓' : '战术板将在选人完成后开放',
           matchId: match.id,
           matchTitle: `${new Date(match.date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })} ${match.location}`,
         })
@@ -179,7 +171,7 @@ Page({
         matchTitle: `${dateStr} ${match.location} · 队${myTeam}`,
         callerTeam: myTeam,
         isCaptain,
-        canEdit: isCaptain && (draftingNow || draftComplete),
+        canEdit: isCaptain,
         state: 'ok',
       })
     } catch (err) {
