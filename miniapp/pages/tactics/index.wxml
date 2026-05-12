@@ -1,83 +1,64 @@
 <view class="container" style="padding-bottom:40rpx;">
 
-  <view wx:if="{{loading}}" style="text-align:center;padding:80rpx 0;">
+  <view wx:if="{{state === 'loading'}}" style="text-align:center;padding:80rpx 0;">
     <view class="text-muted">加载中...</view>
   </view>
 
-  <view wx:elif="{{empty}}" class="card" style="text-align:center;padding:80rpx 0;margin-top:40rpx;">
+  <view wx:elif="{{state === 'no-match'}}" class="card" style="text-align:center;padding:80rpx 0;margin-top:40rpx;">
     <view style="font-size:80rpx;">⚽</view>
     <view class="text-muted" style="margin-top:16rpx;">暂无进行中的比赛</view>
   </view>
 
-  <block wx:else>
+  <view wx:elif="{{state === 'not-yet' || state === 'no-team'}}" class="card" style="text-align:center;padding:80rpx 0;margin-top:40rpx;">
+    <view style="font-size:80rpx;">🔒</view>
+    <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;margin-top:16rpx;">{{matchTitle}}</view>
+    <view class="text-muted" style="margin-top:12rpx;font-size:24rpx;">{{lockMessage}}</view>
+  </view>
+
+  <block wx:elif="{{state === 'ok'}}">
     <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;margin-bottom:16rpx;">{{matchTitle}}</view>
 
-    <!-- Pitch wrapper -->
     <view class="pitch-wrap" style="width:{{pitchWidth}}px;height:{{pitchHeight}}px;">
 
-      <!-- Field markings -->
-      <!-- Top penalty area -->
       <view style="position:absolute;top:0;left:{{penX}}px;width:{{penW}}px;height:{{penH}}px;border:2rpx solid rgba(255,255,255,0.45);border-top:none;border-radius:0 0 6rpx 6rpx;"/>
-      <!-- Top goal area -->
       <view style="position:absolute;top:0;left:{{goalX}}px;width:{{goalW}}px;height:{{goalH}}px;border:2rpx solid rgba(255,255,255,0.45);border-top:none;"/>
-      <!-- Top penalty spot -->
       <view style="position:absolute;top:{{dotTopY}}px;left:{{dotX}}px;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.5);"/>
 
-      <!-- Halfway line -->
       <view style="position:absolute;top:{{halfwayY}}px;left:0;width:100%;height:2rpx;background:rgba(255,255,255,0.45);"/>
-      <!-- Center circle -->
       <view style="position:absolute;top:{{circleY}}px;left:{{circleX}}px;width:{{circleDiam}}px;height:{{circleDiam}}px;border-radius:50%;border:2rpx solid rgba(255,255,255,0.45);background:transparent;"/>
-      <!-- Center spot -->
       <view style="position:absolute;top:{{halfwayY}}px;left:{{dotX}}px;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.5);margin-top:-5px;"/>
 
-      <!-- Bottom penalty area -->
       <view style="position:absolute;bottom:0;left:{{penX}}px;width:{{penW}}px;height:{{penH}}px;border:2rpx solid rgba(255,255,255,0.45);border-bottom:none;border-radius:6rpx 6rpx 0 0;"/>
-      <!-- Bottom goal area -->
       <view style="position:absolute;bottom:0;left:{{goalX}}px;width:{{goalW}}px;height:{{goalH}}px;border:2rpx solid rgba(255,255,255,0.45);border-bottom:none;"/>
-      <!-- Bottom penalty spot -->
       <view style="position:absolute;top:{{dotBotY}}px;left:{{dotX}}px;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.5);"/>
 
-      <!-- Players (movable-area transparent overlay) -->
       <movable-area style="position:absolute;top:0;left:0;width:{{pitchWidth}}px;height:{{pitchHeight}}px;background:transparent;">
         <movable-view
           wx:for="{{players}}"
           wx:key="uid"
-          class="player-token {{item.team === 'A' ? 'token-a' : item.team === 'B' ? 'token-b' : 'token-none'}}"
+          class="player-token {{item.team === 'A' ? 'token-a' : 'token-b'}} {{item.isMe ? 'token-me' : ''}}"
           style="width:{{tokenPx}}px;height:{{tokenPx}}px;"
           x="{{item.x}}"
           y="{{item.y}}"
           direction="all"
           data-idx="{{index}}"
           bindchange="onMove"
-          disabled="{{!isCaptain}}">
-          <view class="token-name">{{item.name}}</view>
+          disabled="{{!canEdit}}">
+          <view class="token-name">{{item.name}}{{item.isMe ? ' ★' : ''}}</view>
         </movable-view>
       </movable-area>
     </view>
 
-    <!-- Legend -->
-    <view class="flex-row" style="gap:24rpx;margin-top:20rpx;">
-      <view class="flex-row" style="gap:8rpx;align-items:center;">
-        <view class="legend-dot" style="background:#00C9A7;"/>
-        <view class="text-muted" style="font-size:22rpx;">队A</view>
-      </view>
-      <view class="flex-row" style="gap:8rpx;align-items:center;">
-        <view class="legend-dot" style="background:#F0B429;"/>
-        <view class="text-muted" style="font-size:22rpx;">队B</view>
-      </view>
-      <view class="flex-row" style="gap:8rpx;align-items:center;">
-        <view class="legend-dot" style="background:#4A5568;"/>
-        <view class="text-muted" style="font-size:22rpx;">未分配</view>
-      </view>
+    <view class="text-muted" style="font-size:22rpx;margin-top:16rpx;text-align:center;">
+      ★ = 你的位置 · {{isCaptain ? '可拖动你方球员' : '仅查看，等待队长安排'}}
     </view>
 
     <button
-      wx:if="{{isCaptain}}"
+      wx:if="{{canEdit}}"
       class="btn-primary"
       style="margin-top:24rpx;"
       bindtap="saveFormation">
       保存阵型
     </button>
-    <view wx:else class="text-muted" style="text-align:center;font-size:24rpx;margin-top:20rpx;">仅队长可编辑</view>
   </block>
 </view>

@@ -5,26 +5,21 @@ interface PitchPlayer {
   name: string
   x: number
   y: number
-  team: 'A' | 'B' | null
+  team: 'A' | 'B'
+  isMe: boolean
 }
 
-// Default slot positions [xFrac, yFrac] — team A at top, B at bottom
-const SLOTS_A: [number, number][] = [
-  [0.5, 0.04],
-  [0.15, 0.17], [0.38, 0.17], [0.62, 0.17], [0.85, 0.17],
-  [0.2, 0.29], [0.5, 0.27], [0.8, 0.29],
-  [0.2, 0.41], [0.5, 0.39], [0.8, 0.41],
-]
-const SLOTS_B: [number, number][] = [
-  [0.5, 0.96],
+// Default slot positions [xFrac, yFrac] within own team's half.
+// Caller renders the pitch with own team on the bottom half, so we use
+// y-fractions in [0.55, 0.95] for everyone — single set of slots.
+const SLOTS: [number, number][] = [
+  [0.5, 0.95],
   [0.15, 0.83], [0.38, 0.83], [0.62, 0.83], [0.85, 0.83],
   [0.2, 0.71], [0.5, 0.73], [0.8, 0.71],
   [0.2, 0.59], [0.5, 0.61], [0.8, 0.59],
 ]
-const SLOTS_NONE: [number, number][] = [
-  [0.04, 0.15], [0.04, 0.30], [0.04, 0.45], [0.04, 0.60], [0.04, 0.75],
-  [0.96, 0.15], [0.96, 0.30], [0.96, 0.45], [0.96, 0.60], [0.96, 0.75],
-]
+
+type VisibilityState = 'loading' | 'no-match' | 'not-yet' | 'no-team' | 'ok'
 
 Page({
   data: {
@@ -32,18 +27,18 @@ Page({
     pitchWidth: 0,
     pitchHeight: 0,
     tokenPx: 40,
-    // pitch marking positions (px)
     halfwayY: 0,
     circleX: 0, circleY: 0, circleDiam: 0,
     penH: 0, penW: 0, penX: 0,
     goalW: 0, goalX: 0, goalH: 0,
     dotX: 0, dotTopY: 0, dotBotY: 0,
-    // state
     matchId: '',
     matchTitle: '',
+    callerTeam: '' as 'A' | 'B' | '',
     isCaptain: false,
-    loading: true,
-    empty: false,
+    canEdit: false,
+    state: 'loading' as VisibilityState,
+    lockMessage: '',
   },
 
   onLoad() {
@@ -83,69 +78,116 @@ Page({
   },
 
   async loadData() {
-    this.setData({ loading: true })
+    this.setData({ state: 'loading' })
     try {
       const app = getApp<{ globalData: { userProfile: { _id: string; role: string } | null } }>()
       const user = app.globalData.userProfile
+      if (!user) { this.setData({ state: 'no-match' }); return }
 
       const annRes = await wx.cloud.callFunction({ name: 'getAnnouncements' }) as unknown as {
         result: { nextMatch: (Match & { id: string }) | null }
       }
       const nextMatch = annRes.result.nextMatch
-      if (!nextMatch) {
-        this.setData({ empty: true, loading: false })
-        return
-      }
+      if (!nextMatch) { this.setData({ state: 'no-match' }); return }
 
       const detailRes = await wx.cloud.callFunction({
         name: 'getMatchDetail',
         data: { matchId: nextMatch.id },
-      }) as unknown as { result: { match: Match & { id: string }; registrations: (Registration & { uid: string })[] } }
+      }) as unknown as {
+        result: {
+          match: Match & { id: string }
+          registrations: (Registration & { uid: string })[]
+          formation: { team: 'A' | 'B' | null; positions: Record<string, { x: number; y: number }> | { A: Record<string, { x: number; y: number }>; B: Record<string, { x: number; y: number }> } } | null
+          callerTeam: 'A' | 'B' | null
+        }
+      }
 
-      const { match, registrations } = detailRes.result
-      const isCaptainA = !!match.captainA && user?._id === match.captainA
-      const isCaptainB = !!match.captainB && user?._id === match.captainB
+      const { match, registrations, formation, callerTeam } = detailRes.result
+      const isCaptainA = !!match.captainA && user._id === match.captainA
+      const isCaptainB = !!match.captainB && user._id === match.captainB
+      const isCaptain = isCaptainA || isCaptainB
 
-      const confirmed = registrations.filter(r => r.status === 'confirmed' || r.status === 'promoted')
-      const teamA = confirmed.filter(r => r.team === 'A')
-      const teamB = confirmed.filter(r => r.team === 'B')
-      const unassigned = confirmed.filter(r => !r.team)
+      // Visibility rules
+      // status === 'drafting' → only captains see (their own team)
+      // status === 'ready' or 'completed' → all team members see their own team
+      // earlier statuses → locked
+      const draftComplete = match.status === 'ready' || match.status === 'completed'
+      const draftingNow = match.status === 'drafting'
+
+      if (!draftComplete && !draftingNow) {
+        this.setData({
+          state: 'not-yet',
+          lockMessage: '战术板将在选人开始后开放',
+          matchId: match.id,
+          matchTitle: `${new Date(match.date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })} ${match.location}`,
+        })
+        return
+      }
+
+      if (draftingNow && !isCaptain) {
+        this.setData({
+          state: 'not-yet',
+          lockMessage: '选人进行中，战术将在选人结束后揭晓',
+          matchId: match.id,
+          matchTitle: `${new Date(match.date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })} ${match.location}`,
+        })
+        return
+      }
+
+      const myTeam: 'A' | 'B' | '' = callerTeam ?? (isCaptainA ? 'A' : isCaptainB ? 'B' : '')
+      if (!myTeam) {
+        this.setData({
+          state: 'no-team',
+          lockMessage: '你未被分到任何队伍',
+          matchId: match.id,
+          matchTitle: `${new Date(match.date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })} ${match.location}`,
+        })
+        return
+      }
+
+      const myTeamPlayers = registrations.filter(r =>
+        (r.status === 'confirmed' || r.status === 'promoted') && r.team === myTeam,
+      )
 
       const { pitchWidth: pw, pitchHeight: ph, tokenPx } = this.data
       const half = Math.round(tokenPx / 2)
+      const savedPositions = formation && !('A' in (formation.positions || {}))
+        ? (formation.positions as Record<string, { x: number; y: number }>)
+        : {}
 
-      const place = (reg: Registration & { uid: string }, slot: [number, number], team: 'A' | 'B' | null): PitchPlayer => ({
-        uid: reg.uid,
-        name: (reg.displayName ?? '?').slice(0, 3),
-        team,
-        x: Math.round(slot[0] * pw - half),
-        y: Math.round(slot[1] * ph - half),
+      const players: PitchPlayer[] = myTeamPlayers.map((r, i) => {
+        const saved = savedPositions[r.uid]
+        const slot = SLOTS[i] ?? [0.5, 0.5]
+        // saved fractions represent top-left of token; defaults are token centers (subtract half)
+        const x = saved ? Math.round(saved.x * pw) : Math.round(slot[0] * pw - half)
+        const y = saved ? Math.round(saved.y * ph) : Math.round(slot[1] * ph - half)
+        return {
+          uid: r.uid,
+          name: (r.displayName ?? '?').slice(0, 3),
+          team: myTeam,
+          x, y,
+          isMe: r.uid === user._id,
+        }
       })
-
-      const players: PitchPlayer[] = [
-        ...teamA.map((r, i) => place(r, SLOTS_A[i] ?? [0.5, 0.5], 'A')),
-        ...teamB.map((r, i) => place(r, SLOTS_B[i] ?? [0.5, 0.5], 'B')),
-        ...unassigned.map((r, i) => place(r, SLOTS_NONE[i] ?? [0.1, 0.5], null)),
-      ]
 
       const dateStr = new Date(match.date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
       this.setData({
         players,
         matchId: match.id,
-        matchTitle: `${dateStr} ${match.location}`,
-        isCaptain: isCaptainA || isCaptainB,
-        empty: false,
+        matchTitle: `${dateStr} ${match.location} · 队${myTeam}`,
+        callerTeam: myTeam,
+        isCaptain,
+        canEdit: isCaptain && (draftingNow || draftComplete),
+        state: 'ok',
       })
     } catch (err) {
       console.error('tactics loadData failed', err)
-      this.setData({ empty: true })
-    } finally {
-      this.setData({ loading: false })
+      this.setData({ state: 'no-match' })
     }
   },
 
   onMove(e: WechatMiniprogram.BaseEvent & { detail: { x: number; y: number; source: string } }) {
-    if (!this.data.isCaptain) return
+    if (!this.data.canEdit) return
     if (e.detail.source !== 'touch') return
     const idx = (e.currentTarget.dataset as { idx: number }).idx
     const players = [...this.data.players]
@@ -154,7 +196,7 @@ Page({
   },
 
   async saveFormation() {
-    if (!this.data.matchId) return
+    if (!this.data.matchId || !this.data.canEdit) return
     const positions: Record<string, { x: number; y: number }> = {}
     const { pitchWidth: pw, pitchHeight: ph } = this.data
     this.data.players.forEach(p => {

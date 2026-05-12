@@ -29,6 +29,12 @@
   border: 3rpx solid rgba(255, 255, 255, 0.3);
 }
 
+.token-me {
+  border-color: #ffffff !important;
+  border-width: 4rpx !important;
+  box-shadow: 0 0 0 3rpx rgba(255, 255, 255, 0.5), 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
+}
+
 .token-name {
   font-size: 20rpx;
   font-weight: 700;

@@ -78,6 +78,7 @@ Page({
     showDraft: false,
     showBehaviorTags: false,
     showAdminCaptain: false,
+    showTeams: false,
   },
 
   _timerInterval: null as ReturnType<typeof setInterval> | null,
@@ -190,6 +191,12 @@ Page({
       const showDraft = (isAdmin || isCaptainA || isCaptainB) && isDraftPhase && !!match.captainA && !!match.captainB
       const showBehaviorTags = isAdmin && (match.status === 'ready' || match.status === 'completed') && confirmedCount > 0
       const showAdminCaptain = isAdmin && confirmedCount > 0
+      // Hide team labels until drafting is fully complete (reveal moment), except for admins/captains.
+      const draftComplete = match.status === 'ready' || match.status === 'completed'
+      const showTeams = draftComplete || isAdmin || isCaptainA || isCaptainB
+      if (!showTeams) {
+        confirmedList.forEach(r => { r.teamLabel = '' })
+      }
 
       this._confirmedListRaw = confirmedList
 
@@ -219,6 +226,7 @@ Page({
         showDraft,
         showBehaviorTags,
         showAdminCaptain,
+        showTeams,
         filteredRoster: confirmedList,
         posFilter: 'all',
       })
