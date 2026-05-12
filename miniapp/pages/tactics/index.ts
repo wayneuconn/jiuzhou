@@ -3,6 +3,7 @@ import type { Match, Registration } from '../../types/index'
 interface PitchPlayer {
   uid: string
   name: string
+  position: string
   x: number
   y: number
   team: 'A' | 'B'
@@ -45,7 +46,7 @@ Page({
     const sys = wx.getSystemInfoSync()
     const pw = sys.windowWidth - 32
     const ph = Math.round(pw * 1.6)
-    const tokenPx = Math.round(pw * 0.107)
+    const tokenPx = Math.round(pw * 0.13)
 
     const circleR = Math.round(pw * 0.12)
     const penW = Math.round(pw * 0.60)
@@ -164,6 +165,7 @@ Page({
         return {
           uid: r.uid,
           name: (r.displayName ?? '?').slice(0, 3),
+          position: (r.preferredPositions ?? [])[0] ?? '',
           team: myTeam,
           x, y,
           isMe: r.uid === user._id,

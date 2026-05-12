@@ -9,9 +9,11 @@
 .player-token {
   border-radius: 50%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
+  gap: 2rpx;
 }
 
 .token-a {
@@ -44,6 +46,14 @@
   overflow: hidden;
   white-space: nowrap;
   padding: 0 4rpx;
+}
+
+.token-pos {
+  font-size: 16rpx;
+  font-weight: 700;
+  color: rgba(13, 17, 23, 0.65);
+  line-height: 1;
+  letter-spacing: 0.5rpx;
 }
 
 .legend-dot {

@@ -45,6 +45,7 @@
           bindchange="onMove"
           disabled="{{!canEdit}}">
           <view class="token-name">{{item.name}}{{item.isMe ? ' ★' : ''}}</view>
+          <view wx:if="{{item.position}}" class="token-pos">{{item.position}}</view>
         </movable-view>
       </movable-area>
     </view>
