@@ -245,6 +245,10 @@
 .pick-btn-a { background: rgba(59,130,246,0.12); color: #3B82F6; border: 1rpx solid rgba(59,130,246,0.4); }
 .pick-btn-b { background: rgba(239,68,68,0.12);  color: #EF4444; border: 1rpx solid rgba(239,68,68,0.4); }
 
+.pick-btn-off        { background: transparent; color: #7A8FA6; border: 1rpx solid #1E2D3D; }
+.pick-btn-late-on    { background: rgba(240,180,41,0.15); color: #F0B429; border: 1rpx solid rgba(240,180,41,0.4); }
+.pick-btn-danger-on  { background: rgba(229,62,62,0.15); color: #E53E3E; border: 1rpx solid rgba(229,62,62,0.4); }
+
 /* ── Modal overlay / bottom sheet ───────────────────────────────────────── */
 .modal-overlay {
   position: fixed;

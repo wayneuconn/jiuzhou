@@ -239,12 +239,14 @@
     <view wx:if="{{showBehaviorTags}}" style="margin-top:8rpx;">
       <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">行为记录</view>
       <view class="card" style="padding-bottom:8rpx;">
-        <view wx:for="{{confirmedList}}" wx:key="uid" class="player-row">
-          <view style="flex:1;font-size:28rpx;font-weight:600;color:#e8f0eb;">{{item.displayName}}</view>
-          <button class="tag-btn {{item.isLate ? 'tag-btn-gold-on' : 'tag-btn-off'}}"
-            bindtap="toggleTag" data-uid="{{item.uid}}" data-tag="late">迟到</button>
-          <button class="tag-btn {{item.isDangerous ? 'tag-btn-red-on' : 'tag-btn-off'}}"
-            bindtap="toggleTag" data-uid="{{item.uid}}" data-tag="dangerous" style="margin-left:12rpx;">危险动作</button>
+        <view wx:for="{{confirmedList}}" wx:key="uid" class="player-row draft-row">
+          <view class="draft-player-name" style="flex:1;">{{item.displayName}}</view>
+          <view class="draft-actions">
+            <button class="pick-btn {{item.isLate ? 'pick-btn-late-on' : 'pick-btn-off'}}"
+              catchtap="toggleTag" data-uid="{{item.uid}}" data-tag="late">迟到</button>
+            <button class="pick-btn {{item.isDangerous ? 'pick-btn-danger-on' : 'pick-btn-off'}}"
+              catchtap="toggleTag" data-uid="{{item.uid}}" data-tag="dangerous">危险</button>
+          </view>
         </view>
       </view>
     </view>
