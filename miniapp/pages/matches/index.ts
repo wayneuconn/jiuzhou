@@ -81,7 +81,13 @@ Page({
     try {
       await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: next } })
       this.loadMatches()
-    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
+    } catch (err: unknown) {
+      console.error('advanceStatus failed', err)
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg
+        || (err as Error)?.message
+        || '操作失败'
+      wx.showModal({ title: '操作失败', content: msg, showCancel: false })
+    }
   },
 
   async cancelMatch(e: WechatMiniprogram.BaseEvent) {
@@ -91,7 +97,13 @@ Page({
     try {
       await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: 'cancelled' } })
       this.loadMatches()
-    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
+    } catch (err: unknown) {
+      console.error('cancelMatch failed', err)
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg
+        || (err as Error)?.message
+        || '操作失败'
+      wx.showModal({ title: '操作失败', content: msg, showCancel: false })
+    }
   },
 
   onShareAppMessage() {

@@ -38,6 +38,7 @@ exports.main = async (event) => {
     const updateData = { status, autoReady: false }
 
     // Initialize draftState when entering drafting
+    let newDraftState = null
     if (status === 'drafting' && match.status !== 'drafting') {
       if (!match.captainA || !match.captainB) throw new Error('captains required before drafting')
       // Assign captains to their teams immediately
@@ -50,13 +51,18 @@ exports.main = async (event) => {
         .where({ matchId, status: _.in(['confirmed', 'promoted']), uid: _.nin([match.captainA, match.captainB]) })
         .count().catch(() => ({ total: 0 }))
       const remaining = remainingSnap.total ?? 0
-      updateData.draftState = {
+      newDraftState = {
         pickOrder: buildPickOrder(remaining),
         pickIndex: 0,
         currentTurn: 'A',
       }
     }
 
+    if (newDraftState) {
+      // CloudBase can't set sub-fields when parent is null; first remove, then re-set.
+      await db.collection('matches').doc(matchId).update({ data: { draftState: _.remove() } }).catch(() => {})
+      updateData.draftState = newDraftState
+    }
     await db.collection('matches').doc(matchId).update({ data: updateData })
 
     // Notify confirmed/promoted players if match was cancelled

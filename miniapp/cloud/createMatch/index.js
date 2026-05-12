@@ -21,7 +21,6 @@ exports.main = async (event, context) => {
       autoReady: false,
       captainA: null,
       captainB: null,
-      draftState: null,
       agreementText: config.defaultAgreementText ?? '',
       createdAt: db.serverDate(),
     },
