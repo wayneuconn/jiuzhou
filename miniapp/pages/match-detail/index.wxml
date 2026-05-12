@@ -208,14 +208,12 @@
             <view wx:if="{{item.preferredPositions[0]}}" class="draft-player-pos">{{item.preferredPositions[0]}}</view>
           </view>
           <view class="draft-actions">
-            <!-- Captain: single "选" button, auto-routes to their team. -->
-            <button wx:if="{{captainPickerTeam && draftTurnTeam === captainPickerTeam}}"
-              class="pick-btn pick-btn-{{captainPickerTeam === 'A' ? 'a' : 'b'}}"
-              bindtap="captainPick" data-uid="{{item.uid}}" disabled="{{busy}}">选 → {{captainPickerTeam}}</button>
-            <!-- Admin override: both A and B buttons -->
+            <view wx:if="{{captainPickerTeam && draftTurnTeam === captainPickerTeam}}"
+              class="pick-tap pick-tap-{{captainPickerTeam === 'A' ? 'a' : 'b'}}"
+              bindtap="captainPick" data-uid="{{item.uid}}">选 → {{captainPickerTeam}}</view>
             <block wx:elif="{{isAdmin}}">
-              <button class="pick-btn pick-btn-a" bindtap="assignTeam" data-uid="{{item.uid}}" data-team="A" disabled="{{busy}}">→ A</button>
-              <button class="pick-btn pick-btn-b" bindtap="assignTeam" data-uid="{{item.uid}}" data-team="B" disabled="{{busy}}">→ B</button>
+              <view class="pick-tap pick-tap-a" bindtap="assignTeam" data-uid="{{item.uid}}" data-team="A">→ A</view>
+              <view class="pick-tap pick-tap-b" bindtap="assignTeam" data-uid="{{item.uid}}" data-team="B">→ B</view>
             </block>
             <view wx:elif="{{captainPickerTeam}}" class="text-muted" style="font-size:22rpx;">等待对方选人</view>
           </view>
@@ -242,10 +240,10 @@
         <view wx:for="{{confirmedList}}" wx:key="uid" class="player-row draft-row">
           <view class="draft-player-name" style="flex:1;">{{item.displayName}}</view>
           <view class="draft-actions">
-            <button class="pick-btn {{item.isLate ? 'pick-btn-late-on' : 'pick-btn-off'}}"
-              catchtap="toggleTag" data-uid="{{item.uid}}" data-tag="late">迟到</button>
-            <button class="pick-btn {{item.isDangerous ? 'pick-btn-danger-on' : 'pick-btn-off'}}"
-              catchtap="toggleTag" data-uid="{{item.uid}}" data-tag="dangerous">危险</button>
+            <view class="pick-tap {{item.isLate ? 'pick-tap-late-on' : 'pick-tap-off'}}"
+              bindtap="toggleTag" data-uid="{{item.uid}}" data-tag="late">迟到</view>
+            <view class="pick-tap {{item.isDangerous ? 'pick-tap-danger-on' : 'pick-tap-off'}}"
+              bindtap="toggleTag" data-uid="{{item.uid}}" data-tag="dangerous">危险</view>
           </view>
         </view>
       </view>

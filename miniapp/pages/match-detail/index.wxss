@@ -249,6 +249,25 @@
 .pick-btn-late-on    { background: rgba(240,180,41,0.15); color: #F0B429; border: 1rpx solid rgba(240,180,41,0.4); }
 .pick-btn-danger-on  { background: rgba(229,62,62,0.15); color: #E53E3E; border: 1rpx solid rgba(229,62,62,0.4); }
 
+/* View-based clickable tag (avoids button's hardcoded min-width) */
+.pick-tap {
+  font-size: 22rpx;
+  font-weight: 700;
+  border-radius: 8rpx;
+  padding: 8rpx 14rpx;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.pick-tap:active { opacity: 0.6; }
+
+.pick-tap-a { background: rgba(59,130,246,0.12); color: #3B82F6; border: 1rpx solid rgba(59,130,246,0.4); }
+.pick-tap-b { background: rgba(239,68,68,0.12);  color: #EF4444; border: 1rpx solid rgba(239,68,68,0.4); }
+.pick-tap-off        { background: transparent; color: #7A8FA6; border: 1rpx solid #1E2D3D; }
+.pick-tap-late-on    { background: rgba(240,180,41,0.15); color: #F0B429; border: 1rpx solid rgba(240,180,41,0.4); }
+.pick-tap-danger-on  { background: rgba(229,62,62,0.15); color: #E53E3E; border: 1rpx solid rgba(229,62,62,0.4); }
+
 /* ── Modal overlay / bottom sheet ───────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
