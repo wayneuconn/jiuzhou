@@ -31,7 +31,7 @@ Page({
   _currentPositions: [] as string[],
 
   async onShow() {
-    wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
+    wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage'] })
     await this.loadProfile()
   },
 
