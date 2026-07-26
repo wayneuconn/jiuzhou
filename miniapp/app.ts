@@ -1,4 +1,4 @@
-import type { User } from './types/index'
+import type { User, MembershipApplication } from './types/index'
 
 interface CardThresholds { bronze: number; silver: number; gold: number; blue: number }
 
@@ -8,6 +8,8 @@ interface JiuzhouAppOption {
     openid: string | null
     cardThresholds: CardThresholds | null
     pendingRoute: string | null
+    myApplication: MembershipApplication | null
+    pendingApplications: number
   }
   loginReady: Promise<void>
   autoLogin: () => Promise<void>
@@ -20,6 +22,8 @@ App<JiuzhouAppOption>({
     openid: null,
     cardThresholds: null,
     pendingRoute: null,
+    myApplication: null,
+    pendingApplications: 0,
   },
 
   // Resolves once autoLogin has finished (success or failure). Pages must
@@ -75,10 +79,17 @@ App<JiuzhouAppOption>({
   async refreshUserProfile() {
     try {
       const res = await wx.cloud.callFunction({ name: 'getCurrentUser' })
-      const result = res.result as { user: User | null; cardThresholds: CardThresholds | null } | undefined
+      const result = res.result as {
+        user: User | null
+        cardThresholds: CardThresholds | null
+        myApplication: MembershipApplication | null
+        pendingApplications: number
+      } | undefined
       const user = result?.user ?? null
       this.globalData.userProfile = user
       if (result?.cardThresholds) this.globalData.cardThresholds = result.cardThresholds
+      this.globalData.myApplication = result?.myApplication ?? null
+      this.globalData.pendingApplications = result?.pendingApplications ?? 0
       return user
     } catch (err) {
       console.error('refreshUserProfile failed', err)

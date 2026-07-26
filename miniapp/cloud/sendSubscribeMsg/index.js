@@ -5,6 +5,9 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const TEMPLATES = {
   promoted: 'Pd7bU1yJztmPwhicK6vI5nU0vqeRvXRw3aOl3IBTNdg',
   matchCancelled: 'YzYbL382sXtwfSgiireQodg3dQwfCuUAe2eAu2xVJ9I',
+  // 会员申请审批提醒 — pick an approval-style template at mp.weixin.qq.com and
+  // paste its ID here; until then these sends are silently skipped.
+  membershipApplied: 'REPLACE_WITH_TEMPLATE_ID',
 }
 
 exports.main = async (event, context) => {

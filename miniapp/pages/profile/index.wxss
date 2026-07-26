@@ -44,3 +44,75 @@
 .pos-chip-disabled {
   opacity: 0.4;
 }
+
+/* ── Membership application modal ────────────────────────────────────────── */
+.modal-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 32rpx;
+  z-index: 1000;
+}
+
+.modal-box {
+  background: #0F1923;
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx;
+  width: 100%;
+  box-sizing: border-box;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.form-input {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  height: 88rpx;
+  font-size: 28rpx;
+  color: #e8f0eb;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.apply-type-chip {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  border: 1rpx solid #1E2D3D;
+  color: #7A8FA6;
+}
+
+.apply-type-chip.active {
+  background: #00C9A7;
+  color: #0D1117;
+  border-color: #00C9A7;
+}
+
+.admin-badge-dot {
+  background: #E53E3E;
+  color: #fff;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  font-weight: 900;
+  padding: 2rpx 14rpx;
+  margin-left: 12rpx;
+}
+
+.inline-btn {
+  background: transparent;
+  color: #7A8FA6;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 10rpx 24rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  flex-shrink: 0;
+}

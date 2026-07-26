@@ -1,0 +1,7 @@
+{
+  "usingComponents": {},
+  "navigationBarTitleText": "会员申请",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#0D1117",
+  "backgroundTextStyle": "light"
+}

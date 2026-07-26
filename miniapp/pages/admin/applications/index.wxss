@@ -1,0 +1,11 @@
+.history-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid #1E2D3D;
+}
+
+.history-row:last-child {
+  border-bottom: none;
+}

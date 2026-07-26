@@ -4,6 +4,7 @@ Page({
   data: {
     memberCount: 0,
     activeMatchCount: 0,
+    pendingApplications: 0,
     loading: true,
   },
 
@@ -26,14 +27,19 @@ Page({
   async loadStats() {
     this.setData({ loading: true })
     try {
-      const [matchRes, memberRes] = await Promise.all([
+      const [matchRes, memberRes, meRes] = await Promise.all([
         wx.cloud.callFunction({ name: 'getMatches' }) as unknown as Promise<{ result: { matches: Match[] } }>,
         wx.cloud.callFunction({ name: 'adminGetMembers' }) as unknown as Promise<{ result: { members: User[] } }>,
+        wx.cloud.callFunction({ name: 'getCurrentUser' }) as unknown as Promise<{ result: { pendingApplications?: number } }>,
       ])
       const active = matchRes.result.matches.filter((m: Match) =>
         !['completed', 'cancelled', 'draft'].includes(m.status)
       ).length
-      this.setData({ activeMatchCount: active, memberCount: memberRes.result.members.length })
+      this.setData({
+        activeMatchCount: active,
+        memberCount: memberRes.result.members.length,
+        pendingApplications: meRes.result.pendingApplications ?? 0,
+      })
     } catch (err) { console.error(err) }
     finally { this.setData({ loading: false }) }
   },

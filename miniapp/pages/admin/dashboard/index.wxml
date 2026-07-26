@@ -20,6 +20,13 @@
     <view style="font-size:28rpx;font-weight:600;color:#e8f0eb;">成员管理</view>
     <view style="color:#7A8FA6;font-size:32rpx;">›</view>
   </view>
+  <view class="card menu-item" bindtap="go" data-url="/pages/admin/applications/index">
+    <view class="flex-row" style="gap:12rpx;align-items:center;">
+      <view style="font-size:28rpx;font-weight:600;color:#e8f0eb;">会员申请</view>
+      <view wx:if="{{pendingApplications > 0}}" class="badge badge-red">{{pendingApplications}} 待审批</view>
+    </view>
+    <view style="color:#7A8FA6;font-size:32rpx;">›</view>
+  </view>
   <view class="card menu-item" bindtap="go" data-url="/pages/admin/payments/index">
     <view style="font-size:28rpx;font-weight:600;color:#e8f0eb;">缴费管理</view>
     <view style="color:#7A8FA6;font-size:32rpx;">›</view>

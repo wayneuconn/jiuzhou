@@ -114,6 +114,24 @@ export interface Formation {
   updatedAt: number
 }
 
+export type ApplicationStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+
+export interface MembershipApplication {
+  id: string
+  uid: string
+  displayName: string
+  realName: string
+  note: string
+  requestedType: MembershipType
+  currentType: MembershipType
+  attendanceCount: number
+  status: ApplicationStatus
+  createdAt: number
+  decidedBy?: string | null
+  decidedAt?: number | null
+  rejectReason?: string | null
+}
+
 export interface Announcement {
   id: string
   title: string

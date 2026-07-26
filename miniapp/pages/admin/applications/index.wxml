@@ -1,0 +1,51 @@
+<view class="container">
+  <view style="font-size:48rpx;font-weight:900;margin-bottom:24rpx;">
+    会员申请
+    <text wx:if="{{pending.length > 0}}" style="font-size:28rpx;font-weight:400;color:#F0B429;">{{pending.length}} 待审批</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="text-muted" style="text-align:center;padding:60rpx 0;">加载中...</view>
+
+  <block wx:else>
+    <view wx:if="{{pending.length === 0}}" class="card" style="text-align:center;padding:60rpx 0;">
+      <view class="text-muted">暂无待审批申请</view>
+    </view>
+
+    <view wx:for="{{pending}}" wx:key="id" class="card" style="margin-bottom:16rpx;">
+      <view class="flex-row" style="justify-content:space-between;align-items:flex-start;margin-bottom:12rpx;">
+        <view style="flex:1;min-width:0;">
+          <view style="font-size:30rpx;font-weight:700;color:#e8f0eb;">
+            {{item.realName}}
+            <text class="text-muted" style="font-size:24rpx;font-weight:400;">（{{item.displayName}}）</text>
+          </view>
+          <view class="text-muted" style="font-size:22rpx;margin-top:6rpx;">{{item.dateStr}} 申请 · 出勤 {{item.attendanceCount}} 场</view>
+        </view>
+        <view class="flex-row" style="gap:8rpx;align-items:center;flex-shrink:0;margin-left:12rpx;">
+          <view class="badge badge-grey">{{item.currentLabel}}</view>
+          <view style="color:#7A8FA6;font-size:22rpx;">→</view>
+          <view class="badge {{item.requestedType === 'annual' ? 'badge-teal' : 'badge-gold'}}">{{item.requestedLabel}}</view>
+        </view>
+      </view>
+      <view wx:if="{{item.note}}" class="text-muted" style="font-size:24rpx;margin-bottom:16rpx;">备注：{{item.note}}</view>
+      <view class="flex-row" style="gap:12rpx;justify-content:flex-end;">
+        <button size="mini" class="btn-ghost btn-danger" style="font-size:24rpx;" bindtap="reject"
+          data-id="{{item.id}}" data-name="{{item.realName}}" disabled="{{busy}}">拒绝</button>
+        <button size="mini" class="btn-primary" style="font-size:24rpx;" bindtap="approve"
+          data-id="{{item.id}}" data-name="{{item.realName}}" data-type="{{item.requestedLabel}}" disabled="{{busy}}">批准</button>
+      </view>
+    </view>
+
+    <block wx:if="{{decided.length > 0}}">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin:24rpx 0 16rpx;">历史记录</view>
+      <view class="card" style="padding-bottom:8rpx;">
+        <view wx:for="{{decided}}" wx:key="id" class="history-row">
+          <view style="flex:1;min-width:0;">
+            <view style="font-size:26rpx;color:#e8f0eb;">{{item.realName}} <text class="text-muted" style="font-size:22rpx;">申请{{item.requestedLabel}}</text></view>
+            <view wx:if="{{item.rejectReason}}" class="text-muted" style="font-size:22rpx;">原因：{{item.rejectReason}}</view>
+          </view>
+          <view class="badge {{item.status === 'approved' ? 'badge-teal' : 'badge-red'}}" style="flex-shrink:0;">{{item.statusLabel}}</view>
+        </view>
+      </view>
+    </block>
+  </block>
+</view>

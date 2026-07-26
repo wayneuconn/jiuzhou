@@ -29,6 +29,9 @@
     { "name": "adminDeleteAnnouncement", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "adminGetAnnouncements", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "adminGetConfig", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
-    { "name": "adminSaveConfig", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } }
+    { "name": "adminSaveConfig", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "applyMembership", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "getMembershipApplications", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "decideMembershipApplication", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } }
   ]
 }

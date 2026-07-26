@@ -1,4 +1,4 @@
-import type { User } from '../../types/index'
+import type { User, MembershipApplication } from '../../types/index'
 import { getCardTier, getNextTierInfo, TIER_COLOR, DEFAULT_THRESHOLDS, TIER_LABEL } from '../../utils/format'
 
 const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST']
@@ -27,6 +27,15 @@ Page({
     saving: false,
     saved: false,
     isAdmin: false,
+    pendingApplications: 0,
+    myAppStatus: '' as '' | 'pending' | 'rejected',
+    myAppTypeLabel: '',
+    myAppReason: '',
+    showApplyModal: false,
+    applyType: 'annual' as 'annual' | 'per_session',
+    applyRealName: '',
+    applyNote: '',
+    applying: false,
   },
 
   _currentPositions: [] as string[],
@@ -44,11 +53,25 @@ Page({
     this.setData({ loading: true, loadError: false })
     try {
       const app = getApp<{
-        globalData: { userProfile: User | null }
+        globalData: {
+          userProfile: User | null
+          myApplication: MembershipApplication | null
+          pendingApplications: number
+        }
         refreshUserProfile: () => Promise<User | null>
       }>()
       const user = await app.refreshUserProfile()
-      if (user) this._applyUser(user)
+      if (user) {
+        this._applyUser(user)
+        const myApp = app.globalData.myApplication
+        const TYPE_LABEL: Record<string, string> = { annual: '年卡', per_session: '次卡' }
+        this.setData({
+          pendingApplications: app.globalData.pendingApplications,
+          myAppStatus: myApp?.status === 'pending' ? 'pending' : myApp?.status === 'rejected' ? 'rejected' : '',
+          myAppTypeLabel: myApp ? (TYPE_LABEL[myApp.requestedType] ?? '') : '',
+          myAppReason: myApp?.rejectReason ?? '',
+        })
+      }
       // refreshUserProfile swallows network errors and returns null — treat
       // "no user and nothing cached" as a load failure, not a blank page.
       else if (!this.data.user) this.setData({ loadError: true })
@@ -144,6 +167,63 @@ Page({
       wx.showToast({ title: '保存失败', icon: 'error' })
     } finally {
       this.setData({ saving: false })
+    }
+  },
+
+  openApplyModal() {
+    this.setData({
+      showApplyModal: true,
+      // Sensible default: non-annual members most often want annual
+      applyType: this.data.user?.membershipType === 'annual' ? 'per_session' : 'annual',
+      applyRealName: this.data.applyRealName || '',
+      applyNote: '',
+    })
+  },
+  closeApplyModal() { this.setData({ showApplyModal: false }) },
+  noop() {},
+  setApplyType(e: WechatMiniprogram.BaseEvent) {
+    const type = (e.currentTarget.dataset as { type: 'annual' | 'per_session' }).type
+    this.setData({ applyType: type })
+  },
+  onRealNameInput(e: WechatMiniprogram.Input) { this.setData({ applyRealName: e.detail.value }) },
+  onNoteInput(e: WechatMiniprogram.Input) { this.setData({ applyNote: e.detail.value }) },
+
+  async submitApplication() {
+    if (!this.data.applyRealName.trim()) {
+      wx.showToast({ title: '请填写真实姓名', icon: 'none' })
+      return
+    }
+    this.setData({ applying: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'applyMembership',
+        data: {
+          requestedType: this.data.applyType,
+          realName: this.data.applyRealName.trim(),
+          note: this.data.applyNote.trim(),
+        },
+      })
+      wx.showToast({ title: '已提交，等待审批', icon: 'success' })
+      this.setData({ showApplyModal: false })
+      this.loadProfile()
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg
+        || (err as Error)?.message || '提交失败'
+      wx.showModal({ title: '提交失败', content: msg, showCancel: false })
+    } finally {
+      this.setData({ applying: false })
+    }
+  },
+
+  async cancelApplication() {
+    const res = await wx.showModal({ title: '撤回申请？', content: '', confirmColor: '#E53E3E' })
+    if (!res.confirm) return
+    try {
+      await wx.cloud.callFunction({ name: 'applyMembership', data: { mode: 'cancel' } })
+      wx.showToast({ title: '已撤回', icon: 'success' })
+      this.loadProfile()
+    } catch {
+      wx.showToast({ title: '操作失败', icon: 'error' })
     }
   },
 

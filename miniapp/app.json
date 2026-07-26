@@ -9,6 +9,7 @@
     "pages/login/index",
     "pages/onboard/profile/index",
     "pages/admin/dashboard/index",
+    "pages/admin/applications/index",
     "pages/admin/matches/index",
     "pages/admin/members/index",
     "pages/admin/payments/index",
