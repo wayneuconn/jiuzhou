@@ -8,7 +8,16 @@ const TEMPLATES = {
 }
 
 exports.main = async (event, context) => {
+  // Internal-only: reject direct client invocations. When called from another
+  // cloud function, the WXContext SOURCE chain ends with 'scf' rather than
+  // 'wx_client'/'wx_devtools'.
+  const source = String(cloud.getWXContext().SOURCE || '').split(',').pop()
+  if (source === 'wx_client' || source === 'wx_devtools' || source === 'wx_unknown') {
+    throw new Error('internal calls only')
+  }
+
   const { type, toOpenid, data } = event
+  if (!toOpenid || !data || !data.templateData) throw new Error('toOpenid and data.templateData required')
 
   const templateId = TEMPLATES[type]
   if (!templateId) throw new Error(`unknown message type: ${type}`)
