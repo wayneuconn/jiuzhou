@@ -100,6 +100,7 @@ Page({
     showFriendModal: false,
     friendName: '',
     showRulesModal: false,
+    statsDirty: false,
     captainPickerTeam: '' as 'A' | 'B' | '',
     draftTurnTeam: '' as 'A' | 'B' | '',
     draftTurnLabel: '',
@@ -109,6 +110,7 @@ Page({
   _registrations: [] as Registration[],
   _confirmedListRaw: [] as RegVM[],
   _shareTempPath: '' as string,
+  _changedStats: new Set<string>(),
 
   onLoad(options: Record<string, string>) {
     const matchId = options.id || ''
@@ -326,7 +328,9 @@ Page({
         draftTurnLabel,
         filteredRoster: confirmedList,
         posFilter: 'all',
+        statsDirty: false,
       })
+      this._changedStats.clear()
 
       this._startTimer(myReg)
       wx.nextTick(() => {
@@ -590,23 +594,41 @@ Page({
     }
   },
 
-  async incStat(e: WechatMiniprogram.BaseEvent) {
-    const { uid, field, delta } = e.currentTarget.dataset as { uid: string; field: 'goals' | 'assists'; delta: number }
-    const reg = this._registrations.find((r: Registration) => r.uid === uid)
-    if (!reg) return
-    const next = {
-      goals: reg.goals ?? 0,
-      assists: reg.assists ?? 0,
-    }
-    next[field] = Math.max(0, next[field] + Number(delta))
+  // Steppers edit locally; nothing is sent until 保存 — avoids a full page
+  // reload (and visible flash) on every tap.
+  incStat(e: WechatMiniprogram.BaseEvent) {
+    const { index, field, delta } = e.currentTarget.dataset as { index: number; field: 'goals' | 'assists'; delta: number }
+    const item = this.data.confirmedList[index]
+    if (!item) return
+    const next = Math.max(0, (item[field] ?? 0) + Number(delta))
+    this._changedStats.add(item.uid)
+    this.setData({
+      [`confirmedList[${index}].${field}`]: next,
+      statsDirty: true,
+    })
+  },
+
+  async saveStats() {
+    const changed = this.data.confirmedList.filter(r => this._changedStats.has(r.uid))
+    if (changed.length === 0) return
+    this.setData({ busy: true })
     try {
-      await wx.cloud.callFunction({
-        name: 'updateMatchStatus',
-        data: { action: 'setStat', matchId: this.data.matchId, uid, goals: next.goals, assists: next.assists },
-      })
+      for (const r of changed) {
+        await wx.cloud.callFunction({
+          name: 'updateMatchStatus',
+          data: { action: 'setStat', matchId: this.data.matchId, uid: r.uid, goals: r.goals, assists: r.assists },
+        })
+      }
+      this._changedStats.clear()
+      wx.showToast({ title: '已保存', icon: 'success' })
+      this.setData({ statsDirty: false })
       this.loadMatch()
-    } catch {
-      wx.showToast({ title: '操作失败', icon: 'error' })
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg
+        || (err as Error)?.message || '保存失败'
+      wx.showModal({ title: '保存失败', content: msg, showCancel: false })
+    } finally {
+      this.setData({ busy: false })
     }
   },
 

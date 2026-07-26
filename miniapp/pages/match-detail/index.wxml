@@ -288,19 +288,23 @@
 
     <!-- ── Admin: goals / assists ─────────────────────────────────────── -->
     <view wx:if="{{showBehaviorTags}}" style="margin-top:8rpx;">
-      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">进球 / 助攻</view>
+      <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:16rpx;">
+        <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;">进球 / 助攻</view>
+        <view wx:if="{{statsDirty}}" class="pick-tap pick-tap-a" bindtap="saveStats">{{busy ? '保存中...' : '保存修改'}}</view>
+      </view>
       <view class="card" style="padding-bottom:8rpx;">
         <view wx:for="{{confirmedList}}" wx:key="uid" class="player-row draft-row">
           <view class="draft-player-name" style="flex:1;">{{item.displayName}}</view>
           <view class="draft-actions" style="align-items:center;gap:8rpx;">
-            <view class="pick-tap pick-tap-off" bindtap="incStat" data-uid="{{item.uid}}" data-field="goals" data-delta="-1">−</view>
+            <view class="pick-tap pick-tap-off" bindtap="incStat" data-index="{{index}}" data-field="goals" data-delta="-1">−</view>
             <view style="font-size:24rpx;color:#e8f0eb;min-width:64rpx;text-align:center;">⚽ {{item.goals}}</view>
-            <view class="pick-tap pick-tap-off" bindtap="incStat" data-uid="{{item.uid}}" data-field="goals" data-delta="1">+</view>
-            <view class="pick-tap pick-tap-off" style="margin-left:12rpx;" bindtap="incStat" data-uid="{{item.uid}}" data-field="assists" data-delta="-1">−</view>
+            <view class="pick-tap pick-tap-off" bindtap="incStat" data-index="{{index}}" data-field="goals" data-delta="1">+</view>
+            <view class="pick-tap pick-tap-off" style="margin-left:12rpx;" bindtap="incStat" data-index="{{index}}" data-field="assists" data-delta="-1">−</view>
             <view style="font-size:24rpx;color:#e8f0eb;min-width:64rpx;text-align:center;">🅰️ {{item.assists}}</view>
-            <view class="pick-tap pick-tap-off" bindtap="incStat" data-uid="{{item.uid}}" data-field="assists" data-delta="1">+</view>
+            <view class="pick-tap pick-tap-off" bindtap="incStat" data-index="{{index}}" data-field="assists" data-delta="1">+</view>
           </view>
         </view>
+        <view wx:if="{{statsDirty}}" class="text-muted" style="font-size:22rpx;padding:12rpx 0;">有未保存的修改，记得点右上角「保存修改」</view>
       </view>
     </view>
 
