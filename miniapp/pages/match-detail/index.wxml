@@ -393,7 +393,7 @@
         <view class="rule-line"><text class="rule-num">2</text>R2 开放轮：开球前 8 小时自动开放，所有人都可报名。</view>
         <view class="rule-line"><text class="rule-num">3</text>名单锁定：开球前 1 小时锁定，不再接受报名。</view>
         <view class="rule-line"><text class="rule-num">4</text>候补优先级：年卡本人 &gt; 年卡带的朋友 &gt; 次卡；同级按加入候补先后。有空位时自动按此顺序递补，不可插队。</view>
-        <view class="rule-line"><text class="rule-num">5</text>带朋友：年卡会员完成自己报名后，可帮朋友加入候补，每人最多 2 位；朋友递补成功会通知带人者。</view>
+        <view class="rule-line"><text class="rule-num">5</text>带朋友：年卡会员完成自己报名后，可帮朋友加入候补，每人最多 2 位；朋友递补成功会通知带人者。带人者退出或请假后，朋友转为普通候补（按次卡优先级重新排队）。</view>
         <view class="rule-line"><text class="rule-num">6</text>递补确认：关闭「自动接受」的候补，递补时需在限时内确认，超时排回队尾。</view>
         <view class="rule-line"><text class="rule-num">7</text>请假 / 退出：开赛前可随时操作，空出的名额自动递补给候补。</view>
         <view class="rule-line"><text class="rule-num">8</text>缺席：报名后无故缺席将被禁赛 4 场。</view>

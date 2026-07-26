@@ -3,6 +3,16 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+async function nextWaitlistPosition(matchId) {
+  const snap = await db.collection('registrations')
+    .where({ matchId, status: 'waitlist' })
+    .orderBy('waitlistPosition', 'desc')
+    .limit(1)
+    .get()
+    .catch(() => ({ data: [] }))
+  return (snap.data[0]?.waitlistPosition ?? 0) + 1
+}
+
 async function recalcMatchState(matchId) {
   const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
   if (!matchSnap.data) return
@@ -157,7 +167,30 @@ exports.main = async (event, context) => {
     }
   }
 
-  if (wasConfirmed) await promoteFromWaitlist(matchId)
+  // The bringer left — their friends lose the tier-2 privilege and re-queue
+  // as ordinary tier-3 waiters (a confirmed friend gives the slot back; the
+  // flush below re-fills it by priority, which may re-admit the friend if
+  // nobody outranks them).
+  const friendsSnap = await db.collection('registrations')
+    .where({ matchId, broughtBy: user._id, isGuest: true, status: _.in(['confirmed', 'promoted', 'waitlist']) })
+    .get().catch(() => ({ data: [] }))
+  let friendFreedSlot = false
+  for (const f of friendsSnap.data) {
+    if (['confirmed', 'promoted'].includes(f.status)) friendFreedSlot = true
+    const pos = await nextWaitlistPosition(matchId)
+    await db.collection('registrations').doc(f._id).update({
+      data: {
+        status: 'waitlist',
+        waitlistTier: 3,
+        waitlistPosition: pos,
+        promotedAt: null,
+        confirmDeadline: null,
+        team: null,
+      },
+    }).catch(() => {})
+  }
+
+  if (wasConfirmed || friendFreedSlot) await promoteFromWaitlist(matchId)
   else await recalcMatchState(matchId)
   return { success: true }
 }
