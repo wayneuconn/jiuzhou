@@ -9,6 +9,16 @@ const STATUS_NEXT: Record<string, string> = {
   ready: 'completed',
 }
 
+// Advance-button copy: action verbs, not the target state's name —
+// "选人中" on a button reads like the CURRENT phase.
+const ACTION_LABEL: Record<string, string> = {
+  registration_r1: '开放 R1 报名',
+  registration_r2: '开放 R2 报名',
+  drafting: '开始选人',
+  ready: '完成选人',
+  completed: '标记已结束',
+}
+
 interface MatchVM extends Match {
   dateStr: string
   statusLabel: string
@@ -56,7 +66,7 @@ Page({
         statusLabel: STATUS_LABEL[m.status] ?? m.status,
         statusBadge: STATUS_BADGE[m.status] ?? 'badge-grey',
         nextStatus: STATUS_NEXT[m.status] ?? '',
-        nextStatusLabel: STATUS_LABEL[STATUS_NEXT[m.status]] ?? '',
+        nextStatusLabel: ACTION_LABEL[STATUS_NEXT[m.status]] ?? '',
         canAdvance: !!STATUS_NEXT[m.status] && m.status !== 'completed' && m.status !== 'cancelled',
         canForceReady: m.status === 'registration_r1' || m.status === 'registration_r2',
         canBackToR2: m.status === 'ready',
@@ -141,8 +151,8 @@ Page({
 
   async advanceStatus(e: WechatMiniprogram.BaseEvent) {
     const { id, next } = e.currentTarget.dataset as { id: string; next: string }
-    const label = STATUS_LABEL[next] ?? next
-    const res = await wx.showModal({ title: `确认改为「${label}」？`, content: '', confirmColor: '#00C9A7' })
+    const label = ACTION_LABEL[next] ?? STATUS_LABEL[next] ?? next
+    const res = await wx.showModal({ title: `确认「${label}」？`, content: '', confirmColor: '#00C9A7' })
     if (!res.confirm) return
     try {
       await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: next } })

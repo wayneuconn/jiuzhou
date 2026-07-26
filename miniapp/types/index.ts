@@ -101,6 +101,12 @@ export interface Registration {
   tags?: MatchTag[]
   goals?: number
   assists?: number
+  // Waitlist priority: 1 = annual self, 2 = friend brought by annual, 3 = per_session/other
+  waitlistTier?: number
+  // Guest (friend) registrations added by an annual member
+  isGuest?: boolean
+  broughtBy?: string | null
+  broughtByName?: string | null
 }
 
 export interface PlayerPosition {

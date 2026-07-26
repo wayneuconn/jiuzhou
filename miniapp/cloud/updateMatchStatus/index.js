@@ -49,6 +49,78 @@ async function recalcMatchState(matchId) {
   }
 }
 
+// Fill free slots from the waitlist by (tier, position). During R1 only
+// annual (tier 1) waiters may come in — friends and 次卡 wait for R2.
+async function promoteFromWaitlist(matchId) {
+  const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+  const match = matchSnap.data
+  if (!match) return
+  if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  const maxTier = match.status === 'registration_r1' ? 1 : 99
+
+  const configSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
+  const waitlistMinutes = configSnap.data?.waitlistConfirmMinutes ?? 30
+
+  for (let guard = 0; guard < 50; guard++) {
+    const cnt = await db.collection('registrations')
+      .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+      .count().catch(() => ({ total: null }))
+    if (cnt.total === null || cnt.total >= match.maxPlayers) break
+
+    const waitSnap = await db.collection('registrations')
+      .where({ matchId, status: 'waitlist' })
+      .limit(100)
+      .get()
+      .catch(() => ({ data: [] }))
+    const next = waitSnap.data
+      .map(r => ({ ...r, _tier: r.waitlistTier ?? 1 }))
+      .filter(r => r._tier <= maxTier)
+      .sort((a, b) => a._tier - b._tier || (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))[0]
+    if (!next) break
+
+    const regId = next._id
+    if (next.isGuest || next.autoAccept !== false) {
+      await db.collection('registrations').doc(regId).update({
+        data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null },
+      }).catch(() => {})
+      const notifyUid = next.isGuest ? next.broughtBy : null
+      if (notifyUid) await notifyPromoted(matchId, match, notifyUid, waitlistMinutes, true)
+    } else {
+      const deadlineTs = Date.now() + waitlistMinutes * 60 * 1000
+      await db.collection('registrations').doc(regId).update({
+        data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadlineTs, waitlistPosition: null },
+      }).catch(() => {})
+      await notifyPromoted(matchId, match, next.uid, waitlistMinutes, false)
+    }
+  }
+  await recalcMatchState(matchId)
+}
+
+async function notifyPromoted(matchId, match, uid, waitlistMinutes, isGuestNotice) {
+  try {
+    const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
+    if (!uSnap.data?.openid) return
+    const d = new Date(match.date)
+    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    await cloud.callFunction({
+      name: 'sendSubscribeMsg',
+      data: {
+        type: 'promoted',
+        toOpenid: uSnap.data.openid,
+        data: {
+          page: `/pages/match-detail/index?id=${matchId}`,
+          templateData: {
+            thing2: { value: '九州足球比赛' },
+            time4: { value: timeStr },
+            thing5: { value: (match.location || '待定').slice(0, 20) },
+            thing6: { value: isGuestNotice ? '你带的朋友已递补进名单' : `请在 ${waitlistMinutes} 分钟内确认报名` },
+          },
+        },
+      },
+    })
+  } catch (_) {}
+}
+
 exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext()
   const { action, matchId } = event
@@ -95,6 +167,11 @@ exports.main = async (event) => {
       updateData.draftState = newDraftState
     }
     await db.collection('matches').doc(matchId).update({ data: updateData })
+
+    // Opening R2 lifts the annual-only gate — drain the waitlist by priority
+    if (status === 'registration_r2' && match.status !== 'registration_r2') {
+      await promoteFromWaitlist(matchId)
+    }
 
     // Notify confirmed/promoted players if match was cancelled
     if (status === 'cancelled' && match.status !== 'cancelled') {
@@ -204,6 +281,21 @@ exports.main = async (event) => {
       throw new Error('player not in roster')
     }
     await db.collection('registrations').doc(regId).update({ data: { goals, assists } })
+    return { success: true }
+  }
+
+  // ── bump any waitlisted player straight into the roster ───────────────────
+  if (action === 'bumpWaitlist') {
+    const { uid } = event
+    const regId = matchId + '_' + uid
+    const regSnap = await db.collection('registrations').doc(regId).get().catch(() => ({ data: null }))
+    if (!regSnap.data || !['waitlist', 'promoted'].includes(regSnap.data.status)) {
+      throw new Error('该球员不在候补名单中')
+    }
+    await db.collection('registrations').doc(regId).update({
+      data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null },
+    })
+    await recalcMatchState(matchId)
     return { success: true }
   }
 

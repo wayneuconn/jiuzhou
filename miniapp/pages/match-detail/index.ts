@@ -38,6 +38,10 @@ interface RegVM extends Registration {
   teamLabel: string
   goals: number
   assists: number
+  isFriend: boolean
+  friendOf: string
+  tierTag: string
+  canRemove: boolean
 }
 
 type ActionState = 'cancelled' | 'promoted' | 'confirmed' | 'waitlist' | 'excused' | 'canRegister' | 'canWaitlist' | 'r1Blocked' | 'banned' | 'closed' | 'loading'
@@ -88,6 +92,14 @@ Page({
     scoreBInput: '',
     banLeft: 0,
     loadError: false,
+    canBringFriend: false,
+    myWaitRank: 0,
+    waitlistBtnText: '',
+    scheduleLine1: '',
+    scheduleLine2: '',
+    showFriendModal: false,
+    friendName: '',
+    showRulesModal: false,
     captainPickerTeam: '' as 'A' | 'B' | '',
     draftTurnTeam: '' as 'A' | 'B' | '',
     draftTurnLabel: '',
@@ -135,6 +147,8 @@ Page({
       const { match, registrations, agreementText } = cfRes.result
       this._registrations = registrations
 
+      const isAdmin = user?.role === 'admin'
+
       const toVM = (r: Registration): RegVM => ({
         ...r,
         statusLabel: REG_STATUS_LABEL[r.status] ?? r.status,
@@ -146,22 +160,31 @@ Page({
         teamLabel: r.team ?? '',
         goals: r.goals ?? 0,
         assists: r.assists ?? 0,
+        isFriend: !!r.isGuest,
+        friendOf: r.broughtByName ?? '',
+        tierTag: r.isGuest ? '朋友' : ((r.waitlistTier ?? 1) === 3 ? '次卡' : ''),
+        canRemove: !!r.isGuest && (isAdmin || r.broughtBy === user?._id),
       })
 
       const active = registrations.filter(r => r.status !== 'withdrawn')
       const confirmedList: RegVM[] = active
         .filter(r => r.status === 'confirmed' || r.status === 'promoted')
         .map(toVM)
+      // Waitlist order = promotion order: priority tier first, then arrival
       const waitlistList: RegVM[] = active
         .filter(r => r.status === 'waitlist')
-        .sort((a, b) => (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))
         .map(toVM)
-      const excusedList: RegVM[] = active.filter(r => r.status === 'excused').map(toVM)
+        .sort((a, b) =>
+          ((a.waitlistTier ?? 1) - (b.waitlistTier ?? 1))
+          || ((a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99)))
+      const excusedList: RegVM[] = active.filter(r => r.status === 'excused' && !r.isGuest).map(toVM)
 
       const myReg = user ? (registrations.find(r => r.uid === user._id) ?? null) : null
       const myRosterIdx = myReg ? confirmedList.findIndex(r => r.uid === myReg.uid) : -1
       const myRoster = myRosterIdx >= 0 ? myRosterIdx + 1 : 0
-      const isAdmin = user?.role === 'admin'
+      const myWaitRank = myReg?.status === 'waitlist'
+        ? waitlistList.findIndex(r => r.uid === myReg.uid) + 1
+        : 0
       const isCaptainA = !!match.captainA && user?._id === match.captainA
       const isCaptainB = !!match.captainB && user?._id === match.captainB
 
@@ -171,11 +194,15 @@ Page({
       const isFull = confirmedCount >= match.maxPlayers
       const isOpen = match.status === 'registration_r1' || match.status === 'registration_r2'
       const isR1 = match.status === 'registration_r1'
-      const r1Ok = isAdmin || user?.membershipType === 'annual'
+      const myTier = isAdmin || user?.membershipType === 'annual' ? 1 : 3
+      const isPerSession = user?.membershipType === 'per_session'
+      // Someone with equal/higher priority already waiting → no queue jumping
+      const hasPriorityWaiters = waitlistList.some(r => (r.waitlistTier ?? 1) <= myTier)
       const notRegistered = !myReg || myReg.status === 'withdrawn' || myReg.status === 'excused'
       const banLeft = user?.banGamesLeft ?? 0
 
       let actionState: ActionState = 'loading'
+      let waitlistBtnText = ''
       if (!user) {
         actionState = 'closed'
       } else if (match.status === 'cancelled') {
@@ -190,14 +217,37 @@ Page({
         actionState = 'waitlist'
       } else if (myReg?.status === 'excused') {
         actionState = 'excused'
-      } else if (notRegistered && isOpen && !isFull && (!isR1 || r1Ok)) {
-        actionState = 'canRegister'
-      } else if (notRegistered && isOpen && isFull && (!isR1 || r1Ok)) {
+      } else if (notRegistered && isR1 && myTier !== 1 && isPerSession) {
         actionState = 'canWaitlist'
-      } else if (notRegistered && isR1 && !r1Ok) {
+        waitlistBtnText = `加入候补 — R1 年卡优先 (${confirmedCount}/${match.maxPlayers})`
+      } else if (notRegistered && isR1 && myTier !== 1) {
         actionState = 'r1Blocked'
+      } else if (notRegistered && isOpen && !isFull && !hasPriorityWaiters) {
+        actionState = 'canRegister'
+      } else if (notRegistered && isOpen) {
+        actionState = 'canWaitlist'
+        waitlistBtnText = isFull
+          ? `加入候补 — 名额已满 (${confirmedCount}/${match.maxPlayers})`
+          : `加入候补 — 前方有优先候补 (${confirmedCount}/${match.maxPlayers})`
       } else {
         actionState = 'closed'
+      }
+
+      // Bring-a-friend: annual members (or admins) with an active own registration
+      const canBringFriend = isOpen
+        && (isAdmin || user?.membershipType === 'annual')
+        && !!myReg && ['confirmed', 'promoted'].includes(myReg.status)
+
+      // Upcoming phase times (R2 opens kickoff-8h, roster locks kickoff-1h)
+      const lockD = new Date(match.date - 60 * 60 * 1000)
+      const lockTime = `${String(lockD.getHours()).padStart(2, '0')}:${String(lockD.getMinutes()).padStart(2, '0')}`
+      let scheduleLine1 = ''
+      let scheduleLine2 = ''
+      if (match.status === 'draft' || isR1) {
+        scheduleLine1 = `R2 全员报名：${formatDate(match.date - 8 * 60 * 60 * 1000)} 开放`
+        scheduleLine2 = `名单锁定：开球前 1 小时（${lockTime}）`
+      } else if (match.status === 'registration_r2') {
+        scheduleLine1 = `名单锁定：开球前 1 小时（${lockTime}）`
       }
 
       const unassignedList = confirmedList.filter(r => !r.team)
@@ -242,6 +292,11 @@ Page({
         teamBList,
         myReg,
         myRoster,
+        myWaitRank,
+        canBringFriend,
+        waitlistBtnText,
+        scheduleLine1,
+        scheduleLine2,
         actionState,
         confirmedCount,
         waitlistCount,
@@ -322,7 +377,73 @@ Page({
   closeAgreementModal() { this.setData({ showAgreementModal: false }) },
   openWaitlistModal()   { this.setData({ showWaitlistModal: true }) },
   closeWaitlistModal()  { this.setData({ showWaitlistModal: false }) },
+  openRulesModal()      { this.setData({ showRulesModal: true }) },
+  closeRulesModal()     { this.setData({ showRulesModal: false }) },
+  openFriendModal()     { this.setData({ showFriendModal: true, friendName: '' }) },
+  closeFriendModal()    { this.setData({ showFriendModal: false }) },
+  onFriendNameInput(e: WechatMiniprogram.Input) { this.setData({ friendName: e.detail.value }) },
   toggleAutoAccept()    { this.setData({ autoAccept: !this.data.autoAccept }) },
+
+  async addFriend() {
+    const name = this.data.friendName.trim()
+    if (!name) { wx.showToast({ title: '请填写朋友称呼', icon: 'none' }); return }
+    this.setData({ busy: true })
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'registerForMatch',
+        data: { matchId: this.data.matchId, friendName: name },
+      }) as unknown as { result: { status: string } }
+      wx.showToast({ title: res.result.status === 'confirmed' ? '朋友已进名单' : '朋友已加入候补', icon: 'success' })
+      this.setData({ showFriendModal: false })
+      this.loadMatch()
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg
+        || (err as Error)?.message || '操作失败'
+      wx.showModal({ title: '操作失败', content: msg, showCancel: false })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  async removeFriend(e: WechatMiniprogram.BaseEvent) {
+    const { uid, name } = e.currentTarget.dataset as { uid: string; name: string }
+    const res = await wx.showModal({ title: `移除 ${name}？`, content: '', confirmColor: '#E53E3E' })
+    if (!res.confirm) return
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'withdrawFromMatch',
+        data: { matchId: this.data.matchId, friendUid: uid },
+      })
+      wx.showToast({ title: '已移除', icon: 'success' })
+      this.loadMatch()
+    } catch {
+      wx.showToast({ title: '操作失败', icon: 'error' })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  async bumpWait(e: WechatMiniprogram.BaseEvent) {
+    const { uid, name } = e.currentTarget.dataset as { uid: string; name: string }
+    const res = await wx.showModal({ title: `直接把 ${name} 提进名单？`, content: '', confirmColor: '#00C9A7' })
+    if (!res.confirm) return
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'updateMatchStatus',
+        data: { action: 'bumpWaitlist', matchId: this.data.matchId, uid },
+      })
+      wx.showToast({ title: '已提升', icon: 'success' })
+      this.loadMatch()
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg
+        || (err as Error)?.message || '操作失败'
+      wx.showModal({ title: '操作失败', content: msg, showCancel: false })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
 
   async register() {
     this.setData({ showAgreementModal: false, busy: true })

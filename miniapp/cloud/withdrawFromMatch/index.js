@@ -3,9 +3,6 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
-// Auto state machine helper — call after any registration change.
-// R1/R2 + confirmed === maxPlayers → ready (autoReady: true)
-// ready + confirmed < maxPlayers + autoReady === true → registration_r2 (autoReady: false)
 async function recalcMatchState(matchId) {
   const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
   if (!matchSnap.data) return
@@ -22,6 +19,78 @@ async function recalcMatchState(matchId) {
   }
 }
 
+// Fill free slots from the waitlist by (tier, position). During R1 only
+// annual (tier 1) waiters may come in — friends and 次卡 wait for R2.
+async function promoteFromWaitlist(matchId) {
+  const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+  const match = matchSnap.data
+  if (!match) return
+  if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  const maxTier = match.status === 'registration_r1' ? 1 : 99
+
+  const configSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
+  const waitlistMinutes = configSnap.data?.waitlistConfirmMinutes ?? 30
+
+  for (let guard = 0; guard < 50; guard++) {
+    const cnt = await db.collection('registrations')
+      .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+      .count().catch(() => ({ total: null }))
+    if (cnt.total === null || cnt.total >= match.maxPlayers) break
+
+    const waitSnap = await db.collection('registrations')
+      .where({ matchId, status: 'waitlist' })
+      .limit(100)
+      .get()
+      .catch(() => ({ data: [] }))
+    const next = waitSnap.data
+      .map(r => ({ ...r, _tier: r.waitlistTier ?? 1 }))
+      .filter(r => r._tier <= maxTier)
+      .sort((a, b) => a._tier - b._tier || (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))[0]
+    if (!next) break
+
+    const regId = next._id
+    if (next.isGuest || next.autoAccept !== false) {
+      await db.collection('registrations').doc(regId).update({
+        data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null },
+      }).catch(() => {})
+      const notifyUid = next.isGuest ? next.broughtBy : null
+      if (notifyUid) await notifyPromoted(matchId, match, notifyUid, waitlistMinutes, true)
+    } else {
+      const deadlineTs = Date.now() + waitlistMinutes * 60 * 1000
+      await db.collection('registrations').doc(regId).update({
+        data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadlineTs, waitlistPosition: null },
+      }).catch(() => {})
+      await notifyPromoted(matchId, match, next.uid, waitlistMinutes, false)
+    }
+  }
+  await recalcMatchState(matchId)
+}
+
+async function notifyPromoted(matchId, match, uid, waitlistMinutes, isGuestNotice) {
+  try {
+    const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
+    if (!uSnap.data?.openid) return
+    const d = new Date(match.date)
+    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    await cloud.callFunction({
+      name: 'sendSubscribeMsg',
+      data: {
+        type: 'promoted',
+        toOpenid: uSnap.data.openid,
+        data: {
+          page: `/pages/match-detail/index?id=${matchId}`,
+          templateData: {
+            thing2: { value: '九州足球比赛' },
+            time4: { value: timeStr },
+            thing5: { value: (match.location || '待定').slice(0, 20) },
+            thing6: { value: isGuestNotice ? '你带的朋友已递补进名单' : `请在 ${waitlistMinutes} 分钟内确认报名` },
+          },
+        },
+      },
+    })
+  } catch (_) {}
+}
+
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
   const { matchId, mode } = event
@@ -36,6 +105,23 @@ exports.main = async (event, context) => {
   if (!match) throw new Error('match not found')
   if (match.status === 'completed' || match.status === 'cancelled') {
     throw new Error('比赛已结束，无法退出')
+  }
+
+  // ── remove a friend I brought (or any guest, if admin) ─────────────────────
+  if (event.friendUid) {
+    const fRegId = matchId + '_' + event.friendUid
+    const fSnap = await db.collection('registrations').doc(fRegId).get().catch(() => ({ data: null }))
+    if (!fSnap.data || !fSnap.data.isGuest) throw new Error('friend registration not found')
+    if (fSnap.data.broughtBy !== user._id && user.role !== 'admin') {
+      throw new Error('只能移除自己带的朋友')
+    }
+    const freedSlot = ['confirmed', 'promoted'].includes(fSnap.data.status)
+    await db.collection('registrations').doc(fRegId).update({
+      data: { status: 'withdrawn', waitlistPosition: null, promotedAt: null, confirmDeadline: null, team: null },
+    })
+    if (freedSlot) await promoteFromWaitlist(matchId)
+    else await recalcMatchState(matchId)
+    return { success: true }
   }
 
   const regId = matchId + '_' + user._id
@@ -71,63 +157,7 @@ exports.main = async (event, context) => {
     }
   }
 
-  if (!wasConfirmed) {
-    await recalcMatchState(matchId)
-    return { success: true }
-  }
-
-  // Promote top waitlisted player
-  const configSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
-  const waitlistMinutes = configSnap.data?.waitlistConfirmMinutes ?? 30
-
-  const waitlistSnap = await db.collection('registrations')
-    .where({ matchId, status: 'waitlist' })
-    .orderBy('waitlistPosition', 'asc')
-    .limit(1)
-    .get()
-
-  if (waitlistSnap.data.length === 0) {
-    await recalcMatchState(matchId)
-    return { success: true }
-  }
-
-  const topWaiter = waitlistSnap.data[0]
-  const topWaiterId = matchId + '_' + topWaiter.uid
-
-  if (topWaiter.autoAccept) {
-    await db.collection('registrations').doc(topWaiterId).update({
-      data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null },
-    })
-  } else {
-    const deadlineTs = Date.now() + waitlistMinutes * 60 * 1000
-    await db.collection('registrations').doc(topWaiterId).update({
-      data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadlineTs, waitlistPosition: null },
-    })
-    try {
-      const waiterUserSnap = await db.collection('users').doc(topWaiter.uid).get()
-      if (waiterUserSnap.data?.openid) {
-        const d = new Date(match.date)
-        const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
-        await cloud.callFunction({
-          name: 'sendSubscribeMsg',
-          data: {
-            type: 'promoted',
-            toOpenid: waiterUserSnap.data.openid,
-            data: {
-              page: `/pages/match-detail/index?id=${matchId}`,
-              templateData: {
-                thing2: { value: '九州足球比赛' },
-                time4: { value: timeStr },
-                thing5: { value: (match.location || '待定').slice(0, 20) },
-                thing6: { value: `请在 ${waitlistMinutes} 分钟内确认报名` },
-              },
-            },
-          },
-        })
-      }
-    } catch (_) {}
-  }
-
-  await recalcMatchState(matchId)
-  return { success: true, promoted: topWaiter.uid }
+  if (wasConfirmed) await promoteFromWaitlist(matchId)
+  else await recalcMatchState(matchId)
+  return { success: true }
 }

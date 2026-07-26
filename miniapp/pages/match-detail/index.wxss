@@ -357,3 +357,32 @@
   margin-bottom: 20rpx;
   line-height: 1.7;
 }
+
+/* ── Friend modal input / rules modal ───────────────────────────────────── */
+.friend-input {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  height: 88rpx;
+  font-size: 28rpx;
+  color: #e8f0eb;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.rule-line {
+  display: flex;
+  flex-direction: row;
+  gap: 12rpx;
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: #7A8FA6;
+  margin-bottom: 16rpx;
+}
+
+.rule-num {
+  color: #00C9A7;
+  font-weight: 900;
+  flex-shrink: 0;
+}

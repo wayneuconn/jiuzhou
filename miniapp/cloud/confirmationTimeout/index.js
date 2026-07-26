@@ -69,6 +69,75 @@ function isInWinterBreak(date, config) {
   return etDateStr(date) >= config.winterBreakStart && etDateStr(date) <= config.winterBreakEnd
 }
 
+// Fill free slots from the waitlist by (tier, position). During R1 only
+// annual (tier 1) waiters may come in — friends and 次卡 wait for R2.
+async function promoteFromWaitlist(matchId, waitlistMinutes) {
+  const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+  const match = matchSnap.data
+  if (!match) return
+  if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  const maxTier = match.status === 'registration_r1' ? 1 : 99
+
+  for (let guard = 0; guard < 50; guard++) {
+    const cnt = await db.collection('registrations')
+      .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+      .count().catch(() => ({ total: null }))
+    if (cnt.total === null || cnt.total >= match.maxPlayers) break
+
+    const waitSnap = await db.collection('registrations')
+      .where({ matchId, status: 'waitlist' })
+      .limit(100)
+      .get()
+      .catch(() => ({ data: [] }))
+    const next = waitSnap.data
+      .map(r => ({ ...r, _tier: r.waitlistTier ?? 1 }))
+      .filter(r => r._tier <= maxTier)
+      .sort((a, b) => a._tier - b._tier || (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))[0]
+    if (!next) break
+
+    const regId = next._id
+    if (next.isGuest || next.autoAccept !== false) {
+      await db.collection('registrations').doc(regId).update({
+        data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null },
+      }).catch(() => {})
+      const notifyUid = next.isGuest ? next.broughtBy : null
+      if (notifyUid) await notifyPromoted(matchId, match, notifyUid, waitlistMinutes, true)
+    } else {
+      const deadlineTs = Date.now() + waitlistMinutes * 60 * 1000
+      await db.collection('registrations').doc(regId).update({
+        data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadlineTs, waitlistPosition: null },
+      }).catch(() => {})
+      await notifyPromoted(matchId, match, next.uid, waitlistMinutes, false)
+    }
+  }
+  await recalcMatchState(matchId)
+}
+
+async function notifyPromoted(matchId, match, uid, waitlistMinutes, isGuestNotice) {
+  try {
+    const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
+    if (!uSnap.data?.openid) return
+    const d = new Date(match.date)
+    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    await cloud.callFunction({
+      name: 'sendSubscribeMsg',
+      data: {
+        type: 'promoted',
+        toOpenid: uSnap.data.openid,
+        data: {
+          page: `/pages/match-detail/index?id=${matchId}`,
+          templateData: {
+            thing2: { value: '九州足球比赛' },
+            time4: { value: timeStr },
+            thing5: { value: (match.location || '待定').slice(0, 20) },
+            thing6: { value: isGuestNotice ? '你带的朋友已递补进名单' : `请在 ${waitlistMinutes} 分钟内确认报名` },
+          },
+        },
+      },
+    })
+  } catch (_) {}
+}
+
 exports.main = async (event, context) => {
   const now = new Date()
 
@@ -88,13 +157,6 @@ exports.main = async (event, context) => {
     const { matchId, uid } = expired
     const regId = matchId + '_' + uid
 
-    const nextSnap = await db.collection('registrations')
-      .where({ matchId, status: 'waitlist' })
-      .orderBy('waitlistPosition', 'asc')
-      .limit(1)
-      .get()
-      .catch(() => ({ data: [] }))
-
     // Positions are never compacted, so use max+1 to avoid duplicates.
     const wlMaxSnap = await db.collection('registrations')
       .where({ matchId, status: 'waitlist' })
@@ -108,46 +170,7 @@ exports.main = async (event, context) => {
       data: { status: 'waitlist', promotedAt: null, confirmDeadline: null, waitlistPosition: backPosition },
     }).catch(() => {})
 
-    if (nextSnap.data.length > 0) {
-      const next = nextSnap.data[0]
-      const nextRegId = matchId + '_' + next.uid
-      if (next.autoAccept) {
-        await db.collection('registrations').doc(nextRegId).update({
-          data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null },
-        }).catch(() => {})
-      } else {
-        const deadlineTs = Date.now() + waitlistMinutes * 60 * 1000
-        await db.collection('registrations').doc(nextRegId).update({
-          data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadlineTs, waitlistPosition: null },
-        }).catch(() => {})
-        try {
-          const userSnap = await db.collection('users').doc(next.uid).get()
-          const mSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
-          const m = mSnap.data
-          if (userSnap.data?.openid && m) {
-            const d = new Date(m.date)
-            const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
-            await cloud.callFunction({
-              name: 'sendSubscribeMsg',
-              data: {
-                type: 'promoted',
-                toOpenid: userSnap.data.openid,
-                data: {
-                  page: `/pages/match-detail/index?id=${matchId}`,
-                  templateData: {
-                    thing2: { value: '九州足球比赛' },
-                    time4: { value: timeStr },
-                    thing5: { value: (m.location || '待定').slice(0, 20) },
-                    thing6: { value: `请在 ${waitlistMinutes} 分钟内确认报名` },
-                  },
-                },
-              },
-            })
-          }
-        } catch (_) {}
-      }
-    }
-    await recalcMatchState(matchId)
+    await promoteFromWaitlist(matchId, waitlistMinutes)
     promoted++
   }
 
@@ -159,7 +182,8 @@ exports.main = async (event, context) => {
   let advancedToR2 = 0
   for (const m of r1Snap.data) {
     await db.collection('matches').doc(m._id).update({ data: { status: 'registration_r2' } }).catch(() => {})
-    await recalcMatchState(m._id)
+    // R2 lifts the annual-only gate — drain friends/次卡 from the waitlist
+    await promoteFromWaitlist(m._id, waitlistMinutes)
     advancedToR2++
   }
 
