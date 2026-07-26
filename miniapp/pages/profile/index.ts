@@ -23,6 +23,7 @@ Page({
     membershipLabel: '',
     membershipBadge: '',
     loading: true,
+    loadError: false,
     saving: false,
     saved: false,
     isAdmin: false,
@@ -40,7 +41,7 @@ Page({
   },
 
   async loadProfile() {
-    this.setData({ loading: true })
+    this.setData({ loading: true, loadError: false })
     try {
       const app = getApp<{
         globalData: { userProfile: User | null }
@@ -48,12 +49,18 @@ Page({
       }>()
       const user = await app.refreshUserProfile()
       if (user) this._applyUser(user)
+      // refreshUserProfile swallows network errors and returns null — treat
+      // "no user and nothing cached" as a load failure, not a blank page.
+      else if (!this.data.user) this.setData({ loadError: true })
     } catch (err) {
       console.error('loadProfile failed', err)
+      if (!this.data.user) this.setData({ loadError: true })
     } finally {
       this.setData({ loading: false })
     }
   },
+
+  retryLoad() { this.loadProfile() },
 
   _applyUser(user: User) {
     const app = getApp<{ globalData: { cardThresholds: typeof DEFAULT_THRESHOLDS | null } }>()
@@ -151,7 +158,9 @@ Page({
   async logout() {
     const res = await wx.showModal({ title: '确认退出？', content: '', confirmColor: '#E53E3E' })
     if (!res.confirm) return
-    wx.removeStorageSync('jz_user')
+    const app = getApp<{ globalData: { userProfile: User | null; openid: string | null } }>()
+    app.globalData.userProfile = null
+    app.globalData.openid = null
     wx.reLaunch({ url: '/pages/login/index' })
   },
 })

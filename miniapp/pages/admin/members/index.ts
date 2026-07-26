@@ -32,7 +32,9 @@ Page({
 
   async changeMembership(e: WechatMiniprogram.BaseEvent) {
     const { id, current } = e.currentTarget.dataset as { id: string; current: string }
-    const res = await wx.showActionSheet({ itemList: ['年卡 (annual)', '次卡 (per_session)', '未激活 (none)'] })
+    // showActionSheet rejects when dismissed — treat that as "no choice"
+    const res = await wx.showActionSheet({ itemList: ['年卡 (annual)', '次卡 (per_session)', '未激活 (none)'] }).catch(() => null)
+    if (!res) return
     const typeMap = ['annual', 'per_session', 'none']
     const chosen = typeMap[res.tapIndex]
     if (!chosen || chosen === current) return
@@ -40,14 +42,15 @@ Page({
       await wx.cloud.callFunction({ name: 'adminUpdateUser', data: { uid: id, membershipType: chosen } })
       wx.showToast({ title: '已更新', icon: 'success' })
       this.loadMembers()
-    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
+    } catch (err: unknown) { this._showError(err) }
   },
 
   async changeRole(e: WechatMiniprogram.BaseEvent) {
     const { id, current } = e.currentTarget.dataset as { id: string; current: string }
     const app = getApp<{ globalData: { userProfile: { _id: string } | null } }>()
     if (id === app.globalData.userProfile?._id) { wx.showToast({ title: '不能修改自己', icon: 'none' }); return }
-    const res = await wx.showActionSheet({ itemList: ['管理员 (admin)', '会员 (member)', '访客 (guest)'] })
+    const res = await wx.showActionSheet({ itemList: ['管理员 (admin)', '会员 (member)', '访客 (guest)'] }).catch(() => null)
+    if (!res) return
     const roleMap = ['admin', 'member', 'guest']
     const chosen = roleMap[res.tapIndex]
     if (!chosen || chosen === current) return
@@ -55,7 +58,7 @@ Page({
       await wx.cloud.callFunction({ name: 'adminUpdateUser', data: { uid: id, role: chosen } })
       wx.showToast({ title: '已更新', icon: 'success' })
       this.loadMembers()
-    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
+    } catch (err: unknown) { this._showError(err) }
   },
 
   async banPlayer(e: WechatMiniprogram.BaseEvent) {
@@ -65,13 +68,20 @@ Page({
       ? ['解禁', '禁赛 1 场', '禁赛 2 场', '禁赛 3 场', '禁赛 5 场', '禁赛 10 场']
       : ['禁赛 1 场', '禁赛 2 场', '禁赛 3 场', '禁赛 5 场', '禁赛 10 场']
     const gameMap = isBanned ? [0, 1, 2, 3, 5, 10] : [1, 2, 3, 5, 10]
-    const res = await wx.showActionSheet({ itemList })
+    const res = await wx.showActionSheet({ itemList }).catch(() => null)
+    if (!res) return
     const games = gameMap[res.tapIndex]
     if (games === undefined) return
     try {
       await wx.cloud.callFunction({ name: 'adminUpdateUser', data: { uid: id, banGamesLeft: games } })
       wx.showToast({ title: games === 0 ? '已解禁' : `已禁赛 ${games} 场`, icon: 'success' })
       this.loadMembers()
-    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
+    } catch (err: unknown) { this._showError(err) }
+  },
+
+  _showError(err: unknown) {
+    const msg = (err as { errMsg?: string; message?: string })?.errMsg
+      || (err as Error)?.message || '操作失败'
+    wx.showModal({ title: '操作失败', content: msg, showCancel: false })
   },
 })

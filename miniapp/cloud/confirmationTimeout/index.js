@@ -77,8 +77,9 @@ exports.main = async (event, context) => {
   const waitlistMinutes = config.waitlistConfirmMinutes ?? 30
 
   // ── 1. Expire promoted registration confirmations ────────────────────────
+  // confirmDeadline is stored as a number (ms) — compare with a number, not a Date.
   const expiredRegsSnap = await db.collection('registrations')
-    .where({ status: 'promoted', confirmDeadline: _.lt(now) })
+    .where({ status: 'promoted', confirmDeadline: _.lt(now.getTime()) })
     .get()
     .catch(() => ({ data: [] }))
 
@@ -94,11 +95,14 @@ exports.main = async (event, context) => {
       .get()
       .catch(() => ({ data: [] }))
 
-    const wlCountSnap = await db.collection('registrations')
+    // Positions are never compacted, so use max+1 to avoid duplicates.
+    const wlMaxSnap = await db.collection('registrations')
       .where({ matchId, status: 'waitlist' })
-      .count()
-      .catch(() => ({ total: 0 }))
-    const backPosition = (wlCountSnap.total ?? 0) + 1
+      .orderBy('waitlistPosition', 'desc')
+      .limit(1)
+      .get()
+      .catch(() => ({ data: [] }))
+    const backPosition = (wlMaxSnap.data[0]?.waitlistPosition ?? 0) + 1
 
     await db.collection('registrations').doc(regId).update({
       data: { status: 'waitlist', promotedAt: null, confirmDeadline: null, waitlistPosition: backPosition },
@@ -186,33 +190,45 @@ exports.main = async (event, context) => {
   for (const match of expiredMatchSnap.data) {
     await db.collection('matches').doc(match._id).update({ data: { status: 'completed' } }).catch(() => {})
 
+    // Attendance for players who actually held a spot (promoted-but-unconfirmed excluded)
     const regsSnap = await db.collection('registrations')
-      .where({ matchId: match._id, status: _.in(['confirmed', 'promoted']) })
+      .where({ matchId: match._id, status: 'confirmed' })
       .get()
       .catch(() => ({ data: [] }))
-
     for (const reg of regsSnap.data) {
-      const uSnap = await db.collection('users').doc(reg.uid).get().catch(() => ({ data: null }))
-      if (!uSnap.data) continue
-      const u = uSnap.data
-      const newAttendance = (u.attendanceCount ?? 0) + 1
-      const newBan = Math.max(0, (u.banGamesLeft ?? 0) - 1)
       await db.collection('users').doc(reg.uid).update({
-        data: { attendanceCount: newAttendance, banGamesLeft: newBan },
+        data: { attendanceCount: _.inc(1) },
       }).catch(() => {})
     }
+
+    // A completed match counts toward every active ban — banned players can't
+    // register, so the ban must tick down for non-attendees.
+    await db.collection('users')
+      .where({ banGamesLeft: _.gt(0) })
+      .update({ data: { banGamesLeft: _.inc(-1) } })
+      .catch(() => {})
+
     autoCompleted++
   }
 
   // ── 3. Auto-generate next match if none upcoming ─────────────────────────
   if (config.autoRecurring) {
-    const upcomingSnap = await db.collection('matches')
-      .where({ status: _.in(['draft', 'registration_r1', 'registration_r2', 'drafting', 'ready']) })
+    const activeSnap = await db.collection('matches')
+      .where({ status: _.in(['registration_r1', 'registration_r2', 'drafting', 'ready']) })
       .limit(1)
       .get()
       .catch(() => ({ data: [] }))
+    // A future draft counts as upcoming (admin is preparing it); a forgotten
+    // past-dated draft must not silently block the recurring schedule.
+    const futureDraftSnap = activeSnap.data.length > 0
+      ? { data: [] }
+      : await db.collection('matches')
+          .where({ status: 'draft', date: _.gt(now.getTime()) })
+          .limit(1)
+          .get()
+          .catch(() => ({ data: [] }))
 
-    if (upcomingSnap.data.length === 0) {
+    if (activeSnap.data.length === 0 && futureDraftSnap.data.length === 0) {
       const nextDate = nextMatchDate(config)
       if (!isInWinterBreak(nextDate, config)) {
         await db.collection('matches').add({

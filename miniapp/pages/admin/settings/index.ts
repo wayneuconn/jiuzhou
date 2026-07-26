@@ -1,4 +1,5 @@
 import type { AppConfig } from '../../../types/index'
+import { DEFAULT_THRESHOLDS } from '../../../utils/format'
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
@@ -6,6 +7,7 @@ Page({
   data: {
     config: null as AppConfig | null,
     loading: true,
+    loadError: false,
     saving: false,
     weekdays: WEEKDAYS,
     recurringDaysMap: {} as Record<number, boolean>,
@@ -16,13 +18,13 @@ Page({
   },
 
   async loadConfig() {
-    this.setData({ loading: true })
+    this.setData({ loading: true, loadError: false })
     try {
-      const res = await wx.cloud.callFunction({ name: 'adminGetConfig' }) as unknown as { result: { config: AppConfig } }
-      const raw = res.result.config ?? {}
+      const res = await wx.cloud.callFunction({ name: 'adminGetConfig' }) as unknown as { result: { config: Partial<AppConfig> | null } }
+      const raw: Partial<AppConfig> = res.result.config ?? {}
       const config: AppConfig = {
         season: '',
-        cardThresholds: { bronze: 5, silver: 15, gold: 30, blue: 50 },
+        cardThresholds: DEFAULT_THRESHOLDS,
         waitlistConfirmMinutes: 30,
         defaultAgreementText: '',
         defaultAnnouncement: '',
@@ -42,10 +44,13 @@ Page({
       this.setData({ config, recurringDaysMap })
     } catch (err) {
       console.error(err)
+      this.setData({ loadError: true })
     } finally {
       this.setData({ loading: false })
     }
   },
+
+  retryLoad() { this.loadConfig() },
 
   onInput(e: WechatMiniprogram.Input) {
     const field = (e.currentTarget.dataset as { field: string }).field

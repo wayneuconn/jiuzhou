@@ -3,6 +3,11 @@
 
   <view wx:if="{{loading}}" class="text-muted" style="text-align:center;padding:60rpx 0;">加载中...</view>
 
+  <view wx:elif="{{loadError || !config}}" style="text-align:center;padding:60rpx 0;">
+    <view class="text-muted" style="margin-bottom:24rpx;">加载失败，请检查网络</view>
+    <button class="btn-ghost" style="display:inline-block;" bindtap="retryLoad">重试</button>
+  </view>
+
   <block wx:elif="{{config}}">
     <view class="card" style="margin-bottom:24rpx;">
       <view style="font-size:24rpx;font-weight:700;color:#7A8FA6;margin-bottom:20rpx;text-transform:uppercase;letter-spacing:3rpx;">基本设置</view>

@@ -10,7 +10,7 @@
     <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
       <view style="flex:1;min-width:0;">
         <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;">{{item.displayName}}</view>
-        <view class="text-muted" style="font-size:22rpx;margin-top:4rpx;">{{item.phone}} · 出勤{{item.attendanceCount}}场</view>
+        <view class="text-muted" style="font-size:22rpx;margin-top:4rpx;">{{item.phone ? item.phone + ' · ' : ''}}出勤{{item.attendanceCount}}场</view>
       </view>
       <view class="flex-row" style="gap:10rpx;flex-shrink:0;margin-left:12rpx;">
         <view class="badge {{item.membershipBadge}}" bindtap="changeMembership" data-id="{{item.id}}" data-current="{{item.membershipType}}">{{item.membershipLabel}}</view>

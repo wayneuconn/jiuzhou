@@ -18,9 +18,19 @@ interface MatchVM extends Match {
   canAdvance: boolean
   canForceReady: boolean
   canBackToR2: boolean
+  canEdit: boolean
 }
 
-const todayDateStr = () => new Date().toISOString().slice(0, 10)
+const todayDateStr = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function showError(err: unknown, fallback: string) {
+  const msg = (err as { errMsg?: string; message?: string })?.errMsg
+    || (err as Error)?.message || fallback
+  wx.showModal({ title: fallback, content: msg, showCancel: false })
+}
 
 Page({
   data: {
@@ -30,7 +40,8 @@ Page({
     loading: true,
     showCreateModal: false,
     creating: false,
-    form: { location: '', maxPlayers: 22, date: todayDateStr() },
+    editingId: '',
+    form: { location: '', maxPlayers: 22, date: todayDateStr(), time: '20:00' },
   },
 
   onShow() { this.loadMatches() },
@@ -49,6 +60,7 @@ Page({
         canAdvance: !!STATUS_NEXT[m.status] && m.status !== 'completed' && m.status !== 'cancelled',
         canForceReady: m.status === 'registration_r1' || m.status === 'registration_r2',
         canBackToR2: m.status === 'ready',
+        canEdit: m.status !== 'completed' && m.status !== 'cancelled',
       }))
       this.setData({ matches }, () => this.applyFilter())
     } catch (err) { console.error(err) }
@@ -67,28 +79,63 @@ Page({
     this.setData({ showAll: !this.data.showAll }, () => this.applyFilter())
   },
 
-  openCreateModal() { this.setData({ showCreateModal: true }) },
+  openCreateModal() {
+    this.setData({
+      showCreateModal: true,
+      editingId: '',
+      form: { location: '', maxPlayers: 22, date: todayDateStr(), time: '20:00' },
+    })
+  },
+
+  openEditModal(e: WechatMiniprogram.BaseEvent) {
+    const id = (e.currentTarget.dataset as { id: string }).id
+    const match = this.data.matches.find(m => m.id === id)
+    if (!match) return
+    const d = new Date(match.date)
+    this.setData({
+      showCreateModal: true,
+      editingId: id,
+      form: {
+        location: match.location,
+        maxPlayers: match.maxPlayers,
+        date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+        time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+      },
+    })
+  },
+
   closeCreateModal() { this.setData({ showCreateModal: false }) },
 
   onFormLocation(e: WechatMiniprogram.Input) { this.setData({ 'form.location': e.detail.value }) },
   onFormPlayers(e: WechatMiniprogram.Input) { this.setData({ 'form.maxPlayers': Number(e.detail.value) || 22 }) },
   onFormDate(e: WechatMiniprogram.BaseEvent & { detail: { value: string } }) { this.setData({ 'form.date': e.detail.value }) },
+  onFormTime(e: WechatMiniprogram.BaseEvent & { detail: { value: string } }) { this.setData({ 'form.time': e.detail.value }) },
 
-  async createMatch() {
-    const { location, maxPlayers, date } = this.data.form
+  async submitMatch() {
+    const { location, maxPlayers, date, time } = this.data.form
+    const { editingId } = this.data
     if (!location.trim()) { wx.showToast({ title: '请填写地点', icon: 'none' }); return }
     this.setData({ creating: true })
     try {
-      const d = new Date(date + 'T20:00:00')
-      await wx.cloud.callFunction({
-        name: 'createMatch',
-        data: { location: location.trim(), maxPlayers, date: d.getTime() },
-      })
-      wx.showToast({ title: '比赛已创建', icon: 'success' })
-      this.setData({ showCreateModal: false, 'form.location': '' })
+      // Send the raw date/time strings — the server interprets them in ET, so
+      // an admin whose phone is on another timezone doesn't shift the kickoff.
+      if (editingId) {
+        await wx.cloud.callFunction({
+          name: 'updateMatchStatus',
+          data: { action: 'editMatch', matchId: editingId, location: location.trim(), maxPlayers, dateStr: date, timeStr: time },
+        })
+        wx.showToast({ title: '比赛已更新', icon: 'success' })
+      } else {
+        await wx.cloud.callFunction({
+          name: 'createMatch',
+          data: { location: location.trim(), maxPlayers, dateStr: date, timeStr: time },
+        })
+        wx.showToast({ title: '比赛已创建', icon: 'success' })
+      }
+      this.setData({ showCreateModal: false, editingId: '' })
       this.loadMatches()
     } catch (err: unknown) {
-      wx.showToast({ title: (err as Error).message || '创建失败', icon: 'none' })
+      showError(err, editingId ? '更新失败' : '创建失败')
     } finally { this.setData({ creating: false }) }
   },
 
@@ -100,7 +147,7 @@ Page({
     try {
       await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: next } })
       this.loadMatches()
-    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
+    } catch (err: unknown) { showError(err, '操作失败') }
   },
 
   async forceReady(e: WechatMiniprogram.BaseEvent) {
@@ -110,7 +157,7 @@ Page({
     try {
       await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: 'ready' } })
       this.loadMatches()
-    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
+    } catch (err: unknown) { showError(err, '操作失败') }
   },
 
   async backToR2(e: WechatMiniprogram.BaseEvent) {
@@ -120,7 +167,7 @@ Page({
     try {
       await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: 'registration_r2' } })
       this.loadMatches()
-    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
+    } catch (err: unknown) { showError(err, '操作失败') }
   },
 
   async cancelMatch(e: WechatMiniprogram.BaseEvent) {
@@ -137,7 +184,7 @@ Page({
     try {
       await wx.cloud.callFunction({ name: 'updateMatchStatus', data: { matchId: id, status: 'cancelled', reason } })
       this.loadMatches()
-    } catch { wx.showToast({ title: '操作失败', icon: 'error' }) }
+    } catch (err: unknown) { showError(err, '操作失败') }
   },
 
   goDetail(e: WechatMiniprogram.BaseEvent) {

@@ -5,17 +5,48 @@ const _ = db.command
 
 const VALID_STATUSES = ['draft', 'registration_r1', 'registration_r2', 'drafting', 'ready', 'completed', 'cancelled']
 
-// Build the snake draft pick order: A, B, B, A, A, B, B, A …
-// Captain A and B are auto-assigned to their teams before pick #1.
+// Snake draft turn for pick #i (0-based): A, B, B, A, A, B, B, A …
+// Captains are auto-assigned to their teams before pick #0.
+function turnForPick(i) {
+  if (i === 0) return 'A'
+  return Math.floor((i - 1) / 2) % 2 === 0 ? 'B' : 'A'
+}
+
 function buildPickOrder(remainingCount) {
   const order = []
-  let team = 'A', n = 0
-  for (let i = 0; i < remainingCount; i++) {
-    order.push(team)
-    n++
-    if (n === 2) { team = team === 'A' ? 'B' : 'A'; n = 0 }
-  }
+  for (let i = 0; i < remainingCount; i++) order.push(turnForPick(i))
   return order
+}
+
+// Minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
+function etOffsetMinutes(date) {
+  const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC' })
+  const etStr = date.toLocaleString('en-US', { timeZone: 'America/New_York' })
+  return Math.round((new Date(utcStr) - new Date(etStr)) / 60000)
+}
+
+// 'YYYY-MM-DD' + 'HH:mm' interpreted in ET → epoch ms
+function etTimestamp(dateStr, timeStr) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const [hh, mm] = (timeStr || '20:00').split(':').map(Number)
+  const utcBase = new Date(Date.UTC(y, m - 1, d))
+  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + hh * 3600000 + (mm || 0) * 60000
+}
+
+async function recalcMatchState(matchId) {
+  const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+  if (!matchSnap.data) return
+  const match = matchSnap.data
+  if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  const cnt = await db.collection('registrations')
+    .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+    .count().catch(() => ({ total: 0 }))
+  const count = cnt.total ?? 0
+  if (count >= match.maxPlayers && match.status !== 'ready') {
+    await db.collection('matches').doc(matchId).update({ data: { status: 'ready', autoReady: true } }).catch(() => {})
+  } else if (match.status === 'ready' && count < match.maxPlayers && match.autoReady === true) {
+    await db.collection('matches').doc(matchId).update({ data: { status: 'registration_r2', autoReady: false } }).catch(() => {})
+  }
 }
 
 exports.main = async (event) => {
@@ -100,24 +131,79 @@ exports.main = async (event) => {
       }
     }
 
-    if (status === 'completed') {
+    // Guard against double-counting: only on the first transition to completed
+    // (a repeat setStatus('completed') or a race with the cron must be a no-op).
+    if (status === 'completed' && match.status !== 'completed') {
+      // Attendance for players who actually held a spot (promoted-but-unconfirmed excluded)
       const regsSnap = await db.collection('registrations')
-        .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+        .where({ matchId, status: 'confirmed' })
         .get().catch(() => ({ data: [] }))
-
-      const attendees = regsSnap.data
-      for (const reg of attendees) {
-        const uSnap = await db.collection('users').doc(reg.uid).get().catch(() => ({ data: null }))
-        if (!uSnap.data) continue
-        const u = uSnap.data
-        const newAttendance = (u.attendanceCount ?? 0) + 1
-        const newBan = Math.max(0, (u.banGamesLeft ?? 0) - 1)
+      for (const reg of regsSnap.data) {
         await db.collection('users').doc(reg.uid).update({
-          data: { attendanceCount: newAttendance, banGamesLeft: newBan },
+          data: { attendanceCount: _.inc(1) },
         }).catch(() => {})
       }
+      // A completed match counts toward every active ban — banned players can't
+      // register, so the ban must tick down for non-attendees.
+      await db.collection('users')
+        .where({ banGamesLeft: _.gt(0) })
+        .update({ data: { banGamesLeft: _.inc(-1) } })
+        .catch(() => {})
     }
 
+    return { success: true }
+  }
+
+  // ── edit match details ─────────────────────────────────────────────────────
+  if (action === 'editMatch') {
+    const matchSnap = await db.collection('matches').doc(matchId).get()
+    if (!matchSnap.data) throw new Error('match not found')
+    if (['completed', 'cancelled'].includes(matchSnap.data.status)) throw new Error('比赛已结束，无法编辑')
+
+    const update = {}
+    if (typeof event.location === 'string' && event.location.trim()) update.location = event.location.trim()
+    if (event.maxPlayers !== undefined) {
+      const n = parseInt(event.maxPlayers, 10)
+      if (isNaN(n) || n < 2 || n > 99) throw new Error('invalid maxPlayers')
+      update.maxPlayers = n
+    }
+    if (event.dateStr) update.date = etTimestamp(event.dateStr, event.timeStr)
+    else if (typeof event.date === 'number') update.date = event.date
+    if (Object.keys(update).length === 0) throw new Error('nothing to update')
+
+    await db.collection('matches').doc(matchId).update({ data: update })
+    if (update.maxPlayers !== undefined) await recalcMatchState(matchId)
+    return { success: true }
+  }
+
+  // ── record final score ─────────────────────────────────────────────────────
+  if (action === 'setScore') {
+    const scoreA = parseInt(event.scoreA, 10)
+    const scoreB = parseInt(event.scoreB, 10)
+    if (isNaN(scoreA) || isNaN(scoreB) || scoreA < 0 || scoreB < 0 || scoreA > 99 || scoreB > 99) {
+      throw new Error('invalid score')
+    }
+    const matchSnap = await db.collection('matches').doc(matchId).get()
+    if (!matchSnap.data) throw new Error('match not found')
+    if (!['ready', 'completed'].includes(matchSnap.data.status)) throw new Error('比赛未开始，无法记录比分')
+    await db.collection('matches').doc(matchId).update({ data: { scoreA, scoreB } })
+    return { success: true }
+  }
+
+  // ── per-player goals/assists ───────────────────────────────────────────────
+  if (action === 'setStat') {
+    const { uid } = event
+    const goals = parseInt(event.goals, 10)
+    const assists = parseInt(event.assists, 10)
+    if (isNaN(goals) || isNaN(assists) || goals < 0 || assists < 0 || goals > 99 || assists > 99) {
+      throw new Error('invalid stat')
+    }
+    const regId = matchId + '_' + uid
+    const regSnap = await db.collection('registrations').doc(regId).get().catch(() => ({ data: null }))
+    if (!regSnap.data || !['confirmed', 'promoted'].includes(regSnap.data.status)) {
+      throw new Error('player not in roster')
+    }
+    await db.collection('registrations').doc(regId).update({ data: { goals, assists } })
     return { success: true }
   }
 

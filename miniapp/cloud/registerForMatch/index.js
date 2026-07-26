@@ -19,6 +19,45 @@ async function recalcMatchState(matchId) {
   }
 }
 
+// Next waitlist position: existing positions are never compacted, so use
+// max(position)+1 rather than count+1 to avoid duplicates after promotions.
+async function nextWaitlistPosition(matchId) {
+  const snap = await db.collection('registrations')
+    .where({ matchId, status: 'waitlist' })
+    .orderBy('waitlistPosition', 'desc')
+    .limit(1)
+    .get()
+    .catch(() => ({ data: [] }))
+  return (snap.data[0]?.waitlistPosition ?? 0) + 1
+}
+
+// Concurrent registrations can both pass the capacity pre-check. After
+// confirming, recount; if the roster overshot maxPlayers and we are among the
+// newest confirmations, demote ourselves back to the waitlist.
+async function resolveOverflow(matchId, regId, maxPlayers) {
+  const confirmedSnap = await db.collection('registrations')
+    .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+    .count().catch(() => ({ total: 0 }))
+  const total = confirmedSnap.total ?? 0
+  if (total <= maxPlayers) return 'confirmed'
+
+  const overflow = total - maxPlayers
+  const newestSnap = await db.collection('registrations')
+    .where({ matchId, status: 'confirmed' })
+    .orderBy('registeredAt', 'desc')
+    .limit(overflow)
+    .get()
+    .catch(() => ({ data: [] }))
+  const amNewest = newestSnap.data.some(r => r._id === regId)
+  if (!amNewest) return 'confirmed'
+
+  const position = await nextWaitlistPosition(matchId)
+  await db.collection('registrations').doc(regId).update({
+    data: { status: 'waitlist', waitlistPosition: position },
+  })
+  return 'waitlist'
+}
+
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
   const { matchId } = event
@@ -38,7 +77,7 @@ exports.main = async (event, context) => {
   if (!['registration_r1', 'registration_r2'].includes(match.status)) {
     throw new Error('registration not open')
   }
-  if (match.status === 'registration_r1' && user.membershipType !== 'annual') {
+  if (match.status === 'registration_r1' && user.membershipType !== 'annual' && user.role !== 'admin') {
     throw new Error('r1 annual members only')
   }
   if (user.banGamesLeft > 0) {
@@ -52,40 +91,31 @@ exports.main = async (event, context) => {
     if (['confirmed', 'promoted', 'waitlist'].includes(existingSnap.data.status)) {
       throw new Error('already registered')
     }
-    // Re-register after withdrawal/excused — recheck capacity
+    // Re-register after withdrawal/excused — recheck capacity.
+    // Behavior tags from this match are kept (user counters were already bumped).
     const reConfirmedCount = confirmedSnap.total ?? 0
     const reIsWaitlist = reConfirmedCount >= match.maxPlayers
-    let reWaitlistPosition = null
-    if (reIsWaitlist) {
-      const wlSnap = await db.collection('registrations').where({ matchId, status: 'waitlist' }).count()
-      reWaitlistPosition = (wlSnap.total ?? 0) + 1
-    }
+    const reWaitlistPosition = reIsWaitlist ? await nextWaitlistPosition(matchId) : null
     const reAutoAccept = typeof event.autoAccept === 'boolean'
       ? event.autoAccept
       : (existingSnap.data.autoAccept ?? true)
     await db.collection('registrations').doc(regId).update({
       data: {
         status: reIsWaitlist ? 'waitlist' : 'confirmed',
-        waitlistPosition: reIsWaitlist ? reWaitlistPosition : null,
+        waitlistPosition: reWaitlistPosition,
         registeredAt: db.serverDate(),
-        tags: [],
         autoAccept: reAutoAccept,
       },
     })
+    let reStatus = reIsWaitlist ? 'waitlist' : 'confirmed'
+    if (!reIsWaitlist) reStatus = await resolveOverflow(matchId, regId, match.maxPlayers)
     await recalcMatchState(matchId)
-    return { status: reIsWaitlist ? 'waitlist' : 'confirmed' }
+    return { status: reStatus }
   }
 
   const confirmedCount = confirmedSnap.total ?? 0
   const isWaitlist = confirmedCount >= match.maxPlayers
-
-  let waitlistPosition = null
-  if (isWaitlist) {
-    const wlSnap = await db.collection('registrations')
-      .where({ matchId, status: 'waitlist' })
-      .count()
-    waitlistPosition = (wlSnap.total ?? 0) + 1
-  }
+  const waitlistPosition = isWaitlist ? await nextWaitlistPosition(matchId) : null
 
   await db.collection('registrations').doc(regId).set({
     data: {
@@ -95,13 +125,15 @@ exports.main = async (event, context) => {
       preferredPositions: user.preferredPositions ?? [],
       registeredAt: db.serverDate(),
       status: isWaitlist ? 'waitlist' : 'confirmed',
-      waitlistPosition: isWaitlist ? waitlistPosition : null,
+      waitlistPosition,
       team: null,
       tags: [],
       autoAccept: typeof event.autoAccept === 'boolean' ? event.autoAccept : true,
     },
   })
 
+  let status = isWaitlist ? 'waitlist' : 'confirmed'
+  if (!isWaitlist) status = await resolveOverflow(matchId, regId, match.maxPlayers)
   await recalcMatchState(matchId)
-  return { status: isWaitlist ? 'waitlist' : 'confirmed' }
+  return { status }
 }

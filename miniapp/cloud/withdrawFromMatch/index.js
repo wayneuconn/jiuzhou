@@ -31,28 +31,43 @@ exports.main = async (event, context) => {
   const user = userSnap.data[0]
   if (!user) throw new Error('user not found')
 
+  const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+  const match = matchSnap.data
+  if (!match) throw new Error('match not found')
+  if (match.status === 'completed' || match.status === 'cancelled') {
+    throw new Error('比赛已结束，无法退出')
+  }
+
   const regId = matchId + '_' + user._id
   const regSnap = await db.collection('registrations').doc(regId).get().catch(() => ({ data: null }))
   if (!regSnap.data) throw new Error('registration not found')
 
   const wasConfirmed = ['confirmed', 'promoted'].includes(regSnap.data.status)
 
-  await db.collection('registrations').doc(regId).update({ data: { status: newStatus, waitlistPosition: null, promotedAt: null, confirmDeadline: null } })
+  await db.collection('registrations').doc(regId).update({
+    data: { status: newStatus, waitlistPosition: null, promotedAt: null, confirmDeadline: null, team: null },
+  })
 
   // If they were a captain, clear that slot
-  const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
-  const match = matchSnap.data
-  if (match) {
-    const clearData = {}
-    if (match.captainA === user._id) clearData.captainA = null
-    if (match.captainB === user._id) clearData.captainB = null
-    if (Object.keys(clearData).length > 0) {
-      // If currently drafting, also reset draftState (drafting cannot proceed without both captains)
-      if (match.status === 'drafting') {
-        clearData.status = 'registration_r2'
-        clearData.draftState = null
-      }
-      await db.collection('matches').doc(matchId).update({ data: clearData }).catch(() => {})
+  const clearData = {}
+  if (match.captainA === user._id) clearData.captainA = null
+  if (match.captainB === user._id) clearData.captainB = null
+  if (Object.keys(clearData).length > 0) {
+    // If currently drafting, also reset draftState (drafting cannot proceed without both captains)
+    if (match.status === 'drafting') {
+      clearData.status = 'registration_r2'
+      clearData.draftState = null
+    }
+    await db.collection('matches').doc(matchId).update({ data: clearData }).catch(() => {})
+  } else if (match.status === 'drafting') {
+    // A non-captain left mid-draft; if no unassigned players remain, the draft is done.
+    const unassignedSnap = await db.collection('registrations')
+      .where({ matchId, status: _.in(['confirmed', 'promoted']), team: null })
+      .count().catch(() => ({ total: 0 }))
+    if ((unassignedSnap.total ?? 0) === 0) {
+      await db.collection('matches').doc(matchId).update({
+        data: { status: 'ready', autoReady: true, 'draftState.currentTurn': null },
+      }).catch(() => {})
     }
   }
 
@@ -90,10 +105,8 @@ exports.main = async (event, context) => {
     })
     try {
       const waiterUserSnap = await db.collection('users').doc(topWaiter.uid).get()
-      const matchSnap2 = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
-      const m = matchSnap2.data
-      if (waiterUserSnap.data?.openid && m) {
-        const d = new Date(m.date)
+      if (waiterUserSnap.data?.openid) {
+        const d = new Date(match.date)
         const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
         await cloud.callFunction({
           name: 'sendSubscribeMsg',
@@ -105,7 +118,7 @@ exports.main = async (event, context) => {
               templateData: {
                 thing2: { value: '九州足球比赛' },
                 time4: { value: timeStr },
-                thing5: { value: (m.location || '待定').slice(0, 20) },
+                thing5: { value: (match.location || '待定').slice(0, 20) },
                 thing6: { value: `请在 ${waitlistMinutes} 分钟内确认报名` },
               },
             },

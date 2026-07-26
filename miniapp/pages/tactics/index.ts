@@ -82,7 +82,13 @@ Page({
   async loadData() {
     this.setData({ state: 'loading' })
     try {
-      const app = getApp<{ globalData: { userProfile: { _id: string; role: string } | null } }>()
+      const app = getApp<{
+        globalData: { userProfile: { _id: string; role: string } | null }
+        loginReady?: Promise<void>
+      }>()
+      // Cold start: wait for autoLogin, otherwise a logged-in user is told
+      // there's no match when one exists.
+      await (app.loginReady ?? Promise.resolve()).catch(() => {})
       const user = app.globalData.userProfile
       if (!user) { this.setData({ state: 'no-match' }); return }
 

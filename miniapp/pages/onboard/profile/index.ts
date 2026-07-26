@@ -33,7 +33,19 @@ Page({
           preferredPositions,
         },
       })
-      wx.switchTab({ url: '/pages/home/index' })
+      const app = getApp<{
+        globalData: { pendingRoute: string | null }
+        refreshUserProfile: () => Promise<unknown>
+      }>()
+      await app.refreshUserProfile()
+      // If onboarding interrupted a deep link (e.g. a shared match), resume it.
+      const pending = app.globalData.pendingRoute
+      if (pending) {
+        app.globalData.pendingRoute = null
+        wx.redirectTo({ url: pending, fail: () => wx.switchTab({ url: '/pages/home/index' }) })
+      } else {
+        wx.switchTab({ url: '/pages/home/index' })
+      }
     } catch (err) {
       console.error('updateProfile failed', err)
       wx.showToast({ title: '保存失败', icon: 'error' })

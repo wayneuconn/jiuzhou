@@ -45,7 +45,9 @@ export const REG_STATUS_LABEL: Record<string, string> = {
 
 // ── Card tier utils ──────────────────────────────────────────────────────────
 
-export const DEFAULT_THRESHOLDS = { bronze: 1, silver: 5, gold: 15, blue: 30 }
+// Fallback only — the live values come from config/app. Must match the
+// initDB seed so an unset config doesn't silently change everyone's card tier.
+export const DEFAULT_THRESHOLDS = { bronze: 5, silver: 10, gold: 20, blue: 30 }
 
 export function getCardTier(count: number, thresholds = DEFAULT_THRESHOLDS): string {
   if (count >= thresholds.blue)   return 'blue'

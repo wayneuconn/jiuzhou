@@ -52,7 +52,10 @@ Page({
       wx.showToast({ title: '已保存', icon: 'success' })
       this.setData({ showModal: false })
       this.load()
-    } catch { wx.showToast({ title: '保存失败', icon: 'error' }) }
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg || (err as Error)?.message || '保存失败'
+      wx.showModal({ title: '保存失败', content: msg, showCancel: false })
+    }
     finally { this.setData({ saving: false }) }
   },
 
@@ -64,6 +67,9 @@ Page({
       await wx.cloud.callFunction({ name: 'adminDeleteAnnouncement', data: { id } })
       wx.showToast({ title: '已删除', icon: 'success' })
       this.load()
-    } catch { wx.showToast({ title: '删除失败', icon: 'error' }) }
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg || (err as Error)?.message || '删除失败'
+      wx.showModal({ title: '删除失败', content: msg, showCancel: false })
+    }
   },
 })

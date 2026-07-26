@@ -59,7 +59,8 @@ Page({
       const upcoming = all.filter(m =>
         m.status !== 'completed' && m.status !== 'cancelled' && (isAdmin || m.status !== 'draft')
       )
-      const past = all.filter(m => m.status === 'completed')
+      // cancelled matches stay visible in 往期 so players can see what happened
+      const past = all.filter(m => m.status === 'completed' || m.status === 'cancelled')
       this.setData({ upcoming, past, isAdmin })
     } catch (err) {
       console.error('loadMatches failed', err)

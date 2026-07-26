@@ -7,14 +7,18 @@ Page({
     loading: true,
   },
 
-  onLoad() {
-    const app = getApp<{ globalData: { userProfile: { role: string } | null } }>()
+  async onLoad() {
+    const app = getApp<{
+      globalData: { userProfile: { role: string } | null }
+      loginReady?: Promise<void>
+    }>()
+    // Cold start (deep link / session restore): wait for autoLogin before the
+    // admin gate, or a real admin gets bounced with 无权限.
+    await (app.loginReady ?? Promise.resolve()).catch(() => {})
     if (app.globalData.userProfile?.role !== 'admin') {
       wx.showToast({ title: '无权限', icon: 'error' })
       wx.navigateBack()
-      return
     }
-    this.loadStats()
   },
 
   onShow() { this.loadStats() },
