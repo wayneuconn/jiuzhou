@@ -1,0 +1,46 @@
+<view class="container">
+  <view style="font-size:48rpx;font-weight:900;margin-bottom:24rpx;">榜单</view>
+
+  <!-- Tabs -->
+  <view class="flex-row" style="gap:12rpx;margin-bottom:24rpx;">
+    <view class="pos-filter-btn {{tab === 'goals' ? 'active' : ''}}" bindtap="setTab" data-tab="goals">⚽ 射手榜</view>
+    <view class="pos-filter-btn {{tab === 'assists' ? 'active' : ''}}" bindtap="setTab" data-tab="assists">🅰️ 助攻榜</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="text-muted" style="text-align:center;padding:60rpx 0;">加载中...</view>
+
+  <view wx:elif="{{loadError}}" style="text-align:center;padding:60rpx 0;">
+    <view class="text-muted" style="margin-bottom:24rpx;">加载失败，请检查网络</view>
+    <button class="btn-ghost" style="display:inline-block;" bindtap="retryLoad">重试</button>
+  </view>
+
+  <block wx:elif="{{tab === 'goals'}}">
+    <view wx:if="{{scorers.length === 0}}" class="card" style="text-align:center;padding:80rpx 0;">
+      <view style="font-size:80rpx;">⚽</view>
+      <view class="text-muted" style="margin-top:16rpx;">暂无进球记录</view>
+    </view>
+    <view wx:else class="card" style="padding-bottom:8rpx;">
+      <view wx:for="{{scorers}}" wx:key="uid" class="player-row">
+        <view style="width:56rpx;text-align:center;font-size:26rpx;font-weight:900;color:{{index === 0 ? '#F0B429' : index === 1 ? '#A8A9AD' : index === 2 ? '#B87333' : '#3A4E63'}};flex-shrink:0;">{{index + 1}}</view>
+        <view style="flex:1;margin-left:16rpx;font-size:28rpx;font-weight:600;color:#e8f0eb;">{{item.displayName}}</view>
+        <view class="text-muted" style="font-size:24rpx;margin-right:16rpx;">助攻 {{item.assists}}</view>
+        <view style="font-size:32rpx;font-weight:900;color:#00C9A7;">{{item.goals}}</view>
+      </view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view wx:if="{{assisters.length === 0}}" class="card" style="text-align:center;padding:80rpx 0;">
+      <view style="font-size:80rpx;">🅰️</view>
+      <view class="text-muted" style="margin-top:16rpx;">暂无助攻记录</view>
+    </view>
+    <view wx:else class="card" style="padding-bottom:8rpx;">
+      <view wx:for="{{assisters}}" wx:key="uid" class="player-row">
+        <view style="width:56rpx;text-align:center;font-size:26rpx;font-weight:900;color:{{index === 0 ? '#F0B429' : index === 1 ? '#A8A9AD' : index === 2 ? '#B87333' : '#3A4E63'}};flex-shrink:0;">{{index + 1}}</view>
+        <view style="flex:1;margin-left:16rpx;font-size:28rpx;font-weight:600;color:#e8f0eb;">{{item.displayName}}</view>
+        <view class="text-muted" style="font-size:24rpx;margin-right:16rpx;">进球 {{item.goals}}</view>
+        <view style="font-size:32rpx;font-weight:900;color:#00C9A7;">{{item.assists}}</view>
+      </view>
+    </view>
+  </block>
+</view>

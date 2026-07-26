@@ -48,6 +48,10 @@ Page({
     }
   },
 
+  goLeaderboard() {
+    wx.navigateTo({ url: '/pages/leaderboard/index' })
+  },
+
   onShareAppMessage() {
     return { title: '九州球队 - 一起踢球吧', path: '/pages/home/index' }
   },

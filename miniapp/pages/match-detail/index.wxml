@@ -8,6 +8,11 @@
     <view class="text-muted">加载中...</view>
   </view>
 
+  <view wx:elif="{{loadError}}" style="text-align:center;padding:80rpx 0;">
+    <view class="text-muted" style="margin-bottom:24rpx;">加载失败，请检查网络</view>
+    <button class="btn-ghost" style="display:inline-block;" bindtap="retryLoad">重试</button>
+  </view>
+
   <block wx:elif="{{match}}">
 
     <!-- ── Match header ───────────────────────────────────────────────── -->
@@ -21,6 +26,11 @@
             <view class="text-muted" style="font-size:28rpx;margin-top:6rpx;">{{match.location}}</view>
           </view>
           <view style="font-size:22rpx;color:#3A4E63;text-align:right;line-height:1.5;">点击右上角<br/>··· 分享</view>
+        </view>
+        <view wx:if="{{hasScore}}" class="flex-row" style="align-items:center;gap:20rpx;margin-top:20rpx;">
+          <view style="font-size:24rpx;font-weight:900;color:#3B82F6;">A队</view>
+          <view style="font-size:44rpx;font-weight:900;color:#e8f0eb;">{{match.scoreA}} : {{match.scoreB}}</view>
+          <view style="font-size:24rpx;font-weight:900;color:#EF4444;">B队</view>
         </view>
         <view class="flex-row" style="gap:12rpx;flex-wrap:wrap;margin-top:20rpx;">
           <view class="badge {{statusBadge}}">{{statusLabel}}</view>
@@ -106,6 +116,12 @@
     <view wx:elif="{{actionState === 'r1Blocked'}}" class="action-card action-neutral">
       <view style="font-size:28rpx;font-weight:700;">R1 阶段仅限年卡会员</view>
       <view class="text-muted" style="font-size:24rpx;margin-top:8rpx;">R2 开放后所有成员均可报名</view>
+    </view>
+
+    <!-- banned -->
+    <view wx:elif="{{actionState === 'banned'}}" class="action-card action-cancelled">
+      <view style="font-size:28rpx;font-weight:700;color:#E53E3E;">禁赛中，暂无法报名</view>
+      <view class="text-muted" style="font-size:24rpx;margin-top:8rpx;">还剩 {{banLeft}} 场解禁，如有疑问请联系管理员</view>
     </view>
 
     <!-- closed -->
@@ -229,6 +245,43 @@
         <view class="team-box team-box-b" style="flex:1;">
           <view style="font-size:22rpx;font-weight:900;color:#EF4444;margin-bottom:12rpx;">B队 · {{teamBList.length}} 人</view>
           <view wx:for="{{teamBList}}" wx:key="uid" style="padding:4rpx 0;font-size:26rpx;color:#e8f0eb;">{{item.displayName}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ── Admin: score editor ────────────────────────────────────────── -->
+    <view wx:if="{{showScoreEditor}}" class="card" style="margin-top:8rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:20rpx;">比分记录</view>
+      <view class="flex-row" style="align-items:center;gap:16rpx;">
+        <view style="flex:1;text-align:center;">
+          <view style="font-size:22rpx;font-weight:900;color:#3B82F6;margin-bottom:8rpx;">A队</view>
+          <input class="form-input" type="number" value="{{scoreAInput}}" bindinput="onScoreAInput"
+            style="text-align:center;" placeholder="-" adjust-position="{{false}}"/>
+        </view>
+        <view style="font-size:36rpx;font-weight:900;color:#7A8FA6;margin-top:30rpx;">:</view>
+        <view style="flex:1;text-align:center;">
+          <view style="font-size:22rpx;font-weight:900;color:#EF4444;margin-bottom:8rpx;">B队</view>
+          <input class="form-input" type="number" value="{{scoreBInput}}" bindinput="onScoreBInput"
+            style="text-align:center;" placeholder="-" adjust-position="{{false}}"/>
+        </view>
+        <button class="inline-btn" style="margin-top:30rpx;" bindtap="saveScore" disabled="{{busy}}">保存</button>
+      </view>
+    </view>
+
+    <!-- ── Admin: goals / assists ─────────────────────────────────────── -->
+    <view wx:if="{{showBehaviorTags}}" style="margin-top:8rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">进球 / 助攻</view>
+      <view class="card" style="padding-bottom:8rpx;">
+        <view wx:for="{{confirmedList}}" wx:key="uid" class="player-row draft-row">
+          <view class="draft-player-name" style="flex:1;">{{item.displayName}}</view>
+          <view class="draft-actions" style="align-items:center;gap:8rpx;">
+            <view class="pick-tap pick-tap-off" bindtap="incStat" data-uid="{{item.uid}}" data-field="goals" data-delta="-1">−</view>
+            <view style="font-size:24rpx;color:#e8f0eb;min-width:64rpx;text-align:center;">⚽ {{item.goals}}</view>
+            <view class="pick-tap pick-tap-off" bindtap="incStat" data-uid="{{item.uid}}" data-field="goals" data-delta="1">+</view>
+            <view class="pick-tap pick-tap-off" style="margin-left:12rpx;" bindtap="incStat" data-uid="{{item.uid}}" data-field="assists" data-delta="-1">−</view>
+            <view style="font-size:24rpx;color:#e8f0eb;min-width:64rpx;text-align:center;">🅰️ {{item.assists}}</view>
+            <view class="pick-tap pick-tap-off" bindtap="incStat" data-uid="{{item.uid}}" data-field="assists" data-delta="1">+</view>
+          </view>
         </view>
       </view>
     </view>

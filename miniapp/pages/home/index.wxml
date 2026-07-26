@@ -28,6 +28,15 @@
       <view class="text-muted">暂无即将进行的比赛</view>
     </view>
 
+    <!-- Leaderboard entry -->
+    <view class="card flex-row" style="justify-content:space-between;align-items:center;" bindtap="goLeaderboard">
+      <view class="flex-row" style="gap:12rpx;align-items:center;">
+        <view style="font-size:32rpx;">🏆</view>
+        <view style="font-size:28rpx;font-weight:600;color:#e8f0eb;">射手榜 · 助攻榜</view>
+      </view>
+      <view style="color:#7A8FA6;font-size:32rpx;">›</view>
+    </view>
+
     <!-- Announcements section label -->
     <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:20rpx;margin-top:8rpx;">公告</view>
 

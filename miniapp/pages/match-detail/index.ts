@@ -36,9 +36,11 @@ interface RegVM extends Registration {
   isDangerous: boolean
   isAbsent: boolean
   teamLabel: string
+  goals: number
+  assists: number
 }
 
-type ActionState = 'cancelled' | 'promoted' | 'confirmed' | 'waitlist' | 'excused' | 'canRegister' | 'canWaitlist' | 'r1Blocked' | 'closed' | 'loading'
+type ActionState = 'cancelled' | 'promoted' | 'confirmed' | 'waitlist' | 'excused' | 'canRegister' | 'canWaitlist' | 'r1Blocked' | 'banned' | 'closed' | 'loading'
 
 Page({
   data: {
@@ -79,7 +81,13 @@ Page({
     showDraft: false,
     showBehaviorTags: false,
     showAdminCaptain: false,
+    showScoreEditor: false,
     showTeams: false,
+    hasScore: false,
+    scoreAInput: '',
+    scoreBInput: '',
+    banLeft: 0,
+    loadError: false,
     captainPickerTeam: '' as 'A' | 'B' | '',
     draftTurnTeam: '' as 'A' | 'B' | '',
     draftTurnLabel: '',
@@ -108,11 +116,15 @@ Page({
 
   async loadMatch() {
     if (!this.data.matchId) return
-    this.setData({ loading: true })
+    this.setData({ loading: true, loadError: false })
     try {
       const app = getApp<{
-        globalData: { userProfile: { _id: string; role: string; membershipType: string } | null }
+        globalData: { userProfile: { _id: string; role: string; membershipType: string; banGamesLeft?: number } | null }
+        loginReady?: Promise<void>
       }>()
+      // Cold start: the page loads before autoLogin resolves — wait for it,
+      // otherwise a logged-in user is rendered as logged-out ("报名已关闭").
+      await (app.loginReady ?? Promise.resolve()).catch(() => {})
       const user = app.globalData.userProfile
 
       const cfRes = await wx.cloud.callFunction({
@@ -132,6 +144,8 @@ Page({
         isDangerous: (r.tags ?? []).includes('dangerous'),
         isAbsent: (r.tags ?? []).includes('absent'),
         teamLabel: r.team ?? '',
+        goals: r.goals ?? 0,
+        assists: r.assists ?? 0,
       })
 
       const active = registrations.filter(r => r.status !== 'withdrawn')
@@ -159,12 +173,15 @@ Page({
       const isR1 = match.status === 'registration_r1'
       const r1Ok = isAdmin || user?.membershipType === 'annual'
       const notRegistered = !myReg || myReg.status === 'withdrawn' || myReg.status === 'excused'
+      const banLeft = user?.banGamesLeft ?? 0
 
       let actionState: ActionState = 'loading'
       if (!user) {
         actionState = 'closed'
       } else if (match.status === 'cancelled') {
         actionState = 'cancelled'
+      } else if (notRegistered && isOpen && banLeft > 0) {
+        actionState = 'banned'
       } else if (myReg?.status === 'promoted') {
         actionState = 'promoted'
       } else if (myReg?.status === 'confirmed') {
@@ -196,6 +213,8 @@ Page({
       const showDraft = (isAdmin || isCaptainA || isCaptainB) && isDraftPhase && !!match.captainA && !!match.captainB
       const showBehaviorTags = isAdmin && (match.status === 'ready' || match.status === 'completed') && confirmedCount > 0
       const showAdminCaptain = isAdmin && confirmedCount > 0
+      const showScoreEditor = isAdmin && (match.status === 'ready' || match.status === 'completed')
+      const hasScore = typeof match.scoreA === 'number' && typeof match.scoreB === 'number'
 
       // Captain picker team (drives the single-button captain UI)
       const captainPickerTeam: 'A' | 'B' | '' = isCaptainA ? 'A' : isCaptainB ? 'B' : ''
@@ -234,11 +253,18 @@ Page({
         dateStr: formatDate(match.date),
         statusLabel: STATUS_LABEL[match.status] ?? match.status,
         statusBadge: STATUS_BADGE[match.status] ?? 'badge-grey',
-        agreementText: agreementText || match.agreementText || '报名即表示您同意遵守队伍规则并出席已报名的比赛。',
+        // The per-match agreement the player saw at signup wins; the config
+        // default is only a fallback for matches created without one.
+        agreementText: match.agreementText || agreementText || '报名即表示您同意遵守队伍规则并出席已报名的比赛。',
         isAdmin,
+        banLeft,
         showDraft,
         showBehaviorTags,
         showAdminCaptain,
+        showScoreEditor,
+        hasScore,
+        scoreAInput: hasScore ? String(match.scoreA) : '',
+        scoreBInput: hasScore ? String(match.scoreB) : '',
         showTeams,
         captainPickerTeam,
         draftTurnTeam,
@@ -253,10 +279,13 @@ Page({
       })
     } catch (err) {
       console.error('loadMatch failed', err)
+      this.setData({ loadError: true })
     } finally {
       this.setData({ loading: false })
     }
   },
+
+  retryLoad() { this.loadMatch() },
 
   _startTimer(myReg: Registration | null) {
     if (this._timerInterval) { clearInterval(this._timerInterval); this._timerInterval = null }
@@ -413,8 +442,55 @@ Page({
     }
   },
 
+  onScoreAInput(e: WechatMiniprogram.Input) { this.setData({ scoreAInput: e.detail.value }) },
+  onScoreBInput(e: WechatMiniprogram.Input) { this.setData({ scoreBInput: e.detail.value }) },
+
+  async saveScore() {
+    const scoreA = parseInt(this.data.scoreAInput, 10)
+    const scoreB = parseInt(this.data.scoreBInput, 10)
+    if (isNaN(scoreA) || isNaN(scoreB) || scoreA < 0 || scoreB < 0) {
+      wx.showToast({ title: '请填写两队比分', icon: 'none' })
+      return
+    }
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'updateMatchStatus',
+        data: { action: 'setScore', matchId: this.data.matchId, scoreA, scoreB },
+      })
+      wx.showToast({ title: '比分已记录', icon: 'success' })
+      this.loadMatch()
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg
+        || (err as Error)?.message || '操作失败'
+      wx.showModal({ title: '操作失败', content: msg, showCancel: false })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  async incStat(e: WechatMiniprogram.BaseEvent) {
+    const { uid, field, delta } = e.currentTarget.dataset as { uid: string; field: 'goals' | 'assists'; delta: number }
+    const reg = this._registrations.find((r: Registration) => r.uid === uid)
+    if (!reg) return
+    const next = {
+      goals: reg.goals ?? 0,
+      assists: reg.assists ?? 0,
+    }
+    next[field] = Math.max(0, next[field] + Number(delta))
+    try {
+      await wx.cloud.callFunction({
+        name: 'updateMatchStatus',
+        data: { action: 'setStat', matchId: this.data.matchId, uid, goals: next.goals, assists: next.assists },
+      })
+      this.loadMatch()
+    } catch {
+      wx.showToast({ title: '操作失败', icon: 'error' })
+    }
+  },
+
   async toggleTag(e: WechatMiniprogram.BaseEvent) {
-    const { uid, tag } = e.currentTarget.dataset as { uid: string; tag: 'late' | 'dangerous' }
+    const { uid, tag } = e.currentTarget.dataset as { uid: string; tag: MatchTag }
     const reg = this._registrations.find((r: Registration) => r.uid === uid)
     if (!reg) return
     const tags: MatchTag[] = reg.tags ?? []
@@ -567,8 +643,13 @@ Page({
       path: `/pages/match-detail/index?id=${matchId}`,
     }
     if (this._shareTempPath) return { ...base, imageUrl: this._shareTempPath }
-    return this._generateShareImage()
-      .then((imageUrl: string) => imageUrl ? { ...base, imageUrl } : base)
-      .catch(() => base)
+    // onShareAppMessage can't return a bare Promise — async results go in the
+    // `promise` field (base library ≥ 2.12.0), with `base` as the sync fallback.
+    return {
+      ...base,
+      promise: this._generateShareImage()
+        .then((imageUrl: string) => imageUrl ? { ...base, imageUrl } : base)
+        .catch(() => base),
+    }
   },
 })

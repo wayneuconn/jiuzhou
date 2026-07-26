@@ -77,6 +77,8 @@ export interface Match {
   captainB?: string | null
   draftState?: DraftState
   agreementText: string
+  scoreA?: number | null
+  scoreB?: number | null
   createdAt: number
 }
 
@@ -97,6 +99,8 @@ export interface Registration {
   team?: 'A' | 'B' | null
   paymentStatus?: PaymentSessionStatus | null
   tags?: MatchTag[]
+  goals?: number
+  assists?: number
 }
 
 export interface PlayerPosition {

@@ -63,8 +63,15 @@
         class="match-card match-card-past"
         bindtap="goToDetail"
         data-id="{{item.id}}">
-        <view style="font-size:30rpx;font-weight:700;color:#7A8FA6;">{{item.dateStr}}</view>
-        <view class="text-muted" style="font-size:26rpx;margin-top:4rpx;">{{item.location}}</view>
+        <view class="flex-row" style="justify-content:space-between;align-items:center;">
+          <view>
+            <view style="font-size:30rpx;font-weight:700;color:#7A8FA6;">{{item.dateStr}}</view>
+            <view class="text-muted" style="font-size:26rpx;margin-top:4rpx;">{{item.location}}</view>
+          </view>
+          <view wx:if="{{item.status === 'cancelled'}}" class="badge badge-red" style="flex-shrink:0;">已取消</view>
+          <view wx:elif="{{item.scoreA !== null && item.scoreA !== undefined}}"
+            style="font-size:34rpx;font-weight:900;color:#e8f0eb;flex-shrink:0;">{{item.scoreA}} : {{item.scoreB}}</view>
+        </view>
       </view>
     </view>
   </block>
