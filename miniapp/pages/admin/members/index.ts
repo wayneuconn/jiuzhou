@@ -6,9 +6,29 @@ const ROLE_LABEL: Record<string, string> = { admin: '管理员', member: '会员
 
 type MemberVM = User & { id: string; membershipLabel: string; membershipBadge: string; roleLabel: string; isBanned: boolean }
 
+const FILTERS = [
+  { key: 'nonAnnual', label: '非年卡' },
+  { key: 'annual', label: '年卡' },
+  { key: 'all', label: '全部' },
+]
+
+// createdAt may arrive as ISO string / {_seconds} / number depending on how
+// the serverDate serialized — normalize for sorting
+function toMs(v: unknown): number {
+  if (typeof v === 'number') return v
+  if (typeof v === 'string') return new Date(v).getTime() || 0
+  if (v && typeof v === 'object' && (v as { _seconds?: number })._seconds) {
+    return ((v as { _seconds: number })._seconds) * 1000
+  }
+  return 0
+}
+
 Page({
   data: {
     members: [] as MemberVM[],
+    filteredMembers: [] as MemberVM[],
+    filters: FILTERS,
+    filter: 'nonAnnual',
     loading: true,
   },
 
@@ -18,16 +38,32 @@ Page({
     this.setData({ loading: true })
     try {
       const res = await wx.cloud.callFunction({ name: 'adminGetMembers' }) as unknown as { result: { members: (User & { id: string })[] } }
-      const members: MemberVM[] = res.result.members.map(u => ({
-        ...u,
-        membershipLabel: MEMBERSHIP_LABEL[u.membershipType] ?? u.membershipType,
-        membershipBadge: MEMBERSHIP_BADGE[u.membershipType] ?? 'badge-grey',
-        roleLabel: ROLE_LABEL[u.role] ?? u.role,
-        isBanned: (u.banGamesLeft ?? 0) > 0,
-      }))
-      this.setData({ members })
+      const members: MemberVM[] = res.result.members
+        .map(u => ({
+          ...u,
+          membershipLabel: MEMBERSHIP_LABEL[u.membershipType] ?? u.membershipType,
+          membershipBadge: MEMBERSHIP_BADGE[u.membershipType] ?? 'badge-grey',
+          roleLabel: ROLE_LABEL[u.role] ?? u.role,
+          isBanned: (u.banGamesLeft ?? 0) > 0,
+        }))
+        .sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt))
+      this.setData({ members }, () => this.applyFilter())
     } catch (err) { console.error(err) }
     finally { this.setData({ loading: false }) }
+  },
+
+  applyFilter() {
+    const { members, filter } = this.data
+    const filteredMembers =
+      filter === 'annual' ? members.filter(m => m.membershipType === 'annual')
+      : filter === 'nonAnnual' ? members.filter(m => m.membershipType !== 'annual')
+      : members
+    this.setData({ filteredMembers })
+  },
+
+  setFilter(e: WechatMiniprogram.BaseEvent) {
+    const key = (e.currentTarget.dataset as { key: string }).key
+    this.setData({ filter: key }, () => this.applyFilter())
   },
 
   async changeMembership(e: WechatMiniprogram.BaseEvent) {
