@@ -106,7 +106,6 @@ Page({
     showRulesModal: false,
     statsDirty: false,
     captainPickerTeam: '' as 'A' | 'B' | '',
-    draftTurnTeam: '' as 'A' | 'B' | '',
     draftTurnLabel: '',
   },
 
@@ -290,11 +289,8 @@ Page({
 
       // Captain picker team (drives the single-button captain UI)
       const captainPickerTeam: 'A' | 'B' | '' = isCaptainA ? 'A' : isCaptainB ? 'B' : ''
-      // Whose turn it is in drafting
-      const draftTurnTeam = (isDraftPhase && match.draftState?.currentTurn) || ''
-      const draftTurnLabel = isDraftPhase
-        ? (draftTurnTeam === 'A' ? '现在队长 A 选人' : draftTurnTeam === 'B' ? '现在队长 B 选人' : '选人完成')
-        : ''
+      // Free-for-all drafting: both captains pick anytime, first tap wins
+      const draftTurnLabel = isDraftPhase ? '自由选人 · 先到先得' : ''
       // Hide team labels until drafting is fully complete (reveal moment), except for admins/captains.
       const draftComplete = match.status === 'ready' || match.status === 'completed'
       const showTeams = draftComplete || isAdmin || isCaptainA || isCaptainB
@@ -344,7 +340,6 @@ Page({
         scoreBInput: hasScore ? String(match.scoreB) : '',
         showTeams,
         captainPickerTeam,
-        draftTurnTeam,
         draftTurnLabel,
         filteredRoster: confirmedList,
         posFilter: 'all',

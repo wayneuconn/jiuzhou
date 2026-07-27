@@ -234,7 +234,7 @@
     <view wx:if="{{showDraft}}" style="margin-top:8rpx;">
       <view class="flex-row" style="justify-content:space-between;align-items:baseline;margin-bottom:16rpx;">
         <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;">选人</view>
-        <view wx:if="{{draftTurnLabel}}" style="font-size:24rpx;font-weight:700;color:{{draftTurnTeam === 'A' ? '#3B82F6' : '#EF4444'}};">
+        <view wx:if="{{draftTurnLabel}}" style="font-size:24rpx;font-weight:700;color:#F0B429;">
           {{draftTurnLabel}}
         </view>
       </view>
@@ -247,14 +247,13 @@
             <view wx:if="{{item.preferredPositions[0]}}" class="draft-player-pos">{{item.preferredPositions[0]}}</view>
           </view>
           <view class="draft-actions">
-            <view wx:if="{{captainPickerTeam && draftTurnTeam === captainPickerTeam}}"
+            <view wx:if="{{captainPickerTeam}}"
               class="pick-tap pick-tap-{{captainPickerTeam === 'A' ? 'a' : 'b'}}"
               bindtap="captainPick" data-uid="{{item.uid}}">选 → {{captainPickerTeam}}</view>
             <block wx:elif="{{isAdmin}}">
               <view class="pick-tap pick-tap-a" bindtap="assignTeam" data-uid="{{item.uid}}" data-team="A">→ A</view>
               <view class="pick-tap pick-tap-b" bindtap="assignTeam" data-uid="{{item.uid}}" data-team="B">→ B</view>
             </block>
-            <view wx:elif="{{captainPickerTeam}}" class="text-muted" style="font-size:22rpx;">等待对方选人</view>
           </view>
         </view>
       </view>

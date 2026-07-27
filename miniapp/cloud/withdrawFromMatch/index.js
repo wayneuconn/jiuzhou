@@ -162,7 +162,7 @@ exports.main = async (event, context) => {
       .count().catch(() => ({ total: 0 }))
     if ((unassignedSnap.total ?? 0) === 0) {
       await db.collection('matches').doc(matchId).update({
-        data: { status: 'ready', autoReady: true, 'draftState.currentTurn': null },
+        data: { status: 'ready', autoReady: true },
       }).catch(() => {})
     }
   }

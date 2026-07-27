@@ -5,19 +5,6 @@ const _ = db.command
 
 const VALID_STATUSES = ['draft', 'registration_r1', 'registration_r2', 'drafting', 'ready', 'completed', 'cancelled']
 
-// Snake draft turn for pick #i (0-based): A, B, B, A, A, B, B, A …
-// Captains are auto-assigned to their teams before pick #0.
-function turnForPick(i) {
-  if (i === 0) return 'A'
-  return Math.floor((i - 1) / 2) % 2 === 0 ? 'B' : 'A'
-}
-
-function buildPickOrder(remainingCount) {
-  const order = []
-  for (let i = 0; i < remainingCount; i++) order.push(turnForPick(i))
-  return order
-}
-
 // Minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
 function etOffsetMinutes(date) {
   const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC' })
@@ -140,32 +127,17 @@ exports.main = async (event) => {
 
     const updateData = { status, autoReady: false }
 
-    // Initialize draftState when entering drafting
-    let newDraftState = null
+    // Entering drafting: captains lock to their teams; picking itself is
+    // free-for-all (no turn order), so no draftState is needed.
     if (status === 'drafting' && match.status !== 'drafting') {
       if (!match.captainA || !match.captainB) throw new Error('captains required before drafting')
-      // Assign captains to their teams immediately
       const capAReg = matchId + '_' + match.captainA
       const capBReg = matchId + '_' + match.captainB
       await db.collection('registrations').doc(capAReg).update({ data: { team: 'A' } }).catch(() => {})
       await db.collection('registrations').doc(capBReg).update({ data: { team: 'B' } }).catch(() => {})
-      // Count remaining picks (confirmed/promoted minus captains)
-      const remainingSnap = await db.collection('registrations')
-        .where({ matchId, status: _.in(['confirmed', 'promoted']), uid: _.nin([match.captainA, match.captainB]) })
-        .count().catch(() => ({ total: 0 }))
-      const remaining = remainingSnap.total ?? 0
-      newDraftState = {
-        pickOrder: buildPickOrder(remaining),
-        pickIndex: 0,
-        currentTurn: 'A',
-      }
+      await db.collection('matches').doc(matchId).update({ data: { draftState: _.remove() } }).catch(() => {})
     }
 
-    if (newDraftState) {
-      // CloudBase can't set sub-fields when parent is null; first remove, then re-set.
-      await db.collection('matches').doc(matchId).update({ data: { draftState: _.remove() } }).catch(() => {})
-      updateData.draftState = newDraftState
-    }
     await db.collection('matches').doc(matchId).update({ data: updateData })
 
     // Opening R2 lifts the annual-only gate — drain the waitlist by priority

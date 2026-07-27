@@ -3,13 +3,8 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
-// Snake draft turn for pick #i (0-based): A, B, B, A, A, B, B, A …
-// Must match buildPickOrder in updateMatchStatus.
-function turnForPick(i) {
-  if (i === 0) return 'A'
-  return Math.floor((i - 1) / 2) % 2 === 0 ? 'B' : 'A'
-}
-
+// Free-for-all draft: either captain may pick any unassigned player at any
+// time — no turn order. First tap wins on conflicts.
 exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext()
   const { matchId, pickedUid } = event
@@ -26,46 +21,24 @@ exports.main = async (event) => {
   const team = callerUid === match.captainA ? 'A' : callerUid === match.captainB ? 'B' : null
   if (!team) throw new Error('captains only')
 
-  const draftState = match.draftState || {}
-  const curIndex = draftState.pickIndex ?? 0
-  if (draftState.currentTurn && draftState.currentTurn !== team) {
-    throw new Error('not your turn')
+  // Conditional update doubles as the lock: only succeeds while the player
+  // is still an unassigned member of the roster.
+  const regId = matchId + '_' + pickedUid
+  const res = await db.collection('registrations')
+    .where({ _id: regId, matchId, status: _.in(['confirmed', 'promoted']), team: null })
+    .update({ data: { team } })
+  if (!res.stats || res.stats.updated === 0) {
+    throw new Error('该球员已被选走或不在名单中，请刷新')
   }
 
-  // Verify pickedUid is unassigned + confirmed
-  const pickedRegSnap = await db.collection('registrations').doc(matchId + '_' + pickedUid).get().catch(() => ({ data: null }))
-  if (!pickedRegSnap.data || !['confirmed', 'promoted'].includes(pickedRegSnap.data.status)) {
-    throw new Error('player not in roster')
-  }
-  if (pickedRegSnap.data.team) throw new Error('player already assigned')
-
-  // Optimistic lock: bump pickIndex only if it hasn't moved since we read it.
-  // Blocks double-taps and simultaneous picks from both captains.
-  const lock = await db.collection('matches')
-    .where({ _id: matchId, status: 'drafting', 'draftState.pickIndex': curIndex })
-    .update({ data: { 'draftState.pickIndex': _.inc(1) } })
-  if (!lock.stats || lock.stats.updated === 0) {
-    throw new Error('选人状态已变化，请刷新后重试')
-  }
-
-  await db.collection('registrations').doc(matchId + '_' + pickedUid).update({ data: { team } })
-
-  // Completion is decided by the actual roster, not the pre-built pick order,
-  // so mid-draft withdrawals/promotions can't strand the draft.
+  // Draft completes when nobody is left unassigned
   const unassignedSnap = await db.collection('registrations')
     .where({ matchId, status: _.in(['confirmed', 'promoted']), team: null })
     .count().catch(() => ({ total: 0 }))
   const remaining = unassignedSnap.total ?? 0
-  const nextIndex = curIndex + 1
-  const nextTurn = remaining > 0 ? turnForPick(nextIndex) : null
-
-  await db.collection('matches').doc(matchId).update({
-    data: { 'draftState.currentTurn': nextTurn },
-  })
-
-  if (nextTurn === null) {
+  if (remaining === 0) {
     await db.collection('matches').doc(matchId).update({ data: { status: 'ready', autoReady: true } }).catch(() => {})
   }
 
-  return { success: true, nextTurn, team }
+  return { success: true, team, remaining }
 }
