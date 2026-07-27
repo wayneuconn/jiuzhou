@@ -23,9 +23,13 @@ Page({
       wx.showToast({ title: '请填写昵称', icon: 'none' })
       return
     }
+    const preferredPositions = POSITIONS.filter(p => this.data.selectedMap[p])
+    if (preferredPositions.length === 0) {
+      wx.showToast({ title: '请至少选择一个擅长位置', icon: 'none' })
+      return
+    }
     this.setData({ loading: true })
     try {
-      const preferredPositions = POSITIONS.filter(p => this.data.selectedMap[p])
       await wx.cloud.callFunction({
         name: 'updateProfile',
         data: {

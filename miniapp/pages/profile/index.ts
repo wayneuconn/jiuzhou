@@ -140,6 +140,10 @@ Page({
       wx.showToast({ title: '请填写名字', icon: 'none' })
       return
     }
+    if (this._currentPositions.length === 0) {
+      wx.showToast({ title: '请至少选择一个惯用位置', icon: 'none' })
+      return
+    }
     this.setData({ saving: true })
     try {
       await wx.cloud.callFunction({

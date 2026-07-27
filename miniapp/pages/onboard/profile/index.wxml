@@ -16,7 +16,7 @@
   </view>
 
   <view class="card" style="margin-top:16rpx;">
-    <view class="field-label">擅长位置</view>
+    <view class="field-label">擅长位置 <text style="color:#7A8FA6;font-weight:400;">（至少选 1 个）</text></view>
     <view class="position-row">
       <view
         wx:for="{{POSITIONS}}"

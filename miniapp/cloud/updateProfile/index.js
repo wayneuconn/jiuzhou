@@ -10,6 +10,9 @@ exports.main = async (event, context) => {
   if (!displayName || typeof displayName !== 'string' || displayName.trim().length === 0) {
     throw new Error('displayName required')
   }
+  if (!Array.isArray(preferredPositions) || preferredPositions.length === 0) {
+    throw new Error('请至少选择一个位置')
+  }
 
   const existing = await db.collection('users').where({ openid: OPENID }).limit(1).get()
   const profileData = {
