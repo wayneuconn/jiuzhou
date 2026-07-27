@@ -44,6 +44,18 @@ App<JiuzhouAppOption>({
     this.loginReady = this.autoLogin()
   },
 
+  // Hot start (re-entry while the process is still alive) skips onLaunch, so
+  // someone who abandoned onboarding would strand on a blank identity-less
+  // page. Re-check on every foreground and steer them back to the form.
+  async onShow() {
+    await (this.loginReady ?? Promise.resolve()).catch(() => {})
+    const { openid, userProfile } = this.globalData
+    if (userProfile?.displayName) return
+    // openid present but no profile → onboarding incomplete; no openid means
+    // login itself failed and autoLogin already routed to the login page.
+    if (openid) this._redirectWithRetry('/pages/onboard/profile/index', true)
+  },
+
   async autoLogin() {
     try {
       const { code } = await wx.login()
