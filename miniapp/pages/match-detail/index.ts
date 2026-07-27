@@ -44,7 +44,7 @@ interface RegVM extends Registration {
   canRemove: boolean
 }
 
-type ActionState = 'cancelled' | 'promoted' | 'confirmed' | 'waitlist' | 'excused' | 'canRegister' | 'canWaitlist' | 'r1Blocked' | 'banned' | 'closed' | 'loading'
+type ActionState = 'cancelled' | 'promoted' | 'confirmed' | 'waitlist' | 'excused' | 'canRegister' | 'canWaitlist' | 'r1Blocked' | 'banned' | 'needProfile' | 'closed' | 'loading'
 
 Page({
   data: {
@@ -220,7 +220,9 @@ Page({
       let actionState: ActionState = 'loading'
       let waitlistBtnText = ''
       if (!user) {
-        actionState = 'closed'
+        // New visitor from a shared link who hasn't completed onboarding —
+        // give them an explicit path in instead of a dead "报名已关闭".
+        actionState = isOpen ? 'needProfile' : 'closed'
       } else if (match.status === 'cancelled') {
         actionState = 'cancelled'
       } else if (notRegistered && isOpen && banLeft > 0) {
@@ -390,6 +392,12 @@ Page({
   },
 
   goHome() { wx.switchTab({ url: '/pages/home/index' }) },
+
+  goOnboard() {
+    const app = getApp<{ globalData: { pendingRoute: string | null } }>()
+    app.globalData.pendingRoute = `/pages/match-detail/index?id=${this.data.matchId}`
+    wx.redirectTo({ url: '/pages/onboard/profile/index' })
+  },
 
   openAgreementModal()  { this.setData({ showAgreementModal: true }) },
   closeAgreementModal() { this.setData({ showAgreementModal: false }) },

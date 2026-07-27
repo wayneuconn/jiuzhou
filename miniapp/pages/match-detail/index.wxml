@@ -132,6 +132,11 @@
       <view class="text-muted" style="font-size:24rpx;margin-top:8rpx;">还剩 {{banLeft}} 场解禁，如有疑问请联系管理员</view>
     </view>
 
+    <!-- needProfile (new visitor, not onboarded yet) -->
+    <button wx:elif="{{actionState === 'needProfile'}}" class="btn-primary" bindtap="goOnboard">
+      完善资料，立即报名 →
+    </button>
+
     <!-- closed -->
     <view wx:elif="{{actionState === 'closed'}}" class="action-card action-neutral">
       <view class="text-muted">报名已关闭</view>

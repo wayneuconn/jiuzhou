@@ -14,6 +14,7 @@ interface JiuzhouAppOption {
   loginReady: Promise<void>
   autoLogin: () => Promise<void>
   refreshUserProfile: () => Promise<User | null>
+  _redirectWithRetry: (url: string, capturePending: boolean, attempt?: number) => void
 }
 
 App<JiuzhouAppOption>({
@@ -57,23 +58,36 @@ App<JiuzhouAppOption>({
       if (!result.user?.displayName) {
         // Remember where the user was heading (e.g. a shared match link) so
         // onboarding can send them back instead of dropping them on home.
-        setTimeout(() => {
-          const pages = getCurrentPages()
-          const cur = pages[pages.length - 1]
-          if (cur && cur.route !== 'pages/onboard/profile/index') {
-            const qs = Object.entries(cur.options || {})
-              .map(([k, v]) => `${k}=${v}`)
-              .join('&')
-            this.globalData.pendingRoute = `/${cur.route}${qs ? '?' + qs : ''}`
-          }
-          wx.redirectTo({ url: '/pages/onboard/profile/index' })
-        }, 0)
+        this._redirectWithRetry('/pages/onboard/profile/index', true)
       }
       // If user has a displayName they're good; phone binding is optional
     } catch (err) {
       console.error('autoLogin failed', err)
-      setTimeout(() => wx.redirectTo({ url: '/pages/login/index' }), 0)
+      this._redirectWithRetry('/pages/login/index', false)
     }
+  },
+
+  // At cold start the entry page may still be loading, in which case
+  // wx.redirectTo fails silently — new users then strand on the shared match
+  // page seeing 报名已关闭. Retry until the page stack is ready.
+  _redirectWithRetry(url: string, capturePending: boolean, attempt = 0) {
+    if (attempt >= 6) return
+    setTimeout(() => {
+      const pages = getCurrentPages()
+      const cur = pages[pages.length - 1]
+      if (!cur) { this._redirectWithRetry(url, capturePending, attempt + 1); return }
+      if ('/' + cur.route === url) return
+      if (capturePending && cur.route !== 'pages/onboard/profile/index') {
+        const qs = Object.entries(cur.options || {})
+          .map(([k, v]) => `${k}=${v}`)
+          .join('&')
+        this.globalData.pendingRoute = `/${cur.route}${qs ? '?' + qs : ''}`
+      }
+      wx.redirectTo({
+        url,
+        fail: () => this._redirectWithRetry(url, capturePending, attempt + 1),
+      })
+    }, attempt === 0 ? 0 : 400)
   },
 
   async refreshUserProfile() {
