@@ -144,6 +144,10 @@ exports.main = async (event, context) => {
   if (event.friendName !== undefined) {
     const friendName = (event.friendName || '').toString().trim().slice(0, 20)
     if (!friendName) throw new Error('请填写朋友称呼')
+    const friendPositions = Array.isArray(event.friendPositions)
+      ? event.friendPositions.filter(p => typeof p === 'string').slice(0, 3)
+      : []
+    if (friendPositions.length === 0) throw new Error('请为朋友选至少一个位置')
     if (user.role !== 'admin' && user.membershipType !== 'annual') {
       throw new Error('仅年卡会员可以带朋友')
     }
@@ -163,7 +167,7 @@ exports.main = async (event, context) => {
         matchId,
         uid: friendUid,
         displayName: friendName,
-        preferredPositions: [],
+        preferredPositions: friendPositions,
         registeredAt: db.serverDate(),
         status: 'waitlist',
         waitlistPosition: position,

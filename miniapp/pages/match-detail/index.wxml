@@ -335,7 +335,7 @@
 
   <!-- ── Agreement modal ───────────────────────────────────────────────── -->
   <view wx:if="{{showAgreementModal}}" class="modal-overlay" bindtap="closeAgreementModal">
-    <view class="modal-sheet" catchtap="">
+    <view class="modal-sheet" catchtap="noop">
       <view class="modal-handle"></view>
       <view style="font-size:36rpx;font-weight:900;color:#e8f0eb;margin-bottom:20rpx;">报名须知</view>
       <scroll-view scroll-y style="max-height:320rpx;margin-bottom:32rpx;">
@@ -350,7 +350,7 @@
 
   <!-- ── Waitlist modal ────────────────────────────────────────────────── -->
   <view wx:if="{{showWaitlistModal}}" class="modal-overlay" bindtap="closeWaitlistModal">
-    <view class="modal-sheet" catchtap="">
+    <view class="modal-sheet" catchtap="noop">
       <view class="modal-handle"></view>
       <view style="font-size:36rpx;font-weight:900;color:#e8f0eb;margin-bottom:12rpx;">加入候补</view>
       <view class="text-muted" style="font-size:26rpx;margin-bottom:24rpx;line-height:1.7;">
@@ -377,7 +377,7 @@
 
   <!-- ── Bring-a-friend modal ──────────────────────────────────────────── -->
   <view wx:if="{{showFriendModal}}" class="modal-overlay" bindtap="closeFriendModal">
-    <view class="modal-sheet" catchtap="">
+    <view class="modal-sheet" catchtap="noop">
       <view class="modal-handle"></view>
       <view style="font-size:36rpx;font-weight:900;color:#e8f0eb;margin-bottom:12rpx;">帮朋友报名候补</view>
       <view class="text-muted" style="font-size:26rpx;margin-bottom:24rpx;line-height:1.7;">
@@ -385,6 +385,13 @@
       </view>
       <input class="friend-input" placeholder="朋友称呼，例：小李（王强朋友）" value="{{friendName}}"
         bindinput="onFriendNameInput" adjust-position="{{false}}"/>
+      <view class="text-muted" style="font-size:22rpx;margin:24rpx 0 12rpx;">擅长位置（至少 1 个，最多 3 个）</view>
+      <view style="display:flex;flex-direction:row;flex-wrap:wrap;">
+        <view wx:for="{{allPositions}}" wx:key="*this"
+          class="pos-filter-btn {{friendPosMap[item] ? 'active' : ''}}"
+          style="margin-bottom:12rpx;"
+          bindtap="toggleFriendPos" data-pos="{{item}}">{{item}}</view>
+      </view>
       <view class="flex-row" style="gap:16rpx;margin-top:32rpx;">
         <button class="modal-btn-ghost" bindtap="closeFriendModal">取消</button>
         <button class="modal-btn-teal" bindtap="addFriend" disabled="{{busy}}">{{busy ? '处理中...' : '加入候补'}}</button>
@@ -394,7 +401,7 @@
 
   <!-- ── Rules modal ───────────────────────────────────────────────────── -->
   <view wx:if="{{showRulesModal}}" class="modal-overlay" bindtap="closeRulesModal">
-    <view class="modal-sheet" catchtap="">
+    <view class="modal-sheet" catchtap="noop">
       <view class="modal-handle"></view>
       <view style="font-size:36rpx;font-weight:900;color:#e8f0eb;margin-bottom:20rpx;">报名规则</view>
       <scroll-view scroll-y style="max-height:640rpx;margin-bottom:32rpx;">

@@ -28,6 +28,8 @@ const POS_GROUPS = [
   { key: 'FWD', label: 'FWD', positions: ['LW', 'RW', 'ST'] },
 ]
 
+const ALL_POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST']
+
 interface RegVM extends Registration {
   statusLabel: string
   isCaptainA: boolean
@@ -99,6 +101,8 @@ Page({
     scheduleLine2: '',
     showFriendModal: false,
     friendName: '',
+    allPositions: ALL_POSITIONS,
+    friendPosMap: {} as Record<string, boolean>,
     showRulesModal: false,
     statsDirty: false,
     captainPickerTeam: '' as 'A' | 'B' | '',
@@ -393,6 +397,9 @@ Page({
 
   goHome() { wx.switchTab({ url: '/pages/home/index' }) },
 
+  // catch handler for modal content taps — stops propagation to the overlay
+  noop() {},
+
   goOnboard() {
     const app = getApp<{ globalData: { pendingRoute: string | null } }>()
     app.globalData.pendingRoute = `/pages/match-detail/index?id=${this.data.matchId}`
@@ -405,19 +412,35 @@ Page({
   closeWaitlistModal()  { this.setData({ showWaitlistModal: false }) },
   openRulesModal()      { this.setData({ showRulesModal: true }) },
   closeRulesModal()     { this.setData({ showRulesModal: false }) },
-  openFriendModal()     { this.setData({ showFriendModal: true, friendName: '' }) },
+  openFriendModal()     { this.setData({ showFriendModal: true, friendName: '', friendPosMap: {} }) },
   closeFriendModal()    { this.setData({ showFriendModal: false }) },
   onFriendNameInput(e: WechatMiniprogram.Input) { this.setData({ friendName: e.detail.value }) },
+
+  toggleFriendPos(e: WechatMiniprogram.BaseEvent) {
+    const pos = (e.currentTarget.dataset as { pos: string }).pos
+    const map = this.data.friendPosMap
+    const selectedCount = ALL_POSITIONS.filter(p => map[p]).length
+    if (!map[pos] && selectedCount >= 3) {
+      wx.showToast({ title: '最多选 3 个位置', icon: 'none' })
+      return
+    }
+    this.setData({ [`friendPosMap.${pos}`]: !map[pos] })
+  },
   toggleAutoAccept()    { this.setData({ autoAccept: !this.data.autoAccept }) },
 
   async addFriend() {
     const name = this.data.friendName.trim()
     if (!name) { wx.showToast({ title: '请填写朋友称呼', icon: 'none' }); return }
+    const friendPositions = ALL_POSITIONS.filter(p => this.data.friendPosMap[p])
+    if (friendPositions.length === 0) {
+      wx.showToast({ title: '请为朋友选至少一个位置', icon: 'none' })
+      return
+    }
     this.setData({ busy: true })
     try {
       const res = await wx.cloud.callFunction({
         name: 'registerForMatch',
-        data: { matchId: this.data.matchId, friendName: name },
+        data: { matchId: this.data.matchId, friendName: name, friendPositions },
       }) as unknown as { result: { status: string } }
       wx.showToast({ title: res.result.status === 'confirmed' ? '朋友已进名单' : '朋友已加入候补', icon: 'success' })
       this.setData({ showFriendModal: false })
