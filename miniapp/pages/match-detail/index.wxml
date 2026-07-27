@@ -74,16 +74,16 @@
     <!-- confirmed -->
     <view wx:elif="{{actionState === 'confirmed'}}" class="action-card action-confirmed">
       <view class="flex-row" style="justify-content:space-between;align-items:center;">
-        <view>
-          <view style="font-size:28rpx;font-weight:900;color:#00C9A7;letter-spacing:2rpx;">已报名</view>
-          <view class="text-muted" style="font-size:24rpx;margin-top:6rpx;">
+        <view style="flex-shrink:0;margin-right:16rpx;">
+          <view style="font-size:28rpx;font-weight:900;color:#00C9A7;letter-spacing:2rpx;white-space:nowrap;">已报名</view>
+          <view class="text-muted" style="font-size:24rpx;margin-top:6rpx;white-space:nowrap;">
             第 {{myRoster}} 位<text wx:if="{{myReg.team && showTeams}}"> · Team {{myReg.team}}</text>
           </view>
         </view>
-        <view class="flex-row" style="gap:12rpx;">
-          <button wx:if="{{canBringFriend}}" class="inline-btn" bindtap="openFriendModal" disabled="{{busy}}">+带朋友</button>
+        <view class="flex-row" style="flex:1;min-width:0;justify-content:flex-end;gap:12rpx;">
+          <button wx:if="{{canBringFriend}}" class="inline-btn" style="flex:none;" bindtap="openFriendModal" disabled="{{busy}}">+带朋友</button>
           <button wx:if="{{match.status === 'registration_r1' || match.status === 'registration_r2'}}"
-            class="inline-btn" bindtap="excuse" disabled="{{busy}}">请假</button>
+            class="inline-btn" style="flex:none;" bindtap="excuse" disabled="{{busy}}">请假</button>
         </view>
       </view>
     </view>
@@ -91,11 +91,11 @@
     <!-- waitlist -->
     <view wx:elif="{{actionState === 'waitlist'}}" class="action-card">
       <view class="flex-row" style="justify-content:space-between;align-items:center;">
-        <view>
-          <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;">候补</view>
-          <view class="text-muted" style="font-size:24rpx;margin-top:6rpx;">当前第 {{myWaitRank}} 顺位</view>
+        <view style="flex-shrink:0;margin-right:16rpx;">
+          <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;white-space:nowrap;">候补</view>
+          <view class="text-muted" style="font-size:24rpx;margin-top:6rpx;white-space:nowrap;">当前第 {{myWaitRank}} 顺位</view>
         </view>
-        <button class="inline-btn-danger" bindtap="withdraw" disabled="{{busy}}">退出</button>
+        <button class="inline-btn-danger" style="flex:none;" bindtap="withdraw" disabled="{{busy}}">退出</button>
       </view>
     </view>
 
