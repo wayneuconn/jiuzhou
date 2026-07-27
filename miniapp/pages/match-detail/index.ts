@@ -565,12 +565,24 @@ Page({
   },
 
   async excuse() {
-    const res = await wx.showModal({ title: '确认请假？', content: '请假后可随时重新报名', confirmColor: '#F0B429' })
+    // R2 onward it's close to kickoff — nudge people to announce in the group
+    const lateExcuse = this.data.match?.status !== 'registration_r1'
+    const res = await wx.showModal({
+      title: '确认请假？',
+      content: lateExcuse
+        ? '已进入 R2 阶段，请假后请务必在微信群里说一声，方便队友补位'
+        : '请假后可随时重新报名',
+      confirmColor: '#F0B429',
+    })
     if (!res.confirm) return
     this.setData({ busy: true })
     try {
       await wx.cloud.callFunction({ name: 'withdrawFromMatch', data: { matchId: this.data.matchId, mode: 'excuse' } })
-      wx.showToast({ title: '已请假', icon: 'success' })
+      if (lateExcuse) {
+        wx.showModal({ title: '已请假', content: '记得在微信群里告知大家 🙏', showCancel: false, confirmText: '知道了' })
+      } else {
+        wx.showToast({ title: '已请假', icon: 'success' })
+      }
       this.loadMatch()
     } catch {
       wx.showToast({ title: '操作失败', icon: 'error' })
