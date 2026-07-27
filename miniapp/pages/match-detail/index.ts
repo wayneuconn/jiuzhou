@@ -139,15 +139,29 @@ Page({
       // Cold start: the page loads before autoLogin resolves — wait for it,
       // otherwise a logged-in user is rendered as logged-out ("报名已关闭").
       await (app.loginReady ?? Promise.resolve()).catch(() => {})
-      const user = app.globalData.userProfile
 
       const cfRes = await wx.cloud.callFunction({
         name: 'getMatchDetail',
         data: { matchId: this.data.matchId },
-      }) as unknown as { result: { match: Match; registrations: Registration[]; agreementText: string } }
+      }) as unknown as {
+        result: {
+          match: Match
+          registrations: Registration[]
+          agreementText: string
+          callerInfo: { membershipType: string; role: string; banGamesLeft: number } | null
+        }
+      }
 
-      const { match, registrations, agreementText } = cfRes.result
+      const { match, registrations, agreementText, callerInfo } = cfRes.result
       this._registrations = registrations
+
+      // Overlay the server's fresh identity on the login-time snapshot, so a
+      // membership change by an admin takes effect without an app restart.
+      let user = app.globalData.userProfile
+      if (user && callerInfo) {
+        user = { ...user, ...callerInfo } as typeof user
+        app.globalData.userProfile = user
+      }
 
       const isAdmin = user?.role === 'admin'
 

@@ -55,5 +55,12 @@ exports.main = async (event, context) => {
     formation,
     callerTeam,
     callerUid: callerUid ?? null,
+    // Fresh identity for the action-state logic — globalData on the client is
+    // a login-time snapshot and goes stale when an admin changes membership.
+    callerInfo: caller ? {
+      membershipType: caller.membershipType ?? 'none',
+      role: caller.role ?? 'guest',
+      banGamesLeft: caller.banGamesLeft ?? 0,
+    } : null,
   }
 }
