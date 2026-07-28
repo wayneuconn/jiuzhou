@@ -4,6 +4,9 @@ Mobile-first web app for managing a recreational football team (~30–50 players
 
 **Live:** https://jiuzhou-493217.web.app
 
+## Contributor
+@davidli1997
+
 ---
 
 ## Tech Stack
