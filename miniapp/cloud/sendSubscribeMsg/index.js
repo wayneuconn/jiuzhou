@@ -8,6 +8,9 @@ const TEMPLATES = {
   // 会员申请审批提醒 — pick an approval-style template at mp.weixin.qq.com and
   // paste its ID here; until then these sends are silently skipped.
   membershipApplied: 'REPLACE_WITH_TEMPLATE_ID',
+  // 管理员事件提醒（请假/退出/满员）— generic status-alert template; can be
+  // the same template ID as membershipApplied if its fields fit both.
+  adminAlert: 'REPLACE_WITH_TEMPLATE_ID',
 }
 
 exports.main = async (event, context) => {

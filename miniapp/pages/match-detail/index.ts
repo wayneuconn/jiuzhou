@@ -1,5 +1,6 @@
 import type { Match, Registration, MatchTag } from '../../types/index'
 import { formatDate, STATUS_LABEL, STATUS_BADGE, REG_STATUS_LABEL } from '../../utils/format'
+import { bankAdminSubscribe } from '../../utils/subscribe'
 
 function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath()
@@ -469,6 +470,7 @@ Page({
   },
 
   async bumpWait(e: WechatMiniprogram.BaseEvent) {
+    bankAdminSubscribe()
     const { uid, name } = e.currentTarget.dataset as { uid: string; name: string }
     const res = await wx.showModal({ title: `直接把 ${name} 提进名单？`, content: '', confirmColor: '#00C9A7' })
     if (!res.confirm) return
@@ -623,6 +625,7 @@ Page({
   onScoreBInput(e: WechatMiniprogram.Input) { this.setData({ scoreBInput: e.detail.value }) },
 
   async saveScore() {
+    bankAdminSubscribe()
     const scoreA = parseInt(this.data.scoreAInput, 10)
     const scoreB = parseInt(this.data.scoreBInput, 10)
     if (isNaN(scoreA) || isNaN(scoreB) || scoreA < 0 || scoreB < 0) {
@@ -685,6 +688,7 @@ Page({
   },
 
   async toggleTag(e: WechatMiniprogram.BaseEvent) {
+    bankAdminSubscribe()
     const { uid, tag } = e.currentTarget.dataset as { uid: string; tag: MatchTag }
     const reg = this._registrations.find((r: Registration) => r.uid === uid)
     if (!reg) return

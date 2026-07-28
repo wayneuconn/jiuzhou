@@ -95,6 +95,36 @@ async function promoteFromWaitlist(matchId) {
   await recalcMatchState(matchId)
 }
 
+// Best-effort admin alert (满员) — consumes banked one-time subscribe quota;
+// silently skipped when the template isn't configured or quota is dry.
+async function notifyAdminsFull(matchId, match) {
+  try {
+    const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] }))
+    const d = new Date(match.date)
+    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    for (const admin of adminsSnap.data) {
+      if (!admin.openid) continue
+      try {
+        await cloud.callFunction({
+          name: 'sendSubscribeMsg',
+          data: {
+            type: 'adminAlert',
+            toOpenid: admin.openid,
+            data: {
+              page: `/pages/match-detail/index?id=${matchId}`,
+              templateData: {
+                thing1: { value: '报名已满员' },
+                thing2: { value: `已报${match.maxPlayers}/${match.maxPlayers}`.slice(0, 20) },
+                time3: { value: timeStr },
+              },
+            },
+          },
+        })
+      } catch (_) {}
+    }
+  } catch (_) {}
+}
+
 async function notifyPromoted(matchId, match, uid, waitlistMinutes, isGuestNotice) {
   try {
     const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
@@ -225,6 +255,10 @@ exports.main = async (event, context) => {
     let reStatus = mustWait ? 'waitlist' : 'confirmed'
     if (!mustWait) reStatus = await resolveOverflow(matchId, regId, match.maxPlayers)
     await promoteFromWaitlist(matchId)
+    // Edge-trigger: this signup just filled the roster
+    if (reStatus === 'confirmed' && confirmedCount + 1 >= match.maxPlayers) {
+      await notifyAdminsFull(matchId, match)
+    }
     return { status: reStatus }
   }
 
@@ -247,6 +281,10 @@ exports.main = async (event, context) => {
   let status = mustWait ? 'waitlist' : 'confirmed'
   if (!mustWait) status = await resolveOverflow(matchId, regId, match.maxPlayers)
   await promoteFromWaitlist(matchId)
+  // Edge-trigger: this signup just filled the roster
+  if (status === 'confirmed' && confirmedCount + 1 >= match.maxPlayers) {
+    await notifyAdminsFull(matchId, match)
+  }
   return { status }
 }
 

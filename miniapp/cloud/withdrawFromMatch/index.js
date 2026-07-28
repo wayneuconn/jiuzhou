@@ -76,6 +76,41 @@ async function promoteFromWaitlist(matchId) {
   await recalcMatchState(matchId)
 }
 
+// Best-effort admin alert (请假/退出) — consumes banked one-time subscribe
+// quota; silently skipped when the template isn't configured or quota is dry.
+async function notifyAdmins(matchId, match, text) {
+  try {
+    const [cnt, wl, adminsSnap] = await Promise.all([
+      db.collection('registrations').where({ matchId, status: _.in(['confirmed', 'promoted']) }).count().catch(() => ({ total: 0 })),
+      db.collection('registrations').where({ matchId, status: 'waitlist' }).count().catch(() => ({ total: 0 })),
+      db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] })),
+    ])
+    const d = new Date(match.date)
+    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    const detail = `已报${cnt.total ?? 0}/${match.maxPlayers} 候补${wl.total ?? 0}`
+    for (const admin of adminsSnap.data) {
+      if (!admin.openid) continue
+      try {
+        await cloud.callFunction({
+          name: 'sendSubscribeMsg',
+          data: {
+            type: 'adminAlert',
+            toOpenid: admin.openid,
+            data: {
+              page: `/pages/match-detail/index?id=${matchId}`,
+              templateData: {
+                thing1: { value: text.slice(0, 20) },
+                thing2: { value: detail.slice(0, 20) },
+                time3: { value: timeStr },
+              },
+            },
+          },
+        })
+      } catch (_) {}
+    }
+  } catch (_) {}
+}
+
 async function notifyPromoted(matchId, match, uid, waitlistMinutes, isGuestNotice) {
   try {
     const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
@@ -192,5 +227,10 @@ exports.main = async (event, context) => {
 
   if (wasConfirmed || friendFreedSlot) await promoteFromWaitlist(matchId)
   else await recalcMatchState(matchId)
+
+  // A confirmed player leaving is what admins need to know about (补位)
+  if (wasConfirmed) {
+    await notifyAdmins(matchId, match, `${user.displayName ?? '有人'} ${newStatus === 'excused' ? '请假' : '退出'}了`)
+  }
   return { success: true }
 }

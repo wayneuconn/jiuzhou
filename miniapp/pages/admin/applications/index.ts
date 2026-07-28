@@ -1,5 +1,6 @@
 import type { MembershipApplication } from '../../../types/index'
 import { formatDateShort } from '../../../utils/format'
+import { bankAdminSubscribe } from '../../../utils/subscribe'
 
 const TYPE_LABEL: Record<string, string> = { annual: '年卡', per_session: '次卡', none: '未激活' }
 const STATUS_LABEL: Record<string, string> = { approved: '已批准', rejected: '已拒绝', cancelled: '已撤回' }
@@ -47,6 +48,7 @@ Page({
   },
 
   async approve(e: WechatMiniprogram.BaseEvent) {
+    bankAdminSubscribe()
     const { id, name, type } = e.currentTarget.dataset as { id: string; name: string; type: string }
     const res = await wx.showModal({
       title: `批准 ${name} 的${type}申请？`,

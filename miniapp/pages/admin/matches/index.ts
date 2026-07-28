@@ -1,5 +1,6 @@
 import type { Match } from '../../../types/index'
 import { formatDate, STATUS_LABEL, STATUS_BADGE } from '../../../utils/format'
+import { bankAdminSubscribe } from '../../../utils/subscribe'
 
 const STATUS_NEXT: Record<string, string> = {
   draft: 'registration_r1',
@@ -150,6 +151,7 @@ Page({
   },
 
   async advanceStatus(e: WechatMiniprogram.BaseEvent) {
+    bankAdminSubscribe()
     const { id, next } = e.currentTarget.dataset as { id: string; next: string }
     const label = ACTION_LABEL[next] ?? STATUS_LABEL[next] ?? next
     const res = await wx.showModal({ title: `确认「${label}」？`, content: '', confirmColor: '#00C9A7' })
