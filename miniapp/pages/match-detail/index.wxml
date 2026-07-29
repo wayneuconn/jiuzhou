@@ -400,7 +400,7 @@
       <view class="modal-handle"></view>
       <view style="font-size:36rpx;font-weight:900;color:#e8f0eb;margin-bottom:12rpx;">帮朋友报名候补</view>
       <view class="text-muted" style="font-size:26rpx;margin-bottom:24rpx;line-height:1.7;">
-        朋友将加入候补，优先级在年卡本人之后、次卡之前，有空位时自动递补（每人最多带 2 位）。
+        朋友将加入候补，优先级在年卡本人之后、次卡之前，有空位时自动递补（每人最多带 2 位）。递补成功后请咨询管理员缴纳次卡费用。
       </view>
       <input class="friend-input" placeholder="朋友称呼，例：小李（王强朋友）" value="{{friendName}}"
         bindinput="onFriendNameInput" adjust-position="{{false}}"/>

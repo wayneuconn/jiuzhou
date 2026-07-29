@@ -130,7 +130,7 @@ async function notifyPromoted(matchId, match, uid, waitlistMinutes, isGuestNotic
             thing2: { value: '九州足球比赛' },
             time4: { value: timeStr },
             thing5: { value: (match.location || '待定').slice(0, 20) },
-            thing6: { value: isGuestNotice ? '你带的朋友已递补进名单' : `请在 ${waitlistMinutes} 分钟内确认报名` },
+            thing6: { value: isGuestNotice ? '朋友已递补进名单,请咨询管理员缴费' : `请在 ${waitlistMinutes} 分钟内确认报名` },
           },
         },
       },
