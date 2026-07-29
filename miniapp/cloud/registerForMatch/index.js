@@ -223,6 +223,11 @@ exports.main = async (event, context) => {
   }
 
   // ── self registration ──────────────────────────────────────────────────────
+  // Membership gate: shared links spread freely, but only vetted members
+  // (annual/次卡, assigned by admins or via the application flow) can register.
+  if (user.role !== 'admin' && !['annual', 'per_session'].includes(user.membershipType)) {
+    throw new Error('报名需要会员身份：请联系管理员开通，或在「我的」页申请次卡/年卡')
+  }
   const myTier = tierFor(user)
   const isR1 = match.status === 'registration_r1'
   if (isR1 && myTier !== 1 && user.membershipType !== 'per_session') {

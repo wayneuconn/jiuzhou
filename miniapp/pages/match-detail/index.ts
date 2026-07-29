@@ -55,7 +55,7 @@ interface RegVM extends Registration {
   canRemove: boolean
 }
 
-type ActionState = 'cancelled' | 'promoted' | 'confirmed' | 'waitlist' | 'excused' | 'canRegister' | 'canWaitlist' | 'r1Blocked' | 'banned' | 'needProfile' | 'closed' | 'loading'
+type ActionState = 'cancelled' | 'promoted' | 'confirmed' | 'waitlist' | 'excused' | 'canRegister' | 'canWaitlist' | 'r1Blocked' | 'banned' | 'needProfile' | 'needMembership' | 'closed' | 'loading'
 
 Page({
   data: {
@@ -243,6 +243,10 @@ Page({
         actionState = 'cancelled'
       } else if (notRegistered && waitlistOpen && banLeft > 0) {
         actionState = 'banned'
+      } else if (notRegistered && waitlistOpen && !isAdmin
+        && user.membershipType !== 'annual' && user.membershipType !== 'per_session') {
+        // Unvetted visitor (shared link) — must get membership first
+        actionState = 'needMembership'
       } else if (myReg?.status === 'promoted') {
         actionState = 'promoted'
       } else if (myReg?.status === 'confirmed') {
@@ -418,6 +422,10 @@ Page({
     const app = getApp<{ globalData: { pendingRoute: string | null } }>()
     app.globalData.pendingRoute = `/pages/match-detail/index?id=${this.data.matchId}`
     wx.redirectTo({ url: '/pages/onboard/profile/index' })
+  },
+
+  goApplyMembership() {
+    wx.switchTab({ url: '/pages/profile/index' })
   },
 
   openAgreementModal()  { this.setData({ showAgreementModal: true }) },
