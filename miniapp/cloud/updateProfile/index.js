@@ -33,9 +33,9 @@ exports.main = async (event, context) => {
         openid: OPENID,
         phone: '',
         role: 'guest',
-        // Everyone starts as 次卡 — can waitlist in R1 and register in R2;
-        // annual is granted by admin or via the application flow.
-        membershipType: 'per_session',
+        // New users start unassigned — admins grant 次卡/年卡 manually in
+        // 成员管理, or via the application flow.
+        membershipType: 'none',
         attendanceCount: 0,
         lateCount: 0,
         dangerousCount: 0,
