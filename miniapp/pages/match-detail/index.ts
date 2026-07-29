@@ -39,6 +39,16 @@ const POS_GROUPS = [
 
 const ALL_POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST']
 
+// Cloud-function errors arrive wrapped in CloudBase stack noise — pull out
+// the human message ("errMsg: Error: <text> at ...") or fall back.
+function errText(err: unknown, fallback: string): string {
+  const raw = (err as { errMsg?: string; message?: string })?.errMsg
+    || (err as Error)?.message || ''
+  const m = raw.match(/errMsg:\s*Error:\s*([^]+?)(?:\s+at\s|$)/)
+  const text = (m ? m[1] : raw).trim()
+  return text && text.length <= 60 ? text : fallback
+}
+
 interface RegVM extends Registration {
   statusLabel: string
   isCaptainA: boolean
@@ -126,6 +136,8 @@ Page({
   },
 
   _timerInterval: null as ReturnType<typeof setInterval> | null,
+  _draftPoll: null as ReturnType<typeof setInterval> | null,
+  _loading: false,
   _registrations: [] as Registration[],
   _confirmedListRaw: [] as RegVM[],
   _shareTempPath: '' as string,
@@ -144,13 +156,29 @@ Page({
     if (this.data.matchId) this.loadMatch()
   },
 
-  onUnload() {
-    if (this._timerInterval) clearInterval(this._timerInterval)
+  onHide() {
+    this._stopDraftPoll()
   },
 
-  async loadMatch() {
-    if (!this.data.matchId) return
-    this.setData({ loading: true, loadError: false })
+  onUnload() {
+    if (this._timerInterval) clearInterval(this._timerInterval)
+    this._stopDraftPoll()
+  },
+
+  // Free-for-all drafting: the other captain's picks don't push to this page,
+  // so poll silently while the draft is live to keep the lists current.
+  _startDraftPoll() {
+    if (this._draftPoll) return
+    this._draftPoll = setInterval(() => this.loadMatch(true), 4000)
+  },
+  _stopDraftPoll() {
+    if (this._draftPoll) { clearInterval(this._draftPoll); this._draftPoll = null }
+  },
+
+  async loadMatch(silent = false) {
+    if (!this.data.matchId || this._loading) return
+    this._loading = true
+    if (!silent) this.setData({ loading: true, loadError: false })
     try {
       const app = getApp<{
         globalData: { userProfile: { _id: string; role: string; membershipType: string; banGamesLeft?: number } | null }
@@ -397,14 +425,19 @@ Page({
       this._changedStats.clear()
 
       this._startTimer(myReg)
-      wx.nextTick(() => {
-        this._generateShareImage().then((p: string) => { this._shareTempPath = p })
-      })
+      if (showDraft) this._startDraftPoll()
+      else this._stopDraftPoll()
+      if (!silent) {
+        wx.nextTick(() => {
+          this._generateShareImage().then((p: string) => { this._shareTempPath = p })
+        })
+      }
     } catch (err) {
       console.error('loadMatch failed', err)
-      this.setData({ loadError: true })
+      if (!silent) this.setData({ loadError: true })
     } finally {
-      this.setData({ loading: false })
+      this._loading = false
+      if (!silent) this.setData({ loading: false })
     }
   },
 
@@ -494,8 +527,7 @@ Page({
       this.setData({ showFriendModal: false })
       this.loadMatch()
     } catch (err: unknown) {
-      const msg = (err as { errMsg?: string; message?: string })?.errMsg
-        || (err as Error)?.message || '操作失败'
+      const msg = errText(err, '操作失败')
       wx.showModal({ title: '操作失败', content: msg, showCancel: false })
     } finally {
       this.setData({ busy: false })
@@ -579,8 +611,7 @@ Page({
       await this.loadMatch()
       this._refreshProxyList()
     } catch (err: unknown) {
-      const msg = (err as { errMsg?: string; message?: string })?.errMsg
-        || (err as Error)?.message || '操作失败'
+      const msg = errText(err, '操作失败')
       wx.showModal({ title: '代报失败', content: msg, showCancel: false })
     } finally {
       this.setData({ busy: false })
@@ -601,8 +632,7 @@ Page({
       wx.showToast({ title: '已提升', icon: 'success' })
       this.loadMatch()
     } catch (err: unknown) {
-      const msg = (err as { errMsg?: string; message?: string })?.errMsg
-        || (err as Error)?.message || '操作失败'
+      const msg = errText(err, '操作失败')
       wx.showModal({ title: '操作失败', content: msg, showCancel: false })
     } finally {
       this.setData({ busy: false })
@@ -724,8 +754,8 @@ Page({
       })
       this.loadMatch()
     } catch (err: unknown) {
-      const msg = (err as { errMsg?: string; message?: string })?.errMsg
-        || (err as Error)?.message || '操作失败'
+      const msg = errText(err, '操作失败')
+      this.loadMatch(true)
       wx.showModal({ title: '操作失败', content: msg, showCancel: false })
     }
   },
@@ -746,8 +776,7 @@ Page({
       wx.showToast({ title: '选人开始', icon: 'success' })
       this.loadMatch()
     } catch (err: unknown) {
-      const msg = (err as { errMsg?: string; message?: string })?.errMsg
-        || (err as Error)?.message || '操作失败'
+      const msg = errText(err, '操作失败')
       wx.showModal({ title: '操作失败', content: msg, showCancel: false })
     } finally {
       this.setData({ busy: false })
@@ -764,8 +793,10 @@ Page({
       })
       this.loadMatch()
     } catch (err: unknown) {
-      const msg = (err as { errMsg?: string; message?: string })?.errMsg
-        || (err as Error)?.message || '选人失败'
+      const msg = errText(err, '选人失败')
+      // Most failures mean the lists went stale (the other captain acted) —
+      // refresh immediately so the next tap works.
+      this.loadMatch(true)
       wx.showModal({ title: '选人失败', content: msg, showCancel: false })
     } finally {
       this.setData({ busy: false })
@@ -792,8 +823,7 @@ Page({
       wx.showToast({ title: '比分已记录', icon: 'success' })
       this.loadMatch()
     } catch (err: unknown) {
-      const msg = (err as { errMsg?: string; message?: string })?.errMsg
-        || (err as Error)?.message || '操作失败'
+      const msg = errText(err, '操作失败')
       wx.showModal({ title: '操作失败', content: msg, showCancel: false })
     } finally {
       this.setData({ busy: false })
@@ -830,8 +860,7 @@ Page({
       this.setData({ statsDirty: false })
       this.loadMatch()
     } catch (err: unknown) {
-      const msg = (err as { errMsg?: string; message?: string })?.errMsg
-        || (err as Error)?.message || '保存失败'
+      const msg = errText(err, '保存失败')
       wx.showModal({ title: '保存失败', content: msg, showCancel: false })
     } finally {
       this.setData({ busy: false })
