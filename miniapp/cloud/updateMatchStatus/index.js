@@ -267,17 +267,11 @@ exports.main = async (event) => {
 
     const update = {}
     if (typeof event.location === 'string' && event.location.trim()) update.location = event.location.trim()
-    if (event.maxPlayers !== undefined) {
-      const n = parseInt(event.maxPlayers, 10)
-      if (isNaN(n) || n < 2 || n > 99) throw new Error('invalid maxPlayers')
-      update.maxPlayers = n
-    }
     if (event.dateStr) update.date = etTimestamp(event.dateStr, event.timeStr)
     else if (typeof event.date === 'number') update.date = event.date
     if (Object.keys(update).length === 0) throw new Error('nothing to update')
 
     await db.collection('matches').doc(matchId).update({ data: update })
-    if (update.maxPlayers !== undefined) await recalcMatchState(matchId)
     return { success: true }
   }
 

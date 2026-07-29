@@ -160,7 +160,6 @@ export interface AppConfig {
   recurringHour: number
   recurringMinute: number
   recurringLocation: string
-  recurringMaxPlayers: number
   winterBreakStart: string
   winterBreakEnd: string
 }

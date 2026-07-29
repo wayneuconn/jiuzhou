@@ -94,11 +94,6 @@
           </picker>
         </view>
       </view>
-      <view style="margin-bottom:28rpx;">
-        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">最大人数</view>
-        <input class="form-input" type="number" value="{{form.maxPlayers}}" bindinput="onFormPlayers" adjust-position="{{false}}"/>
-      </view>
-
       <view class="flex-row" style="gap:16rpx;">
         <button class="btn-ghost" style="flex:1;" bindtap="closeCreateModal">取消</button>
         <button class="btn-primary" style="flex:1;" bindtap="submitMatch" loading="{{creating}}">{{editingId ? '保存' : '创建'}}</button>

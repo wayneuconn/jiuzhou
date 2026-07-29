@@ -296,7 +296,7 @@ exports.main = async (event, context) => {
           data: {
             date: nextDate.getTime(),
             location: config.recurringLocation ?? '待定',
-            maxPlayers: config.recurringMaxPlayers ?? 22,
+            maxPlayers: 22,
             status: 'registration_r1',
             autoReady: false,
             captainA: null,
