@@ -142,6 +142,11 @@
       <view class="text-muted">报名已关闭</view>
     </view>
 
+    <!-- Captains/admin: kick off drafting -->
+    <button wx:if="{{canStartDraft}}" class="btn-waitlist" style="margin-bottom:16rpx;" bindtap="startDraft" disabled="{{busy}}">
+      🚀 开始选人
+    </button>
+
     <!-- ── Roster ──────────────────────────────────────────────────────── -->
     <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">
       名单 <text style="color:#00C9A7;">{{confirmedCount}}/{{match.maxPlayers}}</text>

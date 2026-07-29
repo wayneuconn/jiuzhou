@@ -104,6 +104,7 @@ Page({
     banLeft: 0,
     loadError: false,
     canBringFriend: false,
+    canStartDraft: false,
     myWaitRank: 0,
     waitlistBtnText: '',
     scheduleLine1: '',
@@ -271,6 +272,11 @@ Page({
         && (isAdmin || user?.membershipType === 'annual')
         && !!myReg && ['confirmed', 'promoted'].includes(myReg.status)
 
+      // Captains (or admins) can kick off drafting once both captains are set
+      const canStartDraft = isOpen
+        && !!match.captainA && !!match.captainB
+        && (isAdmin || isCaptainA || isCaptainB)
+
       // Upcoming phase times (R2 opens kickoff-8h, roster locks kickoff-1h)
       const lockD = new Date(match.date - 60 * 60 * 1000)
       const lockTime = `${String(lockD.getHours()).padStart(2, '0')}:${String(lockD.getMinutes()).padStart(2, '0')}`
@@ -324,6 +330,7 @@ Page({
         myRoster,
         myWaitRank,
         canBringFriend,
+        canStartDraft,
         waitlistBtnText,
         scheduleLine1,
         scheduleLine2,
@@ -610,6 +617,30 @@ Page({
       const msg = (err as { errMsg?: string; message?: string })?.errMsg
         || (err as Error)?.message || '操作失败'
       wx.showModal({ title: '操作失败', content: msg, showCancel: false })
+    }
+  },
+
+  async startDraft() {
+    const res = await wx.showModal({
+      title: '开始选人？',
+      content: '开始后报名暂停，两位队长自由选人',
+      confirmColor: '#F0B429',
+    })
+    if (!res.confirm) return
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'updateMatchStatus',
+        data: { matchId: this.data.matchId, status: 'drafting' },
+      })
+      wx.showToast({ title: '选人开始', icon: 'success' })
+      this.loadMatch()
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg
+        || (err as Error)?.message || '操作失败'
+      wx.showModal({ title: '操作失败', content: msg, showCancel: false })
+    } finally {
+      this.setData({ busy: false })
     }
   },
 

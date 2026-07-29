@@ -149,7 +149,11 @@ exports.main = async (event) => {
 
   const userSnap = await db.collection('users').where({ openid: OPENID }).limit(1).get()
   const user = userSnap.data[0]
-  if (!user || user.role !== 'admin') throw new Error('admins only')
+  if (!user) throw new Error('user not found')
+  const isAdmin = user.role === 'admin'
+  // Non-admins may only attempt setStatus→drafting (validated below as the
+  // match's captain); every other action stays admin-only.
+  if (!isAdmin && action && action !== 'setStatus') throw new Error('admins only')
 
   // ── status update ──────────────────────────────────────────────────────────
   if (!action || action === 'setStatus') {
@@ -159,6 +163,16 @@ exports.main = async (event) => {
     const matchSnap = await db.collection('matches').doc(matchId).get()
     const match = matchSnap.data
     if (!match) throw new Error('match not found')
+
+    if (!isAdmin) {
+      // Captains of THIS match may kick off drafting from the registration
+      // phases; nothing else.
+      const isCaptain = user._id === match.captainA || user._id === match.captainB
+      const draftKickoff = status === 'drafting'
+        && isCaptain
+        && ['registration_r1', 'registration_r2'].includes(match.status)
+      if (!draftKickoff) throw new Error('admins only')
+    }
 
     const updateData = { status, autoReady: false }
 
