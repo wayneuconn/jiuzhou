@@ -34,6 +34,7 @@ Page({
         recurringHour: 20,
         recurringMinute: 0,
         recurringLocation: '',
+        recurringMaxPlayers: 22,
         winterBreakStart: '',
         winterBreakEnd: '',
         ...raw,
@@ -53,7 +54,7 @@ Page({
 
   onInput(e: WechatMiniprogram.Input) {
     const field = (e.currentTarget.dataset as { field: string }).field
-    const numericFields = ['waitlistConfirmMinutes', 'perSessionFee', 'recurringHour', 'recurringMinute']
+    const numericFields = ['waitlistConfirmMinutes', 'perSessionFee', 'recurringHour', 'recurringMinute', 'recurringMaxPlayers']
     const value = numericFields.includes(field) ? parseFloat(e.detail.value) || 0 : e.detail.value
     this.setData({ [`config.${field}`]: value })
   },
