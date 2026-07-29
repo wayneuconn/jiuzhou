@@ -38,9 +38,10 @@
           <view wx:if="{{captainBName}}" class="badge badge-team-b">队长B · {{captainBName}}</view>
           <view class="badge badge-grey" bindtap="openRulesModal">📖 报名规则</view>
         </view>
-        <view wx:if="{{scheduleLine1}}" style="margin-top:16rpx;">
-          <view class="text-muted" style="font-size:22rpx;line-height:1.6;">⏱ {{scheduleLine1}}</view>
+        <view wx:if="{{scheduleLine1 || scheduleLine3}}" style="margin-top:16rpx;">
+          <view wx:if="{{scheduleLine1}}" class="text-muted" style="font-size:22rpx;line-height:1.6;">⏱ {{scheduleLine1}}</view>
           <view wx:if="{{scheduleLine2}}" class="text-muted" style="font-size:22rpx;line-height:1.6;">🔒 {{scheduleLine2}}</view>
+          <view wx:if="{{scheduleLine3}}" class="text-muted" style="font-size:22rpx;line-height:1.6;">⏳ {{scheduleLine3}}</view>
         </view>
       </view>
     </view>
@@ -215,7 +216,7 @@
           <view wx:if="{{item.tierTag}}" class="badge badge-grey" style="margin-right:8rpx;">{{item.tierTag}}</view>
           <view wx:if="{{item.canRemove}}" class="pick-tap pick-tap-off" style="margin-right:8rpx;"
             bindtap="removePlayer" data-uid="{{item.uid}}" data-name="{{item.displayName}}" data-isguest="{{item.isFriend}}">移除</view>
-          <view wx:if="{{isAdmin}}" class="pick-tap pick-tap-a"
+          <view wx:if="{{isAdmin || captainPickerTeam}}" class="pick-tap pick-tap-a"
             bindtap="bumpWait" data-uid="{{item.uid}}" data-name="{{item.displayName}}">↑ 进名单</view>
         </view>
       </view>
@@ -448,7 +449,7 @@
       <scroll-view scroll-y style="max-height:640rpx;margin-bottom:32rpx;">
         <view class="rule-line"><text class="rule-num">1</text>R1 年卡轮：比赛发布后先开放年卡会员报名；次卡可先加入候补排队。</view>
         <view class="rule-line"><text class="rule-num">2</text>R2 开放轮：开球前 8 小时自动开放，年卡、次卡会员均可报名。新朋友需先联系管理员缴费开通次卡（可在「我的」页提交申请）。</view>
-        <view class="rule-line"><text class="rule-num">3</text>名单锁定：开球前 1 小时锁定，不再接受报名和候补；名额满员时仍可加入候补等待递补。</view>
+        <view class="rule-line"><text class="rule-num">3</text>报名截止：比赛日 14:00 后报名一律进入候补，由队长/管理员审核补入；若 14:00 时名单为 23 人，最后报名者转为候补第一位，保证 22 人双数开赛（满 24 人正常出战）。开球前 1 小时名单最终锁定。</view>
         <view class="rule-line"><text class="rule-num">4</text>候补优先级：年卡本人 &gt; 年卡带的朋友 &gt; 次卡；同级按加入候补先后。有空位时自动按此顺序递补，不可插队。</view>
         <view class="rule-line"><text class="rule-num">5</text>带朋友：年卡会员完成自己报名后，可帮朋友加入候补，每人最多 2 位；朋友递补成功会通知带人者。带人者退出或请假后，朋友转为普通候补（按次卡优先级重新排队）。</view>
         <view class="rule-line"><text class="rule-num">6</text>递补确认：关闭「自动接受」的候补，递补时需在限时内确认，超时排回队尾。</view>

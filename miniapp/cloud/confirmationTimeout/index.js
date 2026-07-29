@@ -3,6 +3,20 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+// Match-day registration cutoff: 14:00 ET on the day of kickoff. After this,
+// new signups queue for manual review and auto-promotion pauses — slots are
+// filled only by captains/admins (bumpWaitlist).
+function registrationCutoffTs(matchDate) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(matchDate))
+  const y = Number(parts.find(p => p.type === 'year').value)
+  const mo = Number(parts.find(p => p.type === 'month').value)
+  const da = Number(parts.find(p => p.type === 'day').value)
+  const utcBase = new Date(Date.UTC(y, mo - 1, da))
+  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + 14 * 3600000
+}
+
 // Returns how many minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
 function etOffsetMinutes(date) {
   const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC' })
@@ -77,6 +91,8 @@ async function promoteFromWaitlist(matchId, waitlistMinutes) {
   const match = matchSnap.data
   if (!match) return
   if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  // After the match-day cutoff, slots are filled manually by captains/admins
+  if (Date.now() >= registrationCutoffTs(match.date)) return
   const maxTier = match.status === 'registration_r1' ? 1 : 99
 
   for (let guard = 0; guard < 50; guard++) {
@@ -236,6 +252,71 @@ exports.main = async (event, context) => {
   for (const m of cutoffSnap.data) {
     await db.collection('matches').doc(m._id).update({ data: { status: 'ready', autoReady: false } }).catch(() => {})
     locked++
+  }
+
+  // ── 1d. Even-roster rule at the match-day cutoff (14:00 ET) ─────────────
+  // If the roster sits at exactly 23 when the cutoff passes, the newest
+  // confirmed non-captain drops to the HEAD of the waitlist (tier 0) so the
+  // game runs 22 — and they're first back in if a 24th appears via manual bump.
+  const evenRosterSnap = await db.collection('matches')
+    .where({
+      status: _.in(['registration_r1', 'registration_r2']),
+      date: _.gt(now.getTime()),
+    })
+    .get().catch(() => ({ data: [] }))
+  let evenRostered = 0
+  for (const m of evenRosterSnap.data) {
+    if (m.evenRosterApplied === true) continue
+    if (now.getTime() < registrationCutoffTs(m.date)) continue
+    await db.collection('matches').doc(m._id).update({ data: { evenRosterApplied: true } }).catch(() => {})
+
+    const cntSnap = await db.collection('registrations')
+      .where({ matchId: m._id, status: _.in(['confirmed', 'promoted']) })
+      .count().catch(() => ({ total: 0 }))
+    if ((cntSnap.total ?? 0) !== 23) continue
+
+    const newestSnap = await db.collection('registrations')
+      .where({
+        matchId: m._id,
+        status: 'confirmed',
+        uid: _.nin([m.captainA ?? '__none__', m.captainB ?? '__none__']),
+      })
+      .orderBy('registeredAt', 'desc')
+      .limit(1)
+      .get().catch(() => ({ data: [] }))
+    const demoted = newestSnap.data[0]
+    if (!demoted) continue
+
+    await db.collection('registrations').doc(demoted._id).update({
+      data: { status: 'waitlist', waitlistTier: 0, waitlistPosition: 0, team: null, promotedAt: null, confirmDeadline: null },
+    }).catch(() => {})
+
+    // Tell the player (or the bringer, for a guest)
+    try {
+      const notifyUid = demoted.isGuest ? demoted.broughtBy : demoted.uid
+      const uSnap = notifyUid ? await db.collection('users').doc(notifyUid).get().catch(() => ({ data: null })) : { data: null }
+      if (uSnap.data?.openid) {
+        const d = new Date(m.date)
+        const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+        await cloud.callFunction({
+          name: 'sendSubscribeMsg',
+          data: {
+            type: 'promoted',
+            toOpenid: uSnap.data.openid,
+            data: {
+              page: `/pages/match-detail/index?id=${m._id}`,
+              templateData: {
+                thing2: { value: '九州足球比赛' },
+                time4: { value: timeStr },
+                thing5: { value: (m.location || '待定').slice(0, 20) },
+                thing6: { value: demoted.isGuest ? '未满24人,你的朋友转为候补' : '未满24人,你暂转为候补首位' },
+              },
+            },
+          },
+        })
+      }
+    } catch (_) {}
+    evenRostered++
   }
 
   // ── 2. Auto-complete matches whose date has passed ───────────────────────

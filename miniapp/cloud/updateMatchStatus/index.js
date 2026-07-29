@@ -3,6 +3,20 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+// Match-day registration cutoff: 14:00 ET on the day of kickoff. After this,
+// new signups queue for manual review and auto-promotion pauses — slots are
+// filled only by captains/admins (bumpWaitlist).
+function registrationCutoffTs(matchDate) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(matchDate))
+  const y = Number(parts.find(p => p.type === 'year').value)
+  const mo = Number(parts.find(p => p.type === 'month').value)
+  const da = Number(parts.find(p => p.type === 'day').value)
+  const utcBase = new Date(Date.UTC(y, mo - 1, da))
+  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + 14 * 3600000
+}
+
 const VALID_STATUSES = ['draft', 'registration_r1', 'registration_r2', 'drafting', 'ready', 'completed', 'cancelled']
 
 // Minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
@@ -44,6 +58,8 @@ async function promoteFromWaitlist(matchId) {
   const match = matchSnap.data
   if (!match) return
   if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  // After the match-day cutoff, slots are filled manually by captains/admins
+  if (Date.now() >= registrationCutoffTs(match.date)) return
   const maxTier = match.status === 'registration_r1' ? 1 : 99
 
   const configSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
@@ -151,9 +167,11 @@ exports.main = async (event) => {
   const user = userSnap.data[0]
   if (!user) throw new Error('user not found')
   const isAdmin = user.role === 'admin'
-  // Non-admins may only attempt setStatus→drafting (validated below as the
-  // match's captain); every other action stays admin-only.
-  if (!isAdmin && action && action !== 'setStatus') throw new Error('admins only')
+  // Non-admins may only attempt setStatus→drafting or bumpWaitlist (both
+  // validated below as the match's captain); everything else is admin-only.
+  if (!isAdmin && action && action !== 'setStatus' && action !== 'bumpWaitlist') {
+    throw new Error('admins only')
+  }
 
   // ── status update ──────────────────────────────────────────────────────────
   if (!action || action === 'setStatus') {
@@ -307,7 +325,15 @@ exports.main = async (event) => {
   }
 
   // ── bump any waitlisted player straight into the roster ───────────────────
+  // Admins anywhere; captains of THIS match too (post-cutoff manual review).
   if (action === 'bumpWaitlist') {
+    if (!isAdmin) {
+      const mSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+      const m = mSnap.data
+      if (!m || (m.captainA !== user._id && m.captainB !== user._id)) {
+        throw new Error('仅管理员或本场队长可操作')
+      }
+    }
     const { uid } = event
     const regId = matchId + '_' + uid
     const regSnap = await db.collection('registrations').doc(regId).get().catch(() => ({ data: null }))

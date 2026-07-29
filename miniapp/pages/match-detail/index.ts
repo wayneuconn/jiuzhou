@@ -109,6 +109,7 @@ Page({
     waitlistBtnText: '',
     scheduleLine1: '',
     scheduleLine2: '',
+    scheduleLine3: '',
     showFriendModal: false,
     friendName: '',
     allPositions: ALL_POSITIONS,
@@ -234,6 +235,10 @@ Page({
       // Full roster auto-flips to ready — the waitlist stays joinable until
       // the hard lock (kickoff-1h / manual force-ready, autoReady false).
       const waitlistOpen = isOpen || (match.status === 'ready' && match.autoReady === true)
+      // Match-day 14:00 cutoff: afterwards signups queue for captain/admin review
+      const kd = new Date(match.date)
+      const cutoffMs = new Date(kd.getFullYear(), kd.getMonth(), kd.getDate(), 14, 0, 0).getTime()
+      const postCutoff = waitlistOpen && Date.now() >= cutoffMs
       const isR1 = match.status === 'registration_r1'
       const myTier = isAdmin || user?.membershipType === 'annual' ? 1 : 3
       const isPerSession = user?.membershipType === 'per_session'
@@ -269,6 +274,9 @@ Page({
         waitlistBtnText = `加入候补 — R1 年卡优先 (${confirmedCount}/${match.maxPlayers})`
       } else if (notRegistered && isR1 && myTier !== 1) {
         actionState = 'r1Blocked'
+      } else if (notRegistered && waitlistOpen && postCutoff) {
+        actionState = 'canWaitlist'
+        waitlistBtnText = `加入候补 — 14:00 后需审核补入 (${confirmedCount}/${match.maxPlayers})`
       } else if (notRegistered && isOpen && !isFull && !hasPriorityWaiters) {
         actionState = 'canRegister'
       } else if (notRegistered && waitlistOpen) {
@@ -298,11 +306,15 @@ Page({
       const lockTime = `${String(lockD.getHours()).padStart(2, '0')}:${String(lockD.getMinutes()).padStart(2, '0')}`
       let scheduleLine1 = ''
       let scheduleLine2 = ''
+      let scheduleLine3 = ''
       if (match.status === 'draft' || isR1) {
         scheduleLine1 = `R2 全员报名：${formatDate(match.date - 8 * 60 * 60 * 1000)} 开放`
         scheduleLine2 = `名单锁定：开球前 1 小时（${lockTime}）`
       } else if (match.status === 'registration_r2') {
         scheduleLine1 = `名单锁定：开球前 1 小时（${lockTime}）`
+      }
+      if (waitlistOpen && !postCutoff) {
+        scheduleLine3 = '比赛日 14:00 报名截止，此后候补需队长/管理员审核补入'
       }
 
       const unassignedList = confirmedList.filter(r => !r.team)
@@ -351,6 +363,7 @@ Page({
         waitlistBtnText,
         scheduleLine1,
         scheduleLine2,
+        scheduleLine3,
         actionState,
         confirmedCount,
         waitlistCount,
@@ -597,7 +610,17 @@ Page({
   },
 
   async register() {
-    this.setData({ showAgreementModal: false, busy: true })
+    this.setData({ showAgreementModal: false })
+    // Slot #23 is at risk: warn before committing
+    if (this.data.confirmedCount === 22) {
+      const warn = await wx.showModal({
+        title: '你将是第 23 位报名',
+        content: '若比赛日 14:00 前未满 24 人，你将转为候补第一位（保证 22 人双数开赛）；满 24 人则正常出战。确定报名吗？',
+        confirmColor: '#F0B429',
+      })
+      if (!warn.confirm) return
+    }
+    this.setData({ busy: true })
     try {
       try {
         await wx.requestSubscribeMessage({ tmplIds: MEMBER_TMPL_IDS })

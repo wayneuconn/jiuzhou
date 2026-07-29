@@ -3,6 +3,27 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+// Minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
+function etOffsetMinutes(date) {
+  const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC' })
+  const etStr = date.toLocaleString('en-US', { timeZone: 'America/New_York' })
+  return Math.round((new Date(utcStr) - new Date(etStr)) / 60000)
+}
+
+// Match-day registration cutoff: 14:00 ET on the day of kickoff. After this,
+// new signups queue for manual review and auto-promotion pauses — slots are
+// filled only by captains/admins (bumpWaitlist).
+function registrationCutoffTs(matchDate) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(matchDate))
+  const y = Number(parts.find(p => p.type === 'year').value)
+  const mo = Number(parts.find(p => p.type === 'month').value)
+  const da = Number(parts.find(p => p.type === 'day').value)
+  const utcBase = new Date(Date.UTC(y, mo - 1, da))
+  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + 14 * 3600000
+}
+
 // Waitlist priority tiers: 1 = annual self, 2 = friend brought by annual,
 // 3 = per_session/other. Promotion always drains lower tiers first.
 function tierFor(user) {
@@ -55,6 +76,8 @@ async function promoteFromWaitlist(matchId) {
   const match = matchSnap.data
   if (!match) return
   if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  // After the match-day cutoff, slots are filled manually by captains/admins
+  if (Date.now() >= registrationCutoffTs(match.date)) return
   const maxTier = match.status === 'registration_r1' ? 1 : 99
 
   const configSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
@@ -251,11 +274,15 @@ exports.main = async (event, context) => {
   }
 
   const confirmedCount = confirmedSnap.total ?? 0
-  // Waitlist when: full (incl. full-locked ready state), or R1 as 次卡
-  // (annual-only round), or someone with equal/higher priority is already
-  // waiting (no queue jumping).
+  // After the match-day cutoff (14:00 ET) everything queues for manual review
+  // — except admin proxy registration, which IS the review.
+  const postCutoff = Date.now() >= registrationCutoffTs(match.date)
+  // Waitlist when: full (incl. full-locked ready state), past cutoff, or R1
+  // as 次卡 (annual-only round), or someone with equal/higher priority is
+  // already waiting (no queue jumping).
   const mustWait = confirmedCount >= match.maxPlayers
     || waitlistOnlyOpen
+    || (postCutoff && !isProxy)
     || (isR1 && myTier !== 1)
     || await higherPriorityWaiting(matchId, myTier)
 
@@ -286,7 +313,13 @@ exports.main = async (event, context) => {
     if (reStatus === 'confirmed' && confirmedCount + 1 >= match.maxPlayers) {
       await notifyAdminsFull(matchId, match)
     }
-    return { status: reStatus }
+    return {
+      status: reStatus,
+      // 23rd confirmed spot is at risk: if the roster isn't full by the
+      // match-day cutoff, this player drops back to the waitlist head
+      roster23: reStatus === 'confirmed' && confirmedCount + 1 === 23,
+      postCutoff,
+    }
   }
 
   await db.collection('registrations').doc(regId).set({
@@ -312,7 +345,11 @@ exports.main = async (event, context) => {
   if (status === 'confirmed' && confirmedCount + 1 >= match.maxPlayers) {
     await notifyAdminsFull(matchId, match)
   }
-  return { status }
+  return {
+    status,
+    roster23: status === 'confirmed' && confirmedCount + 1 === 23,
+    postCutoff,
+  }
 }
 
 // Concurrent registrations can both pass the capacity pre-check. After

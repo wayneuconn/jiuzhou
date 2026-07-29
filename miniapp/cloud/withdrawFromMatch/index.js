@@ -3,6 +3,27 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+// Minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
+function etOffsetMinutes(date) {
+  const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC' })
+  const etStr = date.toLocaleString('en-US', { timeZone: 'America/New_York' })
+  return Math.round((new Date(utcStr) - new Date(etStr)) / 60000)
+}
+
+// Match-day registration cutoff: 14:00 ET on the day of kickoff. After this,
+// new signups queue for manual review and auto-promotion pauses — slots are
+// filled only by captains/admins (bumpWaitlist).
+function registrationCutoffTs(matchDate) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(matchDate))
+  const y = Number(parts.find(p => p.type === 'year').value)
+  const mo = Number(parts.find(p => p.type === 'month').value)
+  const da = Number(parts.find(p => p.type === 'day').value)
+  const utcBase = new Date(Date.UTC(y, mo - 1, da))
+  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + 14 * 3600000
+}
+
 async function nextWaitlistPosition(matchId) {
   const snap = await db.collection('registrations')
     .where({ matchId, status: 'waitlist' })
@@ -37,6 +58,8 @@ async function promoteFromWaitlist(matchId) {
   const match = matchSnap.data
   if (!match) return
   if (!['registration_r1', 'registration_r2', 'ready'].includes(match.status)) return
+  // After the match-day cutoff, slots are filled manually by captains/admins
+  if (Date.now() >= registrationCutoffTs(match.date)) return
   const maxTier = match.status === 'registration_r1' ? 1 : 99
 
   const configSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
