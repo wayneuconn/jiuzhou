@@ -9,6 +9,8 @@ const TEMPLATES = {
   membershipApplied: 'BF4FsgIL-I-1ENjTfEsCj4aQrQd-goXsNnTjgi2jTPY',
   // 管理员事件提醒：请假/退出/满员（活动开始通知模板）
   adminAlert: 'P7F5ctAq206UpDYL747jHSEKa-7jMC8SjwFztxsgx5w',
+  // 报名开放提醒：R1 开放→年卡，R2 开放→次卡（同一模板，额度按用户各自积攒）
+  matchOpen: 'P7F5ctAq206UpDYL747jHSEKa-7jMC8SjwFztxsgx5w',
 }
 
 exports.main = async (event, context) => {

@@ -19,7 +19,15 @@ function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: numb
 const SUBSCRIBE_TEMPLATES = {
   promoted: 'Pd7bU1yJztmPwhicK6vI5nU0vqeRvXRw3aOl3IBTNdg',
   matchCancelled: 'YzYbL382sXtwfSgiireQodg3dQwfCuUAe2eAu2xVJ9I',
+  matchOpen: 'P7F5ctAq206UpDYL747jHSEKa-7jMC8SjwFztxsgx5w',
 }
+
+// wx.requestSubscribeMessage allows at most 3 templates per call
+const MEMBER_TMPL_IDS = [
+  SUBSCRIBE_TEMPLATES.promoted,
+  SUBSCRIBE_TEMPLATES.matchCancelled,
+  SUBSCRIBE_TEMPLATES.matchOpen,
+]
 
 const POS_GROUPS = [
   { key: 'all', label: '全部', positions: [] as string[] },
@@ -498,9 +506,7 @@ Page({
     this.setData({ showAgreementModal: false, busy: true })
     try {
       try {
-        await wx.requestSubscribeMessage({
-          tmplIds: [SUBSCRIBE_TEMPLATES.promoted, SUBSCRIBE_TEMPLATES.matchCancelled],
-        })
+        await wx.requestSubscribeMessage({ tmplIds: MEMBER_TMPL_IDS })
       } catch (_) {}
       const res = await wx.cloud.callFunction({
         name: 'registerForMatch',
@@ -519,9 +525,7 @@ Page({
     this.setData({ showWaitlistModal: false, busy: true })
     try {
       try {
-        await wx.requestSubscribeMessage({
-          tmplIds: [SUBSCRIBE_TEMPLATES.promoted, SUBSCRIBE_TEMPLATES.matchCancelled],
-        })
+        await wx.requestSubscribeMessage({ tmplIds: MEMBER_TMPL_IDS })
       } catch (_) {}
       await wx.cloud.callFunction({
         name: 'registerForMatch',
@@ -539,6 +543,9 @@ Page({
   async confirmSpot() {
     this.setData({ busy: true })
     try {
+      try {
+        await wx.requestSubscribeMessage({ tmplIds: MEMBER_TMPL_IDS })
+      } catch (_) {}
       await wx.cloud.callFunction({ name: 'confirmSpot', data: { matchId: this.data.matchId } })
       wx.showToast({ title: '已确认报名', icon: 'success' })
       this.loadMatch()
