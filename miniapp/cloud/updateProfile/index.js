@@ -33,7 +33,9 @@ exports.main = async (event, context) => {
         openid: OPENID,
         phone: '',
         role: 'guest',
-        membershipType: 'none',
+        // Everyone starts as 次卡 — can waitlist in R1 and register in R2;
+        // annual is granted by admin or via the application flow.
+        membershipType: 'per_session',
         attendanceCount: 0,
         lateCount: 0,
         dangerousCount: 0,

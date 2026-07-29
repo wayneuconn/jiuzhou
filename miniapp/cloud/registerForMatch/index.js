@@ -167,7 +167,12 @@ exports.main = async (event, context) => {
   const match = matchSnap.data
 
   if (!user || !match) throw new Error('user or match not found')
-  if (!['registration_r1', 'registration_r2'].includes(match.status)) {
+  // Full roster auto-flips the match to ready (autoReady) — the WAITLIST must
+  // stay joinable then. Only the hard lock (kickoff-1h / manual force-ready,
+  // autoReady false) closes everything.
+  const regOpen = ['registration_r1', 'registration_r2'].includes(match.status)
+  const waitlistOnlyOpen = match.status === 'ready' && match.autoReady === true
+  if (!regOpen && !waitlistOnlyOpen) {
     throw new Error('registration not open')
   }
 
@@ -227,9 +232,11 @@ exports.main = async (event, context) => {
   }
 
   const confirmedCount = confirmedSnap.total ?? 0
-  // Waitlist when: full, or R1 as 次卡 (annual-only round), or someone with
-  // equal/higher priority is already waiting (no queue jumping).
+  // Waitlist when: full (incl. full-locked ready state), or R1 as 次卡
+  // (annual-only round), or someone with equal/higher priority is already
+  // waiting (no queue jumping).
   const mustWait = confirmedCount >= match.maxPlayers
+    || waitlistOnlyOpen
     || (isR1 && myTier !== 1)
     || await higherPriorityWaiting(matchId, myTier)
 

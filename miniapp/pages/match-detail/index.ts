@@ -213,6 +213,9 @@ Page({
       const slotsLeft = Math.max(0, match.maxPlayers - confirmedCount)
       const isFull = confirmedCount >= match.maxPlayers
       const isOpen = match.status === 'registration_r1' || match.status === 'registration_r2'
+      // Full roster auto-flips to ready — the waitlist stays joinable until
+      // the hard lock (kickoff-1h / manual force-ready, autoReady false).
+      const waitlistOpen = isOpen || (match.status === 'ready' && match.autoReady === true)
       const isR1 = match.status === 'registration_r1'
       const myTier = isAdmin || user?.membershipType === 'annual' ? 1 : 3
       const isPerSession = user?.membershipType === 'per_session'
@@ -226,10 +229,10 @@ Page({
       if (!user) {
         // New visitor from a shared link who hasn't completed onboarding —
         // give them an explicit path in instead of a dead "报名已关闭".
-        actionState = isOpen ? 'needProfile' : 'closed'
+        actionState = waitlistOpen ? 'needProfile' : 'closed'
       } else if (match.status === 'cancelled') {
         actionState = 'cancelled'
-      } else if (notRegistered && isOpen && banLeft > 0) {
+      } else if (notRegistered && waitlistOpen && banLeft > 0) {
         actionState = 'banned'
       } else if (myReg?.status === 'promoted') {
         actionState = 'promoted'
@@ -246,7 +249,7 @@ Page({
         actionState = 'r1Blocked'
       } else if (notRegistered && isOpen && !isFull && !hasPriorityWaiters) {
         actionState = 'canRegister'
-      } else if (notRegistered && isOpen) {
+      } else if (notRegistered && waitlistOpen) {
         actionState = 'canWaitlist'
         waitlistBtnText = isFull
           ? `加入候补 — 名额已满 (${confirmedCount}/${match.maxPlayers})`
@@ -256,7 +259,7 @@ Page({
       }
 
       // Bring-a-friend: annual members (or admins) with an active own registration
-      const canBringFriend = isOpen
+      const canBringFriend = waitlistOpen
         && (isAdmin || user?.membershipType === 'annual')
         && !!myReg && ['confirmed', 'promoted'].includes(myReg.status)
 
