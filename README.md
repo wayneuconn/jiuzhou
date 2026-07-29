@@ -1,166 +1,41 @@
-# 九州 — Football Team Management
+# 九州 — 球队管理小程序
 
-Mobile-first web app for managing a recreational football team (~30–50 players). Shared via WeChat link — no app download needed.
+微信原生小程序，管理一支 ~30-50 人的业余足球队：报名/候补、选人分队、战术板、射手榜/助攻榜/队长榜、会员（年卡/次卡）自助申请与审批、管理后台。
 
-**Live:** https://jiuzhou-493217.web.app
+> 早期的 React + Firebase H5 版本已废弃并从仓库移除（历史可在 git log 中找回）。当前唯一活跃代码在 `miniapp/`。
 
----
+## 技术栈
 
-## Tech Stack
-
-| Layer | Choice |
+| 层 | 选择 |
 |---|---|
-| UI | React 18 + TypeScript, Vite 5 |
-| Styling | Tailwind CSS v3 (PostCSS) |
-| Routing | React Router v7 |
-| State | Zustand (`authStore`) |
-| Backend | Firebase — Auth, Firestore, Storage, Hosting |
-| CI/CD | GitHub Actions → Firebase Hosting |
+| 前端 | 微信原生小程序（WXML/WXSS/TypeScript） |
+| 后端 | 微信云开发 CloudBase：云函数 + 云数据库 |
+| 定时任务 | `confirmationTimeout` 云函数（每 5 分钟触发：候补确认超时、R1→R2、锁定名单、自动结算、循环建赛） |
+| 通知 | 小程序订阅消息（候补晋升、比赛取消、管理员事件提醒） |
 
-No traditional backend. Firestore Security Rules are the authorization layer. Cloud Functions reserved for atomic operations (waitlist promotion timeouts, invite links).
-
----
-
-## Architecture
+## 目录结构
 
 ```
-src/
-├── components/
-│   ├── layout/          # AppLayout, BottomTabBar, ProtectedRoute
-│   ├── Pitch.tsx        # Drag-and-drop tactical board (reusable, any Firestore ref)
-│   └── PlayerCard.tsx   # MiniCard with tier ring + position badge
-├── pages/
-│   ├── LoginPage.tsx
-│   ├── HomePage.tsx          # Announcements feed
-│   ├── MatchesPage.tsx       # Match list
-│   ├── MatchDetailPage.tsx   # Registration, draft, tactics, excused list
-│   ├── TacticsPage.tsx       # Global tactics board (falls back to active match)
-│   ├── ProfilePage.tsx
-│   ├── onboard/              # BindPhonePage, SetupProfilePage
-│   └── admin/                # Dashboard, Matches, Members, Payments, Settings
-├── stores/
-│   └── authStore.ts          # Zustand: firebaseUser + userProfile
-├── lib/
-│   └── firebase.ts           # Firebase app init
-├── utils/
-│   └── cardTier.ts           # Attendance → card tier (bronze/silver/gold/blue)
-└── types/
-    └── index.ts              # All shared TypeScript types
+miniapp/
+├── app.ts / app.json        # 登录引导、全局状态
+├── pages/                   # 首页、比赛、详情、战术板、榜单、我的、admin/*
+├── cloud/                   # 每个子目录一个云函数
+├── utils/                   # 格式化、订阅消息攒额度
+├── types/                   # 共享类型
+├── cloudbaserc.json         # 云函数部署配置
+└── RELEASE_NOTES.md         # 版本记录
 ```
 
----
+## 开发
 
-## Firestore Data Model
+1. 微信开发者工具打开 `miniapp/` 目录
+2. 类型检查：`cd miniapp && npm run tsc`
+3. 云函数部署：`tcb fn deploy <name> -e <envId> --force`（需 `tcb login`）
+4. 前端发布：开发者工具「上传」→ 体验版 / 提交审核
 
-```
-users/{uid}
-  displayName, phone, avatar?, preferredPositions[], role, membershipType, attendanceCount, createdAt
+## 核心业务规则
 
-matches/{matchId}
-  date, location, maxPlayers, status, captainA?, captainB?, agreementText, draftState?, createdAt
-  └── registrations/{uid}
-        displayName, preferredPositions[], registeredAt, status, waitlistPosition?,
-        promotedAt?, confirmDeadline?, autoAccept, team?
-  └── formations/{formationId}        # board | teamA | teamB
-        captainUid, positions: { uid: { x, y } }, updatedAt
-
-paymentEvents/{eventId}
-  title, type, annualAmount, perSessionAmount, venmoHandle, status, createdAt
-  └── payments/{uid}
-        displayName, membershipType, amount, status, paidAt, confirmedAt?, confirmedBy?
-
-announcements/{id}      title, content, pinned, createdAt, updatedAt
-config/appConfig        season, cardThresholds, waitlistConfirmMinutes, defaultAgreementText
-inviteTokens/{tokenId}  (admin-only write)
-tactics/default         global fallback tactics board
-```
-
----
-
-## Auth & Roles
-
-- **Login:** Phone/SMS OTP (primary) + Google Sign-In (secondary — hidden inside WeChat)
-- Phone cached in `localStorage` as `jz_phone` for fast re-login
-
-| Role | Permissions |
-|---|---|
-| `admin` | Full access; exempt from membership requirements; shown as 年卡 by default |
-| `member` | Annual membership (`annual`) — R1 + R2 registration |
-| `guest` | Per-session (`per_session`) or none — R2 only |
-
----
-
-## Match Status Flow
-
-```
-draft → registration_r1 → registration_r2 → drafting → ready → completed
-```
-
-| Status | What's open |
-|---|---|
-| `registration_r1` | Annual members + admin can register |
-| `registration_r2` | All members can register |
-| `drafting` | Captains pick teams; per-team tactics boards visible to each team only |
-| `ready` | Match is set; formations locked |
-| `completed` | Archived |
-
----
-
-## Registration Status Flow
-
-```
-waitlist → promoted → confirmed
-                 ↘ (timeout/decline) → next waitlist person promoted
-confirmed → excused  (gives up spot, auto-promotes next waitlist)
-any → withdrawn
-```
-
-- **Auto-promote:** triggered when a confirmed or excused player frees their spot
-- **autoAccept:** if set, the promoted player is instantly confirmed (no 30-min window)
-- **Excused (请假):** confirmed player requests leave; spot is released; shown in 请假 section
-
----
-
-## Card Tiers (Attendance)
-
-| Tier | Color | Default threshold |
-|---|---|---|
-| Bronze | `#B87333` | 1+ sessions |
-| Silver | `#A8A9AD` | 10+ sessions |
-| Gold | `#F0B429` | 25+ sessions |
-| Blue | `#4F90E1` | 50+ sessions |
-
-Thresholds are configurable in Admin → Settings (`config/appConfig.cardThresholds`).
-
----
-
-## Local Development
-
-```bash
-cp .env.example .env      # fill in Firebase config
-npm install
-npm run dev
-```
-
-Deploy (manual):
-```bash
-npm run build
-firebase deploy --only hosting
-```
-
-CI/CD: every push to `main` triggers `.github/workflows/deploy.yml` — type-checks, builds, and deploys to Firebase Hosting live channel automatically.
-
----
-
-## Environment Variables
-
-```
-VITE_FIREBASE_API_KEY
-VITE_FIREBASE_AUTH_DOMAIN
-VITE_FIREBASE_PROJECT_ID
-VITE_FIREBASE_STORAGE_BUCKET
-VITE_FIREBASE_MESSAGING_SENDER_ID
-VITE_FIREBASE_APP_ID
-```
-
-GitHub Actions reads these from repository Secrets. Firebase service account stored as `FIREBASE_SERVICE_ACCOUNT_JIUZHOU`.
+- **报名分两轮**：R1 年卡优先（次卡可候补），开球前 8 小时自动进入 R2 全员开放，开球前 1 小时锁定名单
+- **候补优先级**：年卡本人 > 年卡带的朋友 > 次卡/其他，同级先到先得，空位自动递补
+- **选人**：管理员设两名队长 → 自由选人（先到先得）→ 选完自动就绪
+- **纪律**：缺席自动禁赛 4 场，每完成一场递减 1 场
