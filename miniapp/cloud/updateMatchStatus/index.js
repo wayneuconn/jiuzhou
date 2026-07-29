@@ -29,9 +29,10 @@ async function recalcMatchState(matchId) {
     .where({ matchId, status: _.in(['confirmed', 'promoted']) })
     .count().catch(() => ({ total: 0 }))
   const count = cnt.total ?? 0
-  if (count >= match.maxPlayers && match.status !== 'ready') {
-    await db.collection('matches').doc(matchId).update({ data: { status: 'ready', autoReady: true } }).catch(() => {})
-  } else if (match.status === 'ready' && count < match.maxPlayers && match.autoReady === true) {
+  // Full no longer auto-flips to ready — capacity checks in registerForMatch
+  // keep the roster capped while the waitlist stays joinable (this also keeps
+  // already-released frontends working: they close everything on 'ready').
+  if (match.status === 'ready' && count < match.maxPlayers && match.autoReady === true) {
     await db.collection('matches').doc(matchId).update({ data: { status: 'registration_r2', autoReady: false } }).catch(() => {})
   }
 }

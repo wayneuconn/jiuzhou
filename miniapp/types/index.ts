@@ -72,6 +72,7 @@ export interface Match {
   location: string
   maxPlayers: number
   status: MatchStatus
+  autoReady?: boolean
   round2Link?: string
   captainA?: string | null
   captainB?: string | null
