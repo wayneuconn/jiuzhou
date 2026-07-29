@@ -178,6 +178,9 @@
         <view wx:elif="{{item.isCaptainB}}" class="badge badge-team-b" style="margin-left:8rpx;">队长B</view>
         <view wx:elif="{{item.teamLabel}}" class="badge {{item.teamLabel === 'A' ? 'badge-team-a' : 'badge-team-b'}}" style="margin-left:8rpx;">{{item.teamLabel}}</view>
         <view wx:if="{{item.status === 'promoted'}}" class="badge badge-gold" style="margin-left:8rpx;">待确认</view>
+        <view wx:if="{{item.canRemove && match.status !== 'completed' && match.status !== 'cancelled'}}"
+          class="pick-tap pick-tap-off" style="margin-left:8rpx;"
+          catchtap="removeFriend" data-uid="{{item.uid}}" data-name="{{item.displayName}}">移除</view>
       </view>
       <view wx:if="{{filteredRoster.length === 0}}" class="text-muted" style="font-size:26rpx;padding:16rpx 0;">该位置暂无人</view>
     </view>
