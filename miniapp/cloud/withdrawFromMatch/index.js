@@ -171,7 +171,11 @@ exports.main = async (event, context) => {
     return { success: true }
   }
 
-  const regId = matchId + '_' + user._id
+  // Admin removal of any player (代报的散户不来了、或任何需要清理的名额)
+  const targetId = event.targetUid && event.targetUid !== user._id ? event.targetUid : user._id
+  if (targetId !== user._id && user.role !== 'admin') throw new Error('admins only')
+
+  const regId = matchId + '_' + targetId
   const regSnap = await db.collection('registrations').doc(regId).get().catch(() => ({ data: null }))
   if (!regSnap.data) throw new Error('registration not found')
 
@@ -183,8 +187,8 @@ exports.main = async (event, context) => {
 
   // If they were a captain, clear that slot
   const clearData = {}
-  if (match.captainA === user._id) clearData.captainA = null
-  if (match.captainB === user._id) clearData.captainB = null
+  if (match.captainA === targetId) clearData.captainA = null
+  if (match.captainB === targetId) clearData.captainB = null
   if (Object.keys(clearData).length > 0) {
     // If currently drafting, also reset draftState (drafting cannot proceed without both captains)
     if (match.status === 'drafting') {
@@ -209,7 +213,7 @@ exports.main = async (event, context) => {
   // flush below re-fills it by priority, which may re-admit the friend if
   // nobody outranks them).
   const friendsSnap = await db.collection('registrations')
-    .where({ matchId, broughtBy: user._id, isGuest: true, status: _.in(['confirmed', 'promoted', 'waitlist']) })
+    .where({ matchId, broughtBy: targetId, isGuest: true, status: _.in(['confirmed', 'promoted', 'waitlist']) })
     .get().catch(() => ({ data: [] }))
   let friendFreedSlot = false
   for (const f of friendsSnap.data) {
@@ -230,9 +234,10 @@ exports.main = async (event, context) => {
   if (wasConfirmed || friendFreedSlot) await promoteFromWaitlist(matchId)
   else await recalcMatchState(matchId)
 
-  // A confirmed player leaving is what admins need to know about (补位)
-  if (wasConfirmed) {
-    await notifyAdmins(matchId, match, `${user.displayName ?? '有人'} ${newStatus === 'excused' ? '请假' : '退出'}了`)
+  // A confirmed player leaving is what admins need to know about (补位);
+  // skip when an admin removed them — the admin already knows.
+  if (wasConfirmed && targetId === user._id) {
+    await notifyAdmins(matchId, match, `${regSnap.data.displayName ?? '有人'} ${newStatus === 'excused' ? '请假' : '退出'}了`)
   }
   return { success: true }
 }

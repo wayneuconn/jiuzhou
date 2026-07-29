@@ -157,8 +157,11 @@
     </button>
 
     <!-- ── Roster ──────────────────────────────────────────────────────── -->
-    <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">
-      名单 <text style="color:#00C9A7;">{{confirmedCount}}/{{match.maxPlayers}}</text>
+    <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:16rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;">
+        名单 <text style="color:#00C9A7;">{{confirmedCount}}/{{match.maxPlayers}}</text>
+      </view>
+      <view wx:if="{{canProxy}}" class="pick-tap pick-tap-a" bindtap="openProxyModal">+ 代报名</view>
     </view>
 
     <!-- Position filter tabs -->
@@ -194,7 +197,7 @@
         <view wx:if="{{item.status === 'promoted'}}" class="badge badge-gold" style="margin-left:8rpx;">待确认</view>
         <view wx:if="{{item.canRemove && match.status !== 'completed' && match.status !== 'cancelled'}}"
           class="pick-tap pick-tap-off" style="margin-left:8rpx;"
-          catchtap="removeFriend" data-uid="{{item.uid}}" data-name="{{item.displayName}}">移除</view>
+          catchtap="removePlayer" data-uid="{{item.uid}}" data-name="{{item.displayName}}" data-isguest="{{item.isFriend}}">移除</view>
       </view>
       <view wx:if="{{filteredRoster.length === 0}}" class="text-muted" style="font-size:26rpx;padding:16rpx 0;">该位置暂无人</view>
     </view>
@@ -211,7 +214,7 @@
           </view>
           <view wx:if="{{item.tierTag}}" class="badge badge-grey" style="margin-right:8rpx;">{{item.tierTag}}</view>
           <view wx:if="{{item.canRemove}}" class="pick-tap pick-tap-off" style="margin-right:8rpx;"
-            bindtap="removeFriend" data-uid="{{item.uid}}" data-name="{{item.displayName}}">移除</view>
+            bindtap="removePlayer" data-uid="{{item.uid}}" data-name="{{item.displayName}}" data-isguest="{{item.isFriend}}">移除</view>
           <view wx:if="{{isAdmin}}" class="pick-tap pick-tap-a"
             bindtap="bumpWait" data-uid="{{item.uid}}" data-name="{{item.displayName}}">↑ 进名单</view>
         </view>
@@ -412,6 +415,28 @@
         <button class="modal-btn-ghost" bindtap="closeFriendModal">取消</button>
         <button class="modal-btn-teal" bindtap="addFriend" disabled="{{busy}}">{{busy ? '处理中...' : '加入候补'}}</button>
       </view>
+    </view>
+  </view>
+
+  <!-- ── Admin proxy registration modal ────────────────────────────────── -->
+  <view wx:if="{{showProxyModal}}" class="modal-overlay" bindtap="closeProxyModal">
+    <view class="modal-sheet" catchtap="noop">
+      <view class="modal-handle"></view>
+      <view style="font-size:36rpx;font-weight:900;color:#e8f0eb;margin-bottom:12rpx;">代报名</view>
+      <view class="text-muted" style="font-size:24rpx;margin-bottom:20rpx;">为任意成员报名（不限数量），有空位直接进名单，满员按优先级入候补</view>
+      <input class="friend-input" placeholder="搜索名字..." value="{{proxySearch}}"
+        bindinput="onProxySearch" adjust-position="{{false}}"/>
+      <scroll-view scroll-y style="max-height:480rpx;margin-top:16rpx;">
+        <view wx:if="{{proxyLoading}}" class="text-muted" style="text-align:center;padding:40rpx 0;">加载中...</view>
+        <view wx:elif="{{proxyList.length === 0}}" class="text-muted" style="text-align:center;padding:40rpx 0;">没有可代报的成员</view>
+        <view wx:for="{{proxyList}}" wx:key="uid" class="player-row">
+          <view style="flex:1;font-size:28rpx;color:#e8f0eb;">{{item.displayName}}</view>
+          <view class="badge badge-grey" style="margin-right:12rpx;">{{item.membershipLabel}}</view>
+          <view class="pick-tap pick-tap-a" bindtap="proxyRegister"
+            data-uid="{{item.uid}}" data-name="{{item.displayName}}">报名</view>
+        </view>
+      </scroll-view>
+      <button class="modal-btn-ghost" style="margin-top:24rpx;" bindtap="closeProxyModal">完成</button>
     </view>
   </view>
 

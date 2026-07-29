@@ -222,19 +222,32 @@ exports.main = async (event, context) => {
     return { status: check.data?.status === 'confirmed' ? 'confirmed' : 'waitlist', friendUid }
   }
 
-  // ── self registration ──────────────────────────────────────────────────────
+  // ── admin proxy registration (代报, no cap) ───────────────────────────────
+  // Admins can register any user — the vetting IS the admin doing it. The
+  // target skips the membership gate; unvetted targets queue at tier 3.
+  const isProxy = event.forUid !== undefined && event.forUid !== user._id
+  let target = user
+  if (isProxy) {
+    if (user.role !== 'admin') throw new Error('admins only')
+    const tSnap = await db.collection('users').doc(event.forUid).get().catch(() => ({ data: null }))
+    if (!tSnap.data) throw new Error('target user not found')
+    target = { ...tSnap.data, _id: event.forUid }
+  }
+
+  // ── self/proxy registration ────────────────────────────────────────────────
   // Membership gate: shared links spread freely, but only vetted members
-  // (annual/次卡, assigned by admins or via the application flow) can register.
-  if (user.role !== 'admin' && !['annual', 'per_session'].includes(user.membershipType)) {
+  // (annual/次卡, assigned by admins or via the application flow) can register
+  // themselves.
+  if (!isProxy && user.role !== 'admin' && !['annual', 'per_session'].includes(user.membershipType)) {
     throw new Error('报名需要会员身份：请联系管理员开通，或在「我的」页申请次卡/年卡')
   }
-  const myTier = tierFor(user)
+  const myTier = tierFor(target)
   const isR1 = match.status === 'registration_r1'
-  if (isR1 && myTier !== 1 && user.membershipType !== 'per_session') {
+  if (!isProxy && isR1 && myTier !== 1 && target.membershipType !== 'per_session') {
     throw new Error('R1 阶段仅年卡可报名、次卡可候补，请等待 R2 开放')
   }
-  if (user.banGamesLeft > 0) {
-    throw new Error(`账号已被禁赛，还剩 ${user.banGamesLeft} 场`)
+  if (target.banGamesLeft > 0) {
+    throw new Error(`该账号已被禁赛，还剩 ${target.banGamesLeft} 场`)
   }
 
   const confirmedCount = confirmedSnap.total ?? 0
@@ -246,7 +259,7 @@ exports.main = async (event, context) => {
     || (isR1 && myTier !== 1)
     || await higherPriorityWaiting(matchId, myTier)
 
-  const regId = matchId + '_' + user._id
+  const regId = matchId + '_' + target._id
   const existingSnap = await db.collection('registrations').doc(regId).get().catch(() => ({ data: null }))
 
   if (existingSnap.data) {
@@ -279,9 +292,9 @@ exports.main = async (event, context) => {
   await db.collection('registrations').doc(regId).set({
     data: {
       matchId,
-      uid: user._id,
-      displayName: user.displayName,
-      preferredPositions: user.preferredPositions ?? [],
+      uid: target._id,
+      displayName: target.displayName,
+      preferredPositions: target.preferredPositions ?? [],
       registeredAt: db.serverDate(),
       status: mustWait ? 'waitlist' : 'confirmed',
       waitlistPosition: mustWait ? await nextWaitlistPosition(matchId) : null,

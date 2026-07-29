@@ -113,6 +113,11 @@ Page({
     friendName: '',
     allPositions: ALL_POSITIONS,
     friendPosMap: {} as Record<string, boolean>,
+    showProxyModal: false,
+    proxySearch: '',
+    proxyList: [] as Array<{ uid: string; displayName: string; membershipLabel: string }>,
+    proxyLoading: false,
+    canProxy: false,
     showRulesModal: false,
     statsDirty: false,
     captainPickerTeam: '' as 'A' | 'B' | '',
@@ -124,6 +129,7 @@ Page({
   _confirmedListRaw: [] as RegVM[],
   _shareTempPath: '' as string,
   _changedStats: new Set<string>(),
+  _allMembers: [] as Array<{ _id: string; displayName: string; membershipType: string }>,
 
   onLoad(options: Record<string, string>) {
     const matchId = options.id || ''
@@ -192,7 +198,10 @@ Page({
         isFriend: !!r.isGuest,
         friendOf: r.broughtByName ?? '',
         tierTag: r.isGuest ? '朋友' : ((r.waitlistTier ?? 1) === 3 ? '次卡' : ''),
-        canRemove: !!r.isGuest && (isAdmin || r.broughtBy === user?._id),
+        // Guests: their bringer or an admin; anyone else: admin only (代报清理)
+        canRemove: r.isGuest
+          ? (isAdmin || r.broughtBy === user?._id)
+          : (isAdmin && r.uid !== user?._id),
       })
 
       const active = registrations.filter(r => r.status !== 'withdrawn')
@@ -281,6 +290,9 @@ Page({
         && !!match.captainA && !!match.captainB
         && (isAdmin || isCaptainA || isCaptainB)
 
+      // Admin proxy registration (代报, uncapped) while signup/waitlist is open
+      const canProxy = isAdmin && waitlistOpen
+
       // Upcoming phase times (R2 opens kickoff-8h, roster locks kickoff-1h)
       const lockD = new Date(match.date - 60 * 60 * 1000)
       const lockTime = `${String(lockD.getHours()).padStart(2, '0')}:${String(lockD.getMinutes()).padStart(2, '0')}`
@@ -335,6 +347,7 @@ Page({
         myWaitRank,
         canBringFriend,
         canStartDraft,
+        canProxy,
         waitlistBtnText,
         scheduleLine1,
         scheduleLine2,
@@ -476,20 +489,86 @@ Page({
     }
   },
 
-  async removeFriend(e: WechatMiniprogram.BaseEvent) {
-    const { uid, name } = e.currentTarget.dataset as { uid: string; name: string }
-    const res = await wx.showModal({ title: `移除 ${name}？`, content: '', confirmColor: '#E53E3E' })
+  async removePlayer(e: WechatMiniprogram.BaseEvent) {
+    const { uid, name, isguest } = e.currentTarget.dataset as { uid: string; name: string; isguest: boolean }
+    const res = await wx.showModal({ title: `移除 ${name}？`, content: '空出的名额将自动递补', confirmColor: '#E53E3E' })
     if (!res.confirm) return
     this.setData({ busy: true })
     try {
       await wx.cloud.callFunction({
         name: 'withdrawFromMatch',
-        data: { matchId: this.data.matchId, friendUid: uid },
+        data: isguest
+          ? { matchId: this.data.matchId, friendUid: uid }
+          : { matchId: this.data.matchId, targetUid: uid },
       })
       wx.showToast({ title: '已移除', icon: 'success' })
       this.loadMatch()
     } catch {
       wx.showToast({ title: '操作失败', icon: 'error' })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  // ── admin proxy registration (代报) ─────────────────────────────────
+  async openProxyModal() {
+    this.setData({ showProxyModal: true, proxySearch: '', proxyLoading: true })
+    try {
+      const res = await wx.cloud.callFunction({ name: 'adminGetMembers' }) as unknown as {
+        result: { members: Array<{ _id: string; displayName: string; membershipType: string }> }
+      }
+      this._allMembers = res.result.members
+    } catch {
+      wx.showToast({ title: '成员加载失败', icon: 'error' })
+    } finally {
+      this.setData({ proxyLoading: false })
+      this._refreshProxyList()
+    }
+  },
+  closeProxyModal() { this.setData({ showProxyModal: false }) },
+  onProxySearch(e: WechatMiniprogram.Input) {
+    this.setData({ proxySearch: e.detail.value })
+    this._refreshProxyList()
+  },
+
+  _refreshProxyList() {
+    const MEMBERSHIP_LABEL: Record<string, string> = { annual: '年卡', per_session: '次卡', none: '未激活' }
+    const activeUids = new Set(
+      this._registrations
+        .filter((r: Registration) => r.status !== 'withdrawn')
+        .map((r: Registration) => r.uid),
+    )
+    const kw = this.data.proxySearch.trim().toLowerCase()
+    const proxyList = this._allMembers
+      .filter(m => !activeUids.has(m._id))
+      .filter(m => !kw || (m.displayName ?? '').toLowerCase().includes(kw))
+      .slice(0, 50)
+      .map(m => ({
+        uid: m._id,
+        displayName: m.displayName,
+        membershipLabel: MEMBERSHIP_LABEL[m.membershipType] ?? m.membershipType,
+      }))
+    this.setData({ proxyList })
+  },
+
+  async proxyRegister(e: WechatMiniprogram.BaseEvent) {
+    const { uid, name } = e.currentTarget.dataset as { uid: string; name: string }
+    this.setData({ busy: true })
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'registerForMatch',
+        data: { matchId: this.data.matchId, forUid: uid },
+      }) as unknown as { result: { status: string } }
+      wx.showToast({
+        title: res.result.status === 'waitlist' ? `${name} 已入候补` : `${name} 已报名`,
+        icon: 'success',
+      })
+      await this.loadMatch()
+      this._refreshProxyList()
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg
+        || (err as Error)?.message || '操作失败'
+      wx.showModal({ title: '代报失败', content: msg, showCancel: false })
     } finally {
       this.setData({ busy: false })
     }
