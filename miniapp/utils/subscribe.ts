@@ -8,8 +8,8 @@
 // Fill in real template IDs (from mp.weixin.qq.com → 订阅消息) to activate;
 // placeholders make this a no-op.
 const ADMIN_TEMPLATES = [
-  'REPLACE_ADMIN_ALERT_ID',      // 管理员事件提醒 (请假/退出/满员)
-  'REPLACE_MEMBERSHIP_APPLIED_ID', // 会员申请提醒
+  'P7F5ctAq206UpDYL747jHSEKa-7jMC8SjwFztxsgx5w', // 活动开始通知 → 请假/退出/满员提醒
+  'BF4FsgIL-I-1ENjTfEsCj4aQrQd-goXsNnTjgi2jTPY', // 信息提交成功通知 → 会员申请提醒
 ]
 
 export function bankAdminSubscribe() {

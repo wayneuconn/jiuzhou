@@ -102,6 +102,7 @@ async function notifyAdminsFull(matchId, match) {
     const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] }))
     const d = new Date(match.date)
     const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    // 活动开始通知 fields: 活动名称 thing4, 活动内容 thing2, 活动时间 date5
     for (const admin of adminsSnap.data) {
       if (!admin.openid) continue
       try {
@@ -113,9 +114,9 @@ async function notifyAdminsFull(matchId, match) {
             data: {
               page: `/pages/match-detail/index?id=${matchId}`,
               templateData: {
-                thing1: { value: '报名已满员' },
+                thing4: { value: '报名已满员' },
                 thing2: { value: `已报${match.maxPlayers}/${match.maxPlayers}`.slice(0, 20) },
-                time3: { value: timeStr },
+                date5: { value: timeStr },
               },
             },
           },

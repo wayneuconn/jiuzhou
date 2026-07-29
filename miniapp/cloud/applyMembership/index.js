@@ -53,10 +53,13 @@ exports.main = async (event, context) => {
     },
   })
 
-  // Best-effort WeChat notification to every admin (needs the membershipApplied
-  // template ID configured in sendSubscribeMsg; silently skipped until then).
+  // Best-effort WeChat notification to every admin.
+  // 信息提交成功通知 fields: 提交人 name3 (name type — plain name only),
+  // 提交内容 thing7 (≤20 chars), 提交时间 date2 (date string).
   try {
     const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get()
+    const timeStr = new Date().toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    const content = `申请${TYPE_LABEL[requestedType]}${note ? ' ' + note : ''}`.slice(0, 20)
     for (const admin of adminsSnap.data) {
       if (!admin.openid) continue
       try {
@@ -68,9 +71,9 @@ exports.main = async (event, context) => {
             data: {
               page: '/pages/admin/applications/index',
               templateData: {
-                thing1: { value: `${realName}（${user.displayName}）`.slice(0, 20) },
-                thing2: { value: `申请${TYPE_LABEL[requestedType]}` },
-                thing3: { value: (note || '无备注').slice(0, 20) },
+                name3: { value: realName.slice(0, 10) },
+                thing7: { value: content },
+                date2: { value: timeStr },
               },
             },
           },

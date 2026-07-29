@@ -88,6 +88,7 @@ async function notifyAdmins(matchId, match, text) {
     const d = new Date(match.date)
     const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
     const detail = `已报${cnt.total ?? 0}/${match.maxPlayers} 候补${wl.total ?? 0}`
+    // 活动开始通知 fields: 活动名称 thing4, 活动内容 thing2, 活动时间 date5
     for (const admin of adminsSnap.data) {
       if (!admin.openid) continue
       try {
@@ -99,9 +100,9 @@ async function notifyAdmins(matchId, match, text) {
             data: {
               page: `/pages/match-detail/index?id=${matchId}`,
               templateData: {
-                thing1: { value: text.slice(0, 20) },
+                thing4: { value: text.slice(0, 20) },
                 thing2: { value: detail.slice(0, 20) },
-                time3: { value: timeStr },
+                date5: { value: timeStr },
               },
             },
           },

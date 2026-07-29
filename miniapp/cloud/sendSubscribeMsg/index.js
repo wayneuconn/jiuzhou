@@ -5,12 +5,10 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const TEMPLATES = {
   promoted: 'Pd7bU1yJztmPwhicK6vI5nU0vqeRvXRw3aOl3IBTNdg',
   matchCancelled: 'YzYbL382sXtwfSgiireQodg3dQwfCuUAe2eAu2xVJ9I',
-  // 会员申请审批提醒 — pick an approval-style template at mp.weixin.qq.com and
-  // paste its ID here; until then these sends are silently skipped.
-  membershipApplied: 'REPLACE_WITH_TEMPLATE_ID',
-  // 管理员事件提醒（请假/退出/满员）— generic status-alert template; can be
-  // the same template ID as membershipApplied if its fields fit both.
-  adminAlert: 'REPLACE_WITH_TEMPLATE_ID',
+  // 会员申请审批提醒（信息提交成功通知模板）
+  membershipApplied: 'BF4FsgIL-I-1ENjTfEsCj4aQrQd-goXsNnTjgi2jTPY',
+  // 管理员事件提醒：请假/退出/满员（活动开始通知模板）
+  adminAlert: 'P7F5ctAq206UpDYL747jHSEKa-7jMC8SjwFztxsgx5w',
 }
 
 exports.main = async (event, context) => {
