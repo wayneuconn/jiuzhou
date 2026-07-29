@@ -867,6 +867,24 @@ Page({
     }
   },
 
+  async unpick(e: WechatMiniprogram.BaseEvent) {
+    const { uid } = e.currentTarget.dataset as { uid: string }
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'processDraftPick',
+        data: { matchId: this.data.matchId, unpickUid: uid },
+      })
+      this.loadMatch()
+    } catch (err: unknown) {
+      const msg = errText(err, '操作失败')
+      this.loadMatch(true)
+      wx.showModal({ title: '操作失败', content: msg, showCancel: false })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
   async toggleTag(e: WechatMiniprogram.BaseEvent) {
     bankAdminSubscribe()
     const { uid, tag } = e.currentTarget.dataset as { uid: string; tag: MatchTag }

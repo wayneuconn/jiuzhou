@@ -283,11 +283,19 @@
       <view style="display:flex;flex-direction:row;gap:16rpx;margin-top:16rpx;">
         <view class="team-box team-box-a" style="flex:1;">
           <view style="font-size:22rpx;font-weight:900;color:#3B82F6;margin-bottom:12rpx;">A队 · {{teamAList.length}} 人</view>
-          <view wx:for="{{teamAList}}" wx:key="uid" style="padding:4rpx 0;font-size:26rpx;color:#e8f0eb;">{{item.displayName}}</view>
+          <view wx:for="{{teamAList}}" wx:key="uid" class="flex-row" style="justify-content:space-between;align-items:center;padding:4rpx 0;">
+            <view style="font-size:26rpx;color:#e8f0eb;">{{item.displayName}}</view>
+            <view wx:if="{{!item.isCaptainA && !item.isCaptainB && (isAdmin || captainPickerTeam === 'A')}}"
+              class="pick-tap pick-tap-off" bindtap="unpick" data-uid="{{item.uid}}">↩</view>
+          </view>
         </view>
         <view class="team-box team-box-b" style="flex:1;">
           <view style="font-size:22rpx;font-weight:900;color:#EF4444;margin-bottom:12rpx;">B队 · {{teamBList.length}} 人</view>
-          <view wx:for="{{teamBList}}" wx:key="uid" style="padding:4rpx 0;font-size:26rpx;color:#e8f0eb;">{{item.displayName}}</view>
+          <view wx:for="{{teamBList}}" wx:key="uid" class="flex-row" style="justify-content:space-between;align-items:center;padding:4rpx 0;">
+            <view style="font-size:26rpx;color:#e8f0eb;">{{item.displayName}}</view>
+            <view wx:if="{{!item.isCaptainA && !item.isCaptainB && (isAdmin || captainPickerTeam === 'B')}}"
+              class="pick-tap pick-tap-off" bindtap="unpick" data-uid="{{item.uid}}">↩</view>
+          </view>
         </view>
       </view>
     </view>
