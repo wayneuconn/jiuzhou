@@ -3,22 +3,57 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
-// Aggregate goals/assists across all registrations (stats are only entered by
-// admins on ready/completed matches, so no match-status join is needed).
-exports.main = async (event, context) => {
+// Minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
+function etOffsetMinutes(date) {
+  const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC' })
+  const etStr = date.toLocaleString('en-US', { timeZone: 'America/New_York' })
+  return Math.round((new Date(utcStr) - new Date(etStr)) / 60000)
+}
+
+// Start of the current ET calendar month/year → epoch ms; null = all time
+function periodStartTs(period) {
+  if (period !== 'month' && period !== 'year') return null
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit',
+  }).formatToParts(new Date())
+  const y = Number(parts.find(p => p.type === 'year').value)
+  const mo = Number(parts.find(p => p.type === 'month').value)
+  const utcBase = period === 'month' ? new Date(Date.UTC(y, mo - 1, 1)) : new Date(Date.UTC(y, 0, 1))
+  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000
+}
+
+async function getAll(makeQuery) {
   const PAGE = 1000
-  const rows = []
+  const out = []
   for (let skip = 0; ; skip += PAGE) {
-    const snap = await db.collection('registrations')
-      .where(_.or([{ goals: _.gt(0) }, { assists: _.gt(0) }]))
-      .field({ uid: true, displayName: true, goals: true, assists: true })
-      .skip(skip)
-      .limit(PAGE)
-      .get()
-      .catch(() => ({ data: [] }))
-    rows.push(...snap.data)
+    const snap = await makeQuery().skip(skip).limit(PAGE).get().catch(() => ({ data: [] }))
+    out.push(...snap.data)
     if (snap.data.length < PAGE) break
   }
+  return out
+}
+
+// Leaderboards, optionally windowed to the current ET month/year.
+// event.period: 'month' | 'year' | 'all' (default 'month')
+exports.main = async (event, context) => {
+  const period = ['month', 'year', 'all'].includes(event.period) ? event.period : 'month'
+  const startTs = periodStartTs(period)
+
+  // Completed matches drive both the captain board and the period filter for
+  // goals/assists (registrations carry no date of their own).
+  const matchFilter = startTs === null
+    ? { status: 'completed' }
+    : { status: 'completed', date: _.gte(startTs) }
+  const matches = await getAll(() => db.collection('matches')
+    .where(matchFilter)
+    .field({ captainA: true, captainB: true, scoreA: true, scoreB: true, date: true }))
+  const matchIdSet = new Set(matches.map(m => m._id))
+
+  // ── goals / assists ────────────────────────────────────────────────────────
+  const rows = (await getAll(() => db.collection('registrations')
+    .where(_.or([{ goals: _.gt(0) }, { assists: _.gt(0) }]))
+    .field({ uid: true, displayName: true, goals: true, assists: true, matchId: true })))
+    .filter(r => startTs === null || matchIdSet.has(r.matchId))
 
   const byUid = {}
   for (const r of rows) {
@@ -39,22 +74,8 @@ exports.main = async (event, context) => {
     .sort((a, b) => b.assists - a.assists || b.goals - a.goals)
     .slice(0, 50)
 
-  // ── Captain leaderboard: derived from recorded scores, no extra bookkeeping.
-  // Ranking (per team decision): average points (win 3 / draw 1 / loss 0),
-  // tiebreak by average clamped goal difference (losses/draws count as 0).
-  const matches = []
-  for (let skip = 0; ; skip += PAGE) {
-    const snap = await db.collection('matches')
-      .where({ status: 'completed' })
-      .field({ captainA: true, captainB: true, scoreA: true, scoreB: true })
-      .skip(skip)
-      .limit(PAGE)
-      .get()
-      .catch(() => ({ data: [] }))
-    matches.push(...snap.data)
-    if (snap.data.length < PAGE) break
-  }
-
+  // ── captains: average points (win 3 / draw 1 / loss 0), tiebreak avg
+  // clamped net goals (losses/draws count 0) ────────────────────────────────
   const capMap = {}
   const record = (uid, diff) => {
     if (!uid) return
@@ -98,5 +119,5 @@ exports.main = async (event, context) => {
     .sort((a, b) => b.avgPoints - a.avgPoints || b.avgNet - a.avgNet || b.games - a.games)
     .slice(0, 50)
 
-  return { scorers, assisters, captains }
+  return { scorers, assisters, captains, period }
 }
