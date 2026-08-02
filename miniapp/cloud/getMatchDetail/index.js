@@ -31,13 +31,15 @@ exports.main = async (event, context) => {
   const callerReg = callerUid ? registrations.find(r => r.uid === callerUid) : null
   const callerTeam = isCaptainA ? 'A' : isCaptainB ? 'B' : (callerReg?.team || null)
 
-  // Load formation for caller's team only (or both if admin)
+  // Load formation for caller's team only. Both boards go ONLY to admins
+  // flagged with tacticsAll (owner) who aren't on either team — regular
+  // admins see their own team like everyone else.
   let formation = null
   if (match && callerTeam) {
     const docId = matchId + '_' + callerTeam
     const fSnap = await db.collection('formations').doc(docId).get().catch(() => ({ data: null }))
     formation = fSnap.data ? { team: callerTeam, positions: fSnap.data.positions || {} } : { team: callerTeam, positions: {} }
-  } else if (match && isAdmin) {
+  } else if (match && isAdmin && caller?.tacticsAll === true) {
     const [fa, fb] = await Promise.all([
       db.collection('formations').doc(matchId + '_A').get().catch(() => ({ data: null })),
       db.collection('formations').doc(matchId + '_B').get().catch(() => ({ data: null })),

@@ -39,6 +39,7 @@ Page({
     callerTeam: '' as 'A' | 'B' | '',
     isCaptain: false,
     canEdit: false,
+    dualView: false,
     state: 'loading' as VisibilityState,
     lockMessage: '',
   },
@@ -134,6 +135,57 @@ Page({
         return
       }
 
+      // Dual "full pitch" view — the server only sends both boards to the
+      // tacticsAll-flagged owner when they're on neither team. Team A renders
+      // as saved (bottom half); Team B is mirrored to the top half so the two
+      // formations face each other. Read-only.
+      const dualPositions = formation && formation.team === null
+        && formation.positions && ('A' in (formation.positions as object))
+        ? (formation.positions as {
+            A: Record<string, { x: number; y: number }>
+            B: Record<string, { x: number; y: number }>
+          })
+        : null
+      if (dualPositions) {
+        const { pitchWidth: pw, pitchHeight: ph, tokenPx } = this.data
+        const half = Math.round(tokenPx / 2)
+        const activeRegs = registrations.filter(r => r.status === 'confirmed' || r.status === 'promoted')
+        const mk = (r: Registration & { uid: string }, i: number, team: 'A' | 'B'): PitchPlayer => {
+          const saved = (team === 'A' ? dualPositions.A : dualPositions.B)?.[r.uid]
+          const slot = SLOTS[i] ?? [0.5, 0.75]
+          let x = saved ? saved.x * pw : slot[0] * pw - half
+          let y = saved ? saved.y * ph : slot[1] * ph - half
+          if (team === 'B') { x = pw - tokenPx - x; y = ph - tokenPx - y }
+          const name = (r.displayName ?? '?').trim()
+          return {
+            uid: r.uid,
+            name,
+            initial: name.charAt(0).toUpperCase() || '?',
+            position: (r.preferredPositions ?? [])[0] ?? '',
+            team,
+            x: Math.round(x),
+            y: Math.round(y),
+            isMe: false,
+          }
+        }
+        const players: PitchPlayer[] = [
+          ...activeRegs.filter(r => r.team === 'A').map((r, i) => mk(r, i, 'A')),
+          ...activeRegs.filter(r => r.team === 'B').map((r, i) => mk(r, i, 'B')),
+        ]
+        const dualDateStr = new Date(match.date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+        this.setData({
+          players,
+          matchId: match.id,
+          matchTitle: `${dualDateStr} ${match.location} · 全场视角`,
+          callerTeam: '',
+          isCaptain: false,
+          canEdit: false,
+          dualView: true,
+          state: 'ok',
+        })
+        return
+      }
+
       const myTeam: 'A' | 'B' | '' = callerTeam ?? (isCaptainA ? 'A' : isCaptainB ? 'B' : '')
       if (!myTeam) {
         this.setData({
@@ -180,6 +232,7 @@ Page({
         callerTeam: myTeam,
         isCaptain,
         canEdit: isCaptain,
+        dualView: false,
         state: 'ok',
       })
     } catch (err) {
