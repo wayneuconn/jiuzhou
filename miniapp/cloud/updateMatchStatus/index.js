@@ -167,10 +167,18 @@ exports.main = async (event) => {
   const user = userSnap.data[0]
   if (!user) throw new Error('user not found')
   const isAdmin = user.role === 'admin'
-  // Non-admins may only attempt setStatus→drafting or bumpWaitlist (both
-  // validated below as the match's captain); everything else is admin-only.
-  if (!isAdmin && action && action !== 'setStatus' && action !== 'bumpWaitlist') {
+  // Non-admins may only attempt the captain-scoped actions (each validated
+  // below against THIS match's captains); everything else is admin-only.
+  const CAPTAIN_ACTIONS = ['setStatus', 'bumpWaitlist', 'setScore', 'setStat']
+  if (!isAdmin && action && !CAPTAIN_ACTIONS.includes(action)) {
     throw new Error('admins only')
+  }
+  async function assertCaptain(mId) {
+    const mSnap = await db.collection('matches').doc(mId).get().catch(() => ({ data: null }))
+    const m = mSnap.data
+    if (!m || (m.captainA !== user._id && m.captainB !== user._id)) {
+      throw new Error('仅管理员或本场队长可操作')
+    }
   }
 
   // ── status update ──────────────────────────────────────────────────────────
@@ -299,8 +307,9 @@ exports.main = async (event) => {
     return { success: true }
   }
 
-  // ── record final score ─────────────────────────────────────────────────────
+  // ── record final score (admins or this match's captains) ──────────────────
   if (action === 'setScore') {
+    if (!isAdmin) await assertCaptain(matchId)
     const scoreA = parseInt(event.scoreA, 10)
     const scoreB = parseInt(event.scoreB, 10)
     if (isNaN(scoreA) || isNaN(scoreB) || scoreA < 0 || scoreB < 0 || scoreA > 99 || scoreB > 99) {
@@ -313,8 +322,9 @@ exports.main = async (event) => {
     return { success: true }
   }
 
-  // ── per-player goals/assists ───────────────────────────────────────────────
+  // ── per-player goals/assists (admins or this match's captains) ────────────
   if (action === 'setStat') {
+    if (!isAdmin) await assertCaptain(matchId)
     const { uid } = event
     const goals = parseInt(event.goals, 10)
     const assists = parseInt(event.assists, 10)
@@ -333,13 +343,7 @@ exports.main = async (event) => {
   // ── bump any waitlisted player straight into the roster ───────────────────
   // Admins anywhere; captains of THIS match too (post-cutoff manual review).
   if (action === 'bumpWaitlist') {
-    if (!isAdmin) {
-      const mSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
-      const m = mSnap.data
-      if (!m || (m.captainA !== user._id && m.captainB !== user._id)) {
-        throw new Error('仅管理员或本场队长可操作')
-      }
-    }
+    if (!isAdmin) await assertCaptain(matchId)
     const { uid } = event
     const regId = matchId + '_' + uid
     const regSnap = await db.collection('registrations').doc(regId).get().catch(() => ({ data: null }))

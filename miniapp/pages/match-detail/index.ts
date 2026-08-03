@@ -107,6 +107,9 @@ Page({
     showBehaviorTags: false,
     showAdminCaptain: false,
     showScoreEditor: false,
+    showStats: false,
+    showTacticsBtn: false,
+    captainTips: '',
     showTeams: false,
     hasScore: false,
     scoreAInput: '',
@@ -138,6 +141,7 @@ Page({
   _timerInterval: null as ReturnType<typeof setInterval> | null,
   _draftPoll: null as ReturnType<typeof setInterval> | null,
   _loading: false,
+  _lastSig: '',
   _registrations: [] as Registration[],
   _confirmedListRaw: [] as RegVM[],
   _shareTempPath: '' as string,
@@ -201,6 +205,17 @@ Page({
       }
 
       const { match, registrations, agreementText, callerInfo } = cfRes.result
+
+      // Silent polls: skip rendering entirely when nothing changed — a full
+      // setData re-render can shift the scroll position mid-draft.
+      const sig = JSON.stringify({
+        s: match.status, sa: match.scoreA, sb: match.scoreB,
+        ca: match.captainA, cb: match.captainB,
+        r: registrations.map(r => [r.uid, r.status, r.team, r.waitlistPosition, r.goals, r.assists, r.tags]),
+      })
+      if (silent && sig === this._lastSig) return
+      this._lastSig = sig
+
       this._registrations = registrations
 
       // Overlay the server's fresh identity on the login-time snapshot, so a
@@ -355,11 +370,29 @@ Page({
       const captainBIndex = confirmedList.findIndex(r => r.uid === match.captainB)
 
       const isDraftPhase = match.status === 'drafting'
-      const showDraft = (isAdmin || isCaptainA || isCaptainB) && isDraftPhase && !!match.captainA && !!match.captainB
-      const showBehaviorTags = isAdmin && (match.status === 'ready' || match.status === 'completed') && confirmedCount > 0
+      const isCaptain = isCaptainA || isCaptainB
+      const isDone = match.status === 'ready' || match.status === 'completed'
+      const showDraft = (isAdmin || isCaptain) && isDraftPhase && !!match.captainA && !!match.captainB
+      // Behavior tags (迟到/危险/缺席 → bans) stay admin-only; score and
+      // goals/assists are open to this match's captains too.
+      const showBehaviorTags = isAdmin && isDone && confirmedCount > 0
       const showAdminCaptain = isAdmin && confirmedCount > 0
-      const showScoreEditor = isAdmin && (match.status === 'ready' || match.status === 'completed')
+      const showScoreEditor = (isAdmin || isCaptain) && isDone
+      const showStats = (isAdmin || isCaptain) && isDone && confirmedCount > 0
       const hasScore = typeof match.scoreA === 'number' && typeof match.scoreB === 'number'
+
+      // Jump to the tactics board once teams exist (players on a team see
+      // theirs; captains can pre-plan during drafting)
+      const showTacticsBtn = (isDone && (!!myReg?.team || isCaptain || isAdmin))
+        || (isDraftPhase && isCaptain)
+
+      // Stage-aware guide for captains
+      let captainTips = ''
+      if (isCaptain) {
+        if (isOpen) captainTips = '你是本场队长：人齐后点「开始选人」，选人不分先后、先到先得'
+        else if (isDraftPhase) captainTips = '点球员右侧「选 → 你的队」选人；选错了在下方队伍名单点 ↩ 退回；双方可同时选'
+        else if (isDone) captainTips = '选人完成：去战术板拖动队员安排阵型；赛后在下方记录比分和每人进球/助攻'
+      }
 
       // Captain picker team (drives the single-button captain UI)
       const captainPickerTeam: 'A' | 'B' | '' = isCaptainA ? 'A' : isCaptainB ? 'B' : ''
@@ -412,6 +445,9 @@ Page({
         showBehaviorTags,
         showAdminCaptain,
         showScoreEditor,
+        showStats,
+        showTacticsBtn,
+        captainTips,
         hasScore,
         scoreAInput: hasScore ? String(match.scoreA) : '',
         scoreBInput: hasScore ? String(match.scoreB) : '',
@@ -473,6 +509,8 @@ Page({
   },
 
   goHome() { wx.switchTab({ url: '/pages/home/index' }) },
+
+  goTactics() { wx.switchTab({ url: '/pages/tactics/index' }) },
 
   // catch handler for modal content taps — stops propagation to the overlay
   noop() {},
@@ -752,7 +790,7 @@ Page({
         name: 'updateMatchStatus',
         data: { action: 'assignTeam', matchId: this.data.matchId, uid, team },
       })
-      this.loadMatch()
+      this.loadMatch(true)
     } catch (err: unknown) {
       const msg = errText(err, '操作失败')
       this.loadMatch(true)
@@ -791,7 +829,7 @@ Page({
         name: 'processDraftPick',
         data: { matchId: this.data.matchId, pickedUid: uid },
       })
-      this.loadMatch()
+      this.loadMatch(true)
     } catch (err: unknown) {
       const msg = errText(err, '选人失败')
       // Most failures mean the lists went stale (the other captain acted) —
@@ -875,7 +913,7 @@ Page({
         name: 'processDraftPick',
         data: { matchId: this.data.matchId, unpickUid: uid },
       })
-      this.loadMatch()
+      this.loadMatch(true)
     } catch (err: unknown) {
       const msg = errText(err, '操作失败')
       this.loadMatch(true)
