@@ -262,9 +262,10 @@ Page({
         canRemove: r.isGuest
           ? (isAdmin || r.broughtBy === user?._id)
           : (isAdmin && r.uid !== user?._id),
-        posTags: (r.preferredPositions ?? []).map(pos => ({
+        // Only the primary position gets the group color — backups stay grey
+        posTags: (r.preferredPositions ?? []).map((pos, i) => ({
           pos,
-          cls: POS_GROUP_CLS[pos] ?? 'pos-chip-secondary',
+          cls: i === 0 ? (POS_GROUP_CLS[pos] ?? 'pos-chip-secondary') : 'pos-chip-secondary',
         })),
       })
 
