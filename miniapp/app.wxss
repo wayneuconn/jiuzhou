@@ -126,3 +126,9 @@ page {
 }
 .pos-chip-primary   { background: rgba(0,201,167,0.1); color: #00C9A7; border-color: rgba(0,201,167,0.4); }
 .pos-chip-secondary { background: transparent;          color: #7A8FA6; border-color: #1E2D3D; }
+
+/* ── Position-group colors: GK gold / DEF blue / MID teal / FWD red ──────── */
+.pos-gk  { background: rgba(240,180,41,0.12); color: #F0B429; border-color: rgba(240,180,41,0.4); }
+.pos-def { background: rgba(59,130,246,0.12); color: #3B82F6; border-color: rgba(59,130,246,0.4); }
+.pos-mid { background: rgba(0,201,167,0.12);  color: #00C9A7; border-color: rgba(0,201,167,0.4); }
+.pos-fwd { background: rgba(239,68,68,0.12);  color: #EF4444; border-color: rgba(239,68,68,0.4); }

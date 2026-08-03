@@ -39,6 +39,20 @@ const POS_GROUPS = [
 
 const ALL_POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST']
 
+// Position-group color class + GK→DEF→MID→FWD sort rank
+const POS_GROUP_CLS: Record<string, string> = {
+  GK: 'pos-gk',
+  CB: 'pos-def', LB: 'pos-def', RB: 'pos-def',
+  CDM: 'pos-mid', CM: 'pos-mid', CAM: 'pos-mid',
+  LW: 'pos-fwd', RW: 'pos-fwd', ST: 'pos-fwd',
+}
+const POS_GROUP_RANK: Record<string, number> = {
+  GK: 0, CB: 1, LB: 1, RB: 1, CDM: 2, CM: 2, CAM: 2, LW: 3, RW: 3, ST: 3,
+}
+function groupRank(r: Registration): number {
+  return POS_GROUP_RANK[(r.preferredPositions ?? [])[0] ?? ''] ?? 4
+}
+
 // Cloud-function errors arrive wrapped in CloudBase stack noise — pull out
 // the human message ("errMsg: Error: <text> at ...") or fall back.
 function errText(err: unknown, fallback: string): string {
@@ -63,6 +77,7 @@ interface RegVM extends Registration {
   friendOf: string
   tierTag: string
   canRemove: boolean
+  posTags: Array<{ pos: string; cls: string }>
 }
 
 type ActionState = 'cancelled' | 'promoted' | 'confirmed' | 'waitlist' | 'excused' | 'canRegister' | 'canWaitlist' | 'r1Blocked' | 'banned' | 'needProfile' | 'needMembership' | 'closed' | 'loading'
@@ -247,6 +262,10 @@ Page({
         canRemove: r.isGuest
           ? (isAdmin || r.broughtBy === user?._id)
           : (isAdmin && r.uid !== user?._id),
+        posTags: (r.preferredPositions ?? []).map(pos => ({
+          pos,
+          cls: POS_GROUP_CLS[pos] ?? 'pos-chip-secondary',
+        })),
       })
 
       const active = registrations.filter(r => r.status !== 'withdrawn')
@@ -361,9 +380,12 @@ Page({
         scheduleLine3 = '比赛日 14:00 报名截止，此后候补需队长/管理员审核补入'
       }
 
-      const unassignedList = confirmedList.filter(r => !r.team)
-      const teamAList = confirmedList.filter(r => r.team === 'A')
-      const teamBList = confirmedList.filter(r => r.team === 'B')
+      // Draft views sort GK → DEF → MID → FWD (stable within a group);
+      // the roster list keeps signup order — 第 N 位 depends on it.
+      const byPosGroup = (a: RegVM, b: RegVM) => groupRank(a) - groupRank(b)
+      const unassignedList = confirmedList.filter(r => !r.team).sort(byPosGroup)
+      const teamAList = confirmedList.filter(r => r.team === 'A').sort(byPosGroup)
+      const teamBList = confirmedList.filter(r => r.team === 'B').sort(byPosGroup)
 
       const captainAName = registrations.find(r => r.uid === match.captainA)?.displayName ?? ''
       const captainBName = registrations.find(r => r.uid === match.captainB)?.displayName ?? ''
