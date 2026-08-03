@@ -219,17 +219,8 @@ exports.main = async (event, context) => {
       clearData.draftState = null
     }
     await db.collection('matches').doc(matchId).update({ data: clearData }).catch(() => {})
-  } else if (match.status === 'drafting') {
-    // A non-captain left mid-draft; if no unassigned players remain, the draft is done.
-    const unassignedSnap = await db.collection('registrations')
-      .where({ matchId, status: _.in(['confirmed', 'promoted']), team: null })
-      .count().catch(() => ({ total: 0 }))
-    if ((unassignedSnap.total ?? 0) === 0) {
-      await db.collection('matches').doc(matchId).update({
-        data: { status: 'ready', autoReady: true },
-      }).catch(() => {})
-    }
   }
+  // (No auto-completion mid-draft: captains end the draft explicitly.)
 
   // The bringer left — their friends lose the tier-2 privilege and re-queue
   // as ordinary tier-3 waiters (a confirmed friend gives the slot back; the

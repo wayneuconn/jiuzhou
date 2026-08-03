@@ -191,13 +191,16 @@ exports.main = async (event) => {
     if (!match) throw new Error('match not found')
 
     if (!isAdmin) {
-      // Captains of THIS match may kick off drafting from the registration
-      // phases; nothing else.
+      // Captains of THIS match may start the draft from a registration phase
+      // and end it (选人结束 → ready); nothing else.
       const isCaptain = user._id === match.captainA || user._id === match.captainB
       const draftKickoff = status === 'drafting'
         && isCaptain
         && ['registration_r1', 'registration_r2'].includes(match.status)
-      if (!draftKickoff) throw new Error('admins only')
+      const draftFinish = status === 'ready'
+        && isCaptain
+        && match.status === 'drafting'
+      if (!draftKickoff && !draftFinish) throw new Error('admins only')
     }
 
     const updateData = { status, autoReady: false }

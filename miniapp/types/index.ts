@@ -77,6 +77,7 @@ export interface Match {
   captainA?: string | null
   captainB?: string | null
   draftState?: DraftState
+  draftNudge?: { to: 'A' | 'B'; from: 'A' | 'B'; at: number } | null
   agreementText: string
   scoreA?: number | null
   scoreB?: number | null

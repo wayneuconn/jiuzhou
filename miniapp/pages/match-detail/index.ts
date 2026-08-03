@@ -110,6 +110,7 @@ Page({
     showStats: false,
     showTacticsBtn: false,
     captainTips: '',
+    draftNudgeText: '',
     showTeams: false,
     hasScore: false,
     scoreAInput: '',
@@ -210,7 +211,7 @@ Page({
       // setData re-render can shift the scroll position mid-draft.
       const sig = JSON.stringify({
         s: match.status, sa: match.scoreA, sb: match.scoreB,
-        ca: match.captainA, cb: match.captainB,
+        ca: match.captainA, cb: match.captainB, n: match.draftNudge?.at ?? 0,
         r: registrations.map(r => [r.uid, r.status, r.team, r.waitlistPosition, r.goals, r.assists, r.tags]),
       })
       if (silent && sig === this._lastSig) return
@@ -390,9 +391,17 @@ Page({
       let captainTips = ''
       if (isCaptain) {
         if (isOpen) captainTips = '你是本场队长：人齐后点「开始选人」，选人不分先后、先到先得'
-        else if (isDraftPhase) captainTips = '点球员右侧「选 → 你的队」选人；选错了在下方队伍名单点 ↩ 退回；双方可同时选'
+        else if (isDraftPhase) captainTips = '点「选 → 你的队」选人，选错点 ↩ 退回；选完一批点「我选完了」提醒对方；双方都选好后点「选人结束」，不会自动结束'
         else if (isDone) captainTips = '选人完成：去战术板拖动队员安排阵型；赛后在下方记录比分和每人进球/助攻'
       }
+
+      // Opponent captain's "your turn" nudge (shown to the nudged captain only)
+      const nudge = match.draftNudge
+      const draftNudgeText = isDraftPhase && nudge
+        && nudge.to === (isCaptainA ? 'A' : isCaptainB ? 'B' : '')
+        && Date.now() - nudge.at < 10 * 60 * 1000
+        ? `📣 队长${nudge.from}提醒：该你选人了`
+        : ''
 
       // Captain picker team (drives the single-button captain UI)
       const captainPickerTeam: 'A' | 'B' | '' = isCaptainA ? 'A' : isCaptainB ? 'B' : ''
@@ -448,6 +457,7 @@ Page({
         showStats,
         showTacticsBtn,
         captainTips,
+        draftNudgeText,
         hasScore,
         scoreAInput: hasScore ? String(match.scoreA) : '',
         scoreBInput: hasScore ? String(match.scoreB) : '',
@@ -795,6 +805,46 @@ Page({
       const msg = errText(err, '操作失败')
       this.loadMatch(true)
       wx.showModal({ title: '操作失败', content: msg, showCancel: false })
+    }
+  },
+
+  async nudgeOpponent() {
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'processDraftPick',
+        data: { matchId: this.data.matchId, nudge: true },
+      })
+      wx.showToast({ title: '已提醒对方队长', icon: 'success' })
+    } catch (err: unknown) {
+      wx.showToast({ title: errText(err, '提醒失败'), icon: 'none' })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  async endDraft() {
+    const remaining = this.data.unassignedList.length
+    const res = await wx.showModal({
+      title: '结束选人？',
+      content: remaining > 0
+        ? `还有 ${remaining} 人未分配队伍，确定结束吗？`
+        : '双方都选好了吗？结束后进入「已就绪」，可去战术板排阵',
+      confirmColor: '#00C9A7',
+    })
+    if (!res.confirm) return
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'updateMatchStatus',
+        data: { matchId: this.data.matchId, status: 'ready' },
+      })
+      wx.showToast({ title: '选人结束', icon: 'success' })
+      this.loadMatch()
+    } catch (err: unknown) {
+      wx.showModal({ title: '操作失败', content: errText(err, '操作失败'), showCancel: false })
+    } finally {
+      this.setData({ busy: false })
     }
   },
 
