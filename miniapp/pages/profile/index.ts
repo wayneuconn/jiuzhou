@@ -24,6 +24,7 @@ Page({
     membershipBadge: '',
     loading: true,
     loadError: false,
+    needSetup: false,
     saving: false,
     saved: false,
     isAdmin: false,
@@ -50,17 +51,26 @@ Page({
   },
 
   async loadProfile() {
-    this.setData({ loading: true, loadError: false })
+    this.setData({ loading: true, loadError: false, needSetup: false })
     try {
       const app = getApp<{
         globalData: {
           userProfile: User | null
+          openid: string | null
           myApplication: MembershipApplication | null
           pendingApplications: number
         }
+        loginReady?: Promise<void>
         refreshUserProfile: () => Promise<User | null>
       }>()
+      await (app.loginReady ?? Promise.resolve()).catch(() => {})
       const user = await app.refreshUserProfile()
+      if (!user && app.globalData.openid) {
+        // Logged in silently but never completed the profile — offer setup
+        // (browsing stays free; this is the action point, not a wall)
+        this.setData({ needSetup: true })
+        return
+      }
       if (user) {
         this._applyUser(user)
         const myApp = app.globalData.myApplication
@@ -84,6 +94,8 @@ Page({
   },
 
   retryLoad() { this.loadProfile() },
+
+  goSetup() { wx.navigateTo({ url: '/pages/onboard/profile/index' }) },
 
   _applyUser(user: User) {
     const app = getApp<{ globalData: { cardThresholds: typeof DEFAULT_THRESHOLDS | null } }>()

@@ -14,7 +14,6 @@ interface JiuzhouAppOption {
   loginReady: Promise<void>
   autoLogin: () => Promise<void>
   refreshUserProfile: () => Promise<User | null>
-  _redirectWithRetry: (url: string, capturePending: boolean, attempt?: number) => void
 }
 
 App<JiuzhouAppOption>({
@@ -44,18 +43,6 @@ App<JiuzhouAppOption>({
     this.loginReady = this.autoLogin()
   },
 
-  // Hot start (re-entry while the process is still alive) skips onLaunch, so
-  // someone who abandoned onboarding would strand on a blank identity-less
-  // page. Re-check on every foreground and steer them back to the form.
-  async onShow() {
-    await (this.loginReady ?? Promise.resolve()).catch(() => {})
-    const { openid, userProfile } = this.globalData
-    if (userProfile?.displayName) return
-    // openid present but no profile → onboarding incomplete; no openid means
-    // login itself failed and autoLogin already routed to the login page.
-    if (openid) this._redirectWithRetry('/pages/onboard/profile/index', true)
-  },
-
   async autoLogin() {
     try {
       const { code } = await wx.login()
@@ -66,40 +53,12 @@ App<JiuzhouAppOption>({
       const result = res.result as { openid: string; user: User | null }
       this.globalData.openid = result.openid
       this.globalData.userProfile = result.user
-
-      if (!result.user?.displayName) {
-        // Remember where the user was heading (e.g. a shared match link) so
-        // onboarding can send them back instead of dropping them on home.
-        this._redirectWithRetry('/pages/onboard/profile/index', true)
-      }
-      // If user has a displayName they're good; phone binding is optional
+      // No forced onboarding (WeChat review rule: visitors must be able to
+      // browse before any profile/login step). Profile setup is prompted at
+      // action points instead — 报名 / 申请会员 / 我的 tab.
     } catch (err) {
       console.error('autoLogin failed', err)
-      this._redirectWithRetry('/pages/login/index', false)
     }
-  },
-
-  // At cold start the entry page may still be loading, in which case
-  // wx.redirectTo fails silently — new users then strand on the shared match
-  // page seeing 报名已关闭. Retry until the page stack is ready.
-  _redirectWithRetry(url: string, capturePending: boolean, attempt = 0) {
-    if (attempt >= 6) return
-    setTimeout(() => {
-      const pages = getCurrentPages()
-      const cur = pages[pages.length - 1]
-      if (!cur) { this._redirectWithRetry(url, capturePending, attempt + 1); return }
-      if ('/' + cur.route === url) return
-      if (capturePending && cur.route !== 'pages/onboard/profile/index') {
-        const qs = Object.entries(cur.options || {})
-          .map(([k, v]) => `${k}=${v}`)
-          .join('&')
-        this.globalData.pendingRoute = `/${cur.route}${qs ? '?' + qs : ''}`
-      }
-      wx.redirectTo({
-        url,
-        fail: () => this._redirectWithRetry(url, capturePending, attempt + 1),
-      })
-    }, attempt === 0 ? 0 : 400)
   },
 
   async refreshUserProfile() {
