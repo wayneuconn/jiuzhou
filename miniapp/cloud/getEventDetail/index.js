@@ -32,6 +32,17 @@ exports.main = async (event, context) => {
 
   const caller = userSnap.data[0]
   const isAdmin = caller?.role === 'admin'
+
+  // Visibility = scope: out-of-scope users (and anyone, for drafts) get a
+  // minimal blocked response instead of the event content.
+  if (!isAdmin) {
+    const types = { annual: ['annual'], member: ['annual', 'per_session'], all: null }[ev.scope] ?? ['annual']
+    const inScope = types === null || (caller && types.includes(caller.membershipType))
+    if (ev.status === 'draft' || !inScope) {
+      return { blocked: true, scope: ev.scope }
+    }
+  }
+
   const regs = regsSnap.data
 
   const polled = regs.filter(r => Object.keys(r.pollAnswers || {}).length > 0)

@@ -8,7 +8,8 @@ exports.main = async (event, context) => {
   const userSnap = OPENID
     ? await db.collection('users').where({ openid: OPENID }).limit(1).get().catch(() => ({ data: [] }))
     : { data: [] }
-  const isAdmin = userSnap.data[0]?.role === 'admin'
+  const caller = userSnap.data[0]
+  const isAdmin = caller?.role === 'admin'
 
   const filter = isAdmin ? {} : { status: _.in(['polling', 'registration', 'closed']) }
   const snap = await db.collection('events')
@@ -18,8 +19,15 @@ exports.main = async (event, context) => {
     .get()
     .catch(() => ({ data: [] }))
 
+  // Visibility = scope: non-admins only see events they can participate in
+  const events = snap.data.filter(e => {
+    if (isAdmin) return true
+    const types = { annual: ['annual'], member: ['annual', 'per_session'], all: null }[e.scope] ?? ['annual']
+    return types === null || (caller && types.includes(caller.membershipType))
+  })
+
   return {
-    events: snap.data.map(e => ({ ...e, id: e._id })),
+    events: events.map(e => ({ ...e, id: e._id })),
     isAdmin,
   }
 }

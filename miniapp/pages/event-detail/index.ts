@@ -73,6 +73,8 @@ Page({
     textAnswerList: [] as Array<{ title: string; items: Array<{ name: string; answer: string }> }>,
     loading: true,
     loadError: false,
+    blocked: false,
+    blockedLabel: '',
     busy: false,
     isEntry: false,
   },
@@ -95,7 +97,7 @@ Page({
 
   async loadEvent() {
     if (!this.data.eventId) return
-    this.setData({ loading: true, loadError: false })
+    this.setData({ loading: true, loadError: false, blocked: false })
     try {
       const app = getApp<{ loginReady?: Promise<void>; globalData: { userProfile: { role?: string; membershipType?: string } | null } }>()
       await (app.loginReady ?? Promise.resolve()).catch(() => {})
@@ -114,6 +116,15 @@ Page({
           textAnswers: Record<string, Array<{ name: string; answer: string }>> | null
           callerInfo: { membershipType: string; role: string } | null
         }
+      }
+      const maybeBlocked = res.result as unknown as { blocked?: boolean; scope?: string }
+      if (maybeBlocked.blocked) {
+        this.setData({
+          blocked: true,
+          blockedLabel: maybeBlocked.scope === 'annual' ? '本活动仅限年卡会员参与'
+            : maybeBlocked.scope === 'member' ? '本活动仅限球队会员参与' : '暂无权限查看本活动',
+        })
+        return
       }
       const { event: ev, myReg, attendees, headcount, pollCount, pollTally, signupTally, textAnswers, callerInfo } = res.result
       this._event = ev

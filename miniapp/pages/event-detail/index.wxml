@@ -8,6 +8,12 @@
     <view class="text-muted">加载中...</view>
   </view>
 
+  <view wx:elif="{{blocked}}" style="text-align:center;padding:100rpx 40rpx;">
+    <view style="font-size:80rpx;">🔒</view>
+    <view style="font-size:30rpx;font-weight:700;color:#e8f0eb;margin-top:24rpx;">{{blockedLabel}}</view>
+    <view class="text-muted" style="font-size:24rpx;margin-top:12rpx;">如有疑问请联系管理员</view>
+  </view>
+
   <view wx:elif="{{loadError}}" style="text-align:center;padding:80rpx 0;">
     <view class="text-muted" style="margin-bottom:24rpx;">加载失败，请检查网络</view>
     <button class="btn-ghost" style="display:inline-block;" bindtap="retryLoad">重试</button>
