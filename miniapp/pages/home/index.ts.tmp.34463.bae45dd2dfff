@@ -29,22 +29,12 @@ Page({
     this.setData({ loading: true })
     try {
       const res = await wx.cloud.callFunction({ name: 'getAnnouncements' }) as unknown as {
-        result: {
-          announcements: Announcement[]
-          nextMatch: Match | null
-          activeEvent: { id: string; title: string; status: string } | null
-          season: string
-        }
+        result: { announcements: Announcement[]; nextMatch: Match | null; season: string }
       }
-      const { announcements, nextMatch, activeEvent, season } = res.result
+      const { announcements, nextMatch, season } = res.result
       this.setData({
         announcements: announcements.map(a => ({ ...a, contentHtml: markdownToHtml(a.content) })),
         season,
-        activeEvent: activeEvent ? {
-          id: activeEvent.id,
-          title: activeEvent.title,
-          statusLabel: activeEvent.status === 'polling' ? '征集意见中' : '报名中',
-        } : null,
         nextMatch: nextMatch ? {
           ...nextMatch,
           dateStr: formatDate(nextMatch.date),
@@ -67,12 +57,6 @@ Page({
 
   goLeaderboard() {
     wx.navigateTo({ url: '/pages/leaderboard/index' })
-  },
-
-  goToEvent() {
-    if (this.data.activeEvent) {
-      wx.navigateTo({ url: `/pages/event-detail/index?id=${this.data.activeEvent.id}` })
-    }
   },
 
   onShareAppMessage() {

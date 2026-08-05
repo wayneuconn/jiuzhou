@@ -1,0 +1,152 @@
+<view class="container">
+  <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:24rpx;">
+    <view style="font-size:48rpx;font-weight:900;">活动管理</view>
+    <button class="btn-primary" style="padding:12rpx 28rpx;font-size:26rpx;" bindtap="openNew">+ 新建</button>
+  </view>
+
+  <!-- Workflow guide -->
+  <view style="background:rgba(0,201,167,0.08);border:1rpx solid rgba(0,201,167,0.25);border-radius:12rpx;padding:20rpx;margin-bottom:20rpx;">
+    <view style="font-size:24rpx;font-weight:700;color:#00C9A7;margin-bottom:8rpx;">💡 活动流程</view>
+    <view class="text-muted" style="font-size:22rpx;line-height:1.8;">① 新建活动（存为草稿，时间可先"待定"）</view>
+    <view class="text-muted" style="font-size:22rpx;line-height:1.8;">② 想先征集意见（如投日期）：添加"投票问题"，到活动详情页点「开始投票」</view>
+    <view class="text-muted" style="font-size:22rpx;line-height:1.8;">③ 看票选结果 → 回来「编辑」定下最终时间 → 详情页点「开放报名」</view>
+    <view class="text-muted" style="font-size:22rpx;line-height:1.8;">④ 大家正式报名（带家属、答报名问题），到截止时间自动关闭</view>
+    <view class="text-muted" style="font-size:22rpx;line-height:1.8;">简单活动跳过②③直接「开放报名」即可</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="text-muted" style="text-align:center;padding:60rpx 0;">加载中...</view>
+
+  <view wx:for="{{events}}" wx:key="id" class="card" style="margin-bottom:16rpx;">
+    <view class="flex-row" style="justify-content:space-between;align-items:flex-start;margin-bottom:16rpx;" bindtap="goDetail" data-id="{{item.id}}">
+      <view style="flex:1;min-width:0;">
+        <view style="font-size:30rpx;font-weight:700;color:#e8f0eb;">🎉 {{item.title}}</view>
+        <view class="text-muted" style="font-size:24rpx;margin-top:4rpx;">{{item.dateStr}}<text wx:if="{{item.location}}"> · {{item.location}}</text></view>
+      </view>
+      <view class="badge {{item.statusBadge}}" style="flex-shrink:0;margin-left:16rpx;">{{item.statusLabel}}</view>
+    </view>
+    <view class="flex-row" style="gap:12rpx;justify-content:flex-end;">
+      <button size="mini" class="btn-ghost" style="font-size:24rpx;" catchtap="openEdit" data-id="{{item.id}}">编辑</button>
+      <button size="mini" class="btn-primary" style="font-size:24rpx;" catchtap="goDetail" data-id="{{item.id}}">详情 / 阶段管理</button>
+    </view>
+  </view>
+
+  <view wx:if="{{events.length === 0 && !loading}}" class="card" style="text-align:center;padding:80rpx 0;">
+    <view style="font-size:80rpx;">🎉</view>
+    <view class="text-muted" style="margin-top:16rpx;">还没有活动，点右上角新建</view>
+  </view>
+
+  <!-- Create / edit modal -->
+  <view wx:if="{{showModal}}" class="modal-mask" catchtap="closeModal">
+    <view class="modal-box" catchtap="noop">
+      <view style="font-size:32rpx;font-weight:700;color:#e8f0eb;margin-bottom:24rpx;">{{editingId ? '编辑活动' : '新建活动'}}</view>
+
+      <view class="ev-field">
+        <view class="ev-label">标题</view>
+        <input class="form-input" value="{{form.title}}" bindinput="onField" data-field="title" placeholder="例：九州周年庆" adjust-position="{{false}}"/>
+      </view>
+      <view class="ev-field">
+        <view class="ev-label">描述（支持 Markdown）</view>
+        <textarea class="form-input" style="height:160rpx;line-height:1.6;padding-top:16rpx;" value="{{form.description}}" bindinput="onField" data-field="description" placeholder="活动介绍、安排..." adjust-position="{{false}}" maxlength="-1"/>
+      </view>
+      <view class="ev-field">
+        <view class="ev-label">地点</view>
+        <input class="form-input" value="{{form.location}}" bindinput="onField" data-field="location" placeholder="活动/聚餐地点" adjust-position="{{false}}"/>
+      </view>
+      <view class="flex-row" style="gap:16rpx;" >
+        <view class="ev-field" style="flex:1;">
+          <view class="ev-label">活动日期（可先留空）</view>
+          <picker mode="date" value="{{form.eventDate}}" bindchange="onPicker" data-field="eventDate">
+            <view class="form-input">{{form.eventDate || '待定'}}</view>
+          </picker>
+        </view>
+        <view class="ev-field" style="flex:1;">
+          <view class="ev-label">时间</view>
+          <picker mode="time" value="{{form.eventTime}}" bindchange="onPicker" data-field="eventTime">
+            <view class="form-input">{{form.eventTime}}</view>
+          </picker>
+        </view>
+      </view>
+      <view class="flex-row" style="gap:16rpx;">
+        <view class="ev-field" style="flex:1;">
+          <view class="ev-label">报名截止日期</view>
+          <picker mode="date" value="{{form.deadlineDate}}" bindchange="onPicker" data-field="deadlineDate">
+            <view class="form-input">{{form.deadlineDate || '不限'}}</view>
+          </picker>
+        </view>
+        <view class="ev-field" style="flex:1;">
+          <view class="ev-label">截止时间</view>
+          <picker mode="time" value="{{form.deadlineTime}}" bindchange="onPicker" data-field="deadlineTime">
+            <view class="form-input">{{form.deadlineTime}}</view>
+          </picker>
+        </view>
+      </view>
+      <view class="ev-field">
+        <view class="ev-label">参与范围</view>
+        <picker range="{{scopes}}" range-key="label" value="{{form.scopeIndex}}" bindchange="onScope">
+          <view class="form-input">{{scopes[form.scopeIndex].label}}</view>
+        </picker>
+      </view>
+      <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:20rpx;">
+        <view style="font-size:28rpx;color:#e8f0eb;">允许带家属/朋友</view>
+        <switch checked="{{form.allowGuests}}" bindchange="onGuestsSwitch" color="#00C9A7"/>
+      </view>
+      <view wx:if="{{form.allowGuests}}" class="flex-row" style="gap:16rpx;">
+        <view class="ev-field" style="flex:1;">
+          <view class="ev-label">每人最多带几位</view>
+          <input class="form-input" type="number" value="{{form.maxGuestsPer}}" bindinput="onField" data-field="maxGuestsPer" adjust-position="{{false}}"/>
+        </view>
+        <view class="ev-field" style="flex:1;">
+          <view class="ev-label">总人数上限（留空不限）</view>
+          <input class="form-input" type="number" value="{{form.maxAttendees}}" bindinput="onField" data-field="maxAttendees" adjust-position="{{false}}"/>
+        </view>
+      </view>
+
+      <!-- Poll questions builder -->
+      <view class="ev-section">投票问题（征集意见阶段，可为空）</view>
+      <view class="text-muted" style="font-size:22rpx;margin-bottom:12rpx;line-height:1.6;">用来在正式报名前征集意见，比如"哪天有空？""想去哪家店？"。投票不算报名，票数大家都能看到。不需要征集就留空。</view>
+      <view wx:for="{{pollQs}}" wx:key="id" wx:for-item="q" wx:for-index="qi" class="ev-qcard">
+        <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
+          <picker range="{{qTypes}}" range-key="label" value="{{q.typeIndex}}" bindchange="onQType" data-phase="poll" data-index="{{qi}}">
+            <view class="ev-qtype">{{qTypes[q.typeIndex].label}} ▾</view>
+          </picker>
+          <view class="flex-row" style="align-items:center;gap:12rpx;">
+            <view class="text-muted" style="font-size:22rpx;">必答</view>
+            <switch checked="{{q.required}}" bindchange="onQRequired" data-phase="poll" data-index="{{qi}}" color="#00C9A7" style="transform:scale(0.7);"/>
+            <view class="ev-del" bindtap="delQ" data-phase="poll" data-index="{{qi}}">删除</view>
+          </view>
+        </view>
+        <input class="form-input" style="margin-bottom:12rpx;" value="{{q.title}}" placeholder="问题，例：哪天有空？"
+          bindinput="onQField" data-phase="poll" data-index="{{qi}}" data-field="title" adjust-position="{{false}}"/>
+        <input wx:if="{{qTypes[q.typeIndex].key !== 'text'}}" class="form-input" value="{{q.options}}" placeholder="选项用 / 分隔，例：8月15日/8月22日/8月29日"
+          bindinput="onQField" data-phase="poll" data-index="{{qi}}" data-field="options" adjust-position="{{false}}"/>
+      </view>
+      <button size="mini" class="btn-ghost" style="font-size:24rpx;margin-bottom:24rpx;" bindtap="addQ" data-phase="poll">+ 添加投票问题</button>
+
+      <!-- Signup questions builder -->
+      <view class="ev-section">报名问题（正式报名阶段，可为空）</view>
+      <view class="text-muted" style="font-size:22rpx;margin-bottom:12rpx;line-height:1.6;">报名时必须回答的信息，比如"饮食禁忌？""怎么过去？"。填空题的回答只有管理员能看到。</view>
+      <view wx:for="{{signupQs}}" wx:key="id" wx:for-item="q" wx:for-index="qi" class="ev-qcard">
+        <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
+          <picker range="{{qTypes}}" range-key="label" value="{{q.typeIndex}}" bindchange="onQType" data-phase="signup" data-index="{{qi}}">
+            <view class="ev-qtype">{{qTypes[q.typeIndex].label}} ▾</view>
+          </picker>
+          <view class="flex-row" style="align-items:center;gap:12rpx;">
+            <view class="text-muted" style="font-size:22rpx;">必答</view>
+            <switch checked="{{q.required}}" bindchange="onQRequired" data-phase="signup" data-index="{{qi}}" color="#00C9A7" style="transform:scale(0.7);"/>
+            <view class="ev-del" bindtap="delQ" data-phase="signup" data-index="{{qi}}">删除</view>
+          </view>
+        </view>
+        <input class="form-input" style="margin-bottom:12rpx;" value="{{q.title}}" placeholder="问题，例：饮食禁忌？"
+          bindinput="onQField" data-phase="signup" data-index="{{qi}}" data-field="title" adjust-position="{{false}}"/>
+        <input wx:if="{{qTypes[q.typeIndex].key !== 'text'}}" class="form-input" value="{{q.options}}" placeholder="选项用 / 分隔"
+          bindinput="onQField" data-phase="signup" data-index="{{qi}}" data-field="options" adjust-position="{{false}}"/>
+      </view>
+      <button size="mini" class="btn-ghost" style="font-size:24rpx;margin-bottom:24rpx;" bindtap="addQ" data-phase="signup">+ 添加报名问题</button>
+
+      <view class="flex-row" style="gap:16rpx;">
+        <button class="btn-ghost" style="flex:1;" bindtap="closeModal">取消</button>
+        <button class="btn-primary" style="flex:1;" bindtap="save" loading="{{saving}}">保存</button>
+      </view>
+    </view>
+  </view>
+</view>

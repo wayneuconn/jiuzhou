@@ -319,6 +319,14 @@ exports.main = async (event, context) => {
     evenRostered++
   }
 
+  // ── 1e. Close one-off events past their signup deadline ─────────────────
+  const dueEventsSnap = await db.collection('events')
+    .where({ status: 'registration', deadline: _.and(_.gt(0), _.lt(now.getTime())) })
+    .get().catch(() => ({ data: [] }))
+  for (const ev of dueEventsSnap.data) {
+    await db.collection('events').doc(ev._id).update({ data: { status: 'closed' } }).catch(() => {})
+  }
+
   // ── 2. Auto-complete matches whose date has passed ───────────────────────
   const expiredMatchSnap = await db.collection('matches')
     .where({

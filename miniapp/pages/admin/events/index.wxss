@@ -1,0 +1,67 @@
+.modal-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx 32rpx;
+  z-index: 1000;
+}
+
+.modal-box {
+  background: #0F1923;
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx;
+  width: 100%;
+  box-sizing: border-box;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.form-input {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  font-size: 28rpx;
+  color: #e8f0eb;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ev-field { margin-bottom: 20rpx; }
+.ev-label { font-size: 22rpx; color: #7A8FA6; margin-bottom: 8rpx; }
+
+.ev-section {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #F0B429;
+  margin: 8rpx 0 16rpx;
+}
+
+.ev-qcard {
+  background: #131F2E;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+}
+
+.ev-qtype {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #00C9A7;
+  border: 1rpx solid rgba(0,201,167,0.35);
+  border-radius: 10rpx;
+  padding: 6rpx 18rpx;
+  display: inline-block;
+}
+
+.ev-del {
+  font-size: 22rpx;
+  color: #E53E3E;
+  padding: 6rpx 12rpx;
+}

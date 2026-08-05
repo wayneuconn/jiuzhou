@@ -28,6 +28,18 @@
       <view class="text-muted">暂无即将进行的比赛</view>
     </view>
 
+    <!-- Active one-off event -->
+    <view wx:if="{{activeEvent}}" class="card flex-row" style="justify-content:space-between;align-items:center;border:1rpx solid rgba(240,180,41,0.35);" bindtap="goToEvent">
+      <view class="flex-row" style="gap:12rpx;align-items:center;min-width:0;">
+        <view style="font-size:32rpx;">🎉</view>
+        <view style="min-width:0;">
+          <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;">{{activeEvent.title}}</view>
+          <view style="font-size:22rpx;color:#F0B429;margin-top:2rpx;">{{activeEvent.statusLabel}} · 点击参与</view>
+        </view>
+      </view>
+      <view style="color:#7A8FA6;font-size:32rpx;">›</view>
+    </view>
+
     <!-- Leaderboard entry -->
     <view class="card flex-row" style="justify-content:space-between;align-items:center;" bindtap="goLeaderboard">
       <view class="flex-row" style="gap:12rpx;align-items:center;">

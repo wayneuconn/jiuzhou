@@ -15,7 +15,7 @@ exports.main = async (event, context) => {
 
   const results = {}
 
-  const collections = ['users', 'matches', 'registrations', 'announcements', 'payments', 'paymentEvents', 'inviteTokens', 'config', 'formations', 'membershipApplications']
+  const collections = ['users', 'matches', 'registrations', 'announcements', 'payments', 'paymentEvents', 'inviteTokens', 'config', 'formations', 'membershipApplications', 'events', 'eventRegistrations']
   for (const name of collections) {
     try {
       await db.createCollection(name)

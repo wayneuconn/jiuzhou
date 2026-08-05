@@ -11,6 +11,7 @@
 
 input.settings-input {
   height: 88rpx;
+  line-height: 88rpx;
   padding: 0 20rpx;
 }
 

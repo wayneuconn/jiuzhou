@@ -122,6 +122,50 @@ export interface Formation {
   updatedAt: number
 }
 
+// ── One-off events (周年庆/聚餐/团建): optional polling phase, then signup ──
+export type EventStatus = 'draft' | 'polling' | 'registration' | 'closed' | 'cancelled'
+export type EventScope = 'annual' | 'member' | 'all'
+export type EventQuestionType = 'single' | 'multi' | 'text'
+
+export interface EventQuestion {
+  id: string
+  title: string
+  type: EventQuestionType
+  options: string[]
+  required: boolean
+}
+
+export interface TeamEvent {
+  id: string
+  title: string
+  description: string
+  location: string
+  eventDate: number | null
+  deadline: number | null
+  scope: EventScope
+  allowGuests: boolean
+  maxGuestsPer: number
+  maxAttendees: number | null
+  pollQuestions: EventQuestion[]
+  signupQuestions: EventQuestion[]
+  status: EventStatus
+  createdAt: number
+}
+
+export type EventRegStatus = 'polled' | 'confirmed' | 'withdrawn'
+
+export interface EventReg {
+  eventId: string
+  uid: string
+  displayName: string
+  status: EventRegStatus
+  guests: number
+  guestNames: string
+  pollAnswers: Record<string, string | string[]>
+  signupAnswers: Record<string, string | string[]>
+  registeredAt: number
+}
+
 export type ApplicationStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 export interface MembershipApplication {

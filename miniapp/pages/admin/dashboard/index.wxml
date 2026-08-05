@@ -50,6 +50,10 @@
     </view>
     <view style="color:#7A8FA6;font-size:32rpx;">›</view>
   </view>
+  <view class="card menu-item" bindtap="go" data-url="/pages/admin/events/index">
+    <view style="font-size:28rpx;font-weight:600;color:#e8f0eb;">活动管理</view>
+    <view style="color:#7A8FA6;font-size:32rpx;">›</view>
+  </view>
   <view class="card menu-item" bindtap="go" data-url="/pages/admin/attendance/index">
     <view style="font-size:28rpx;font-weight:600;color:#e8f0eb;">出勤统计</view>
     <view style="color:#7A8FA6;font-size:32rpx;">›</view>
