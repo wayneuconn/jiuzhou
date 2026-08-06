@@ -41,6 +41,7 @@
     <view wx:if="{{isAdmin}}" class="card">
       <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">阶段管理</view>
       <view class="flex-row" style="gap:12rpx;flex-wrap:wrap;">
+        <view class="pick-tap pick-tap-a" bindtap="goResults">📊 实时结果</view>
         <view wx:if="{{event.status === 'draft' && event.pollQuestions.length > 0}}" class="pick-tap pick-tap-a" bindtap="setEvStatus" data-status="polling" data-label="开始征集意见">开始投票</view>
         <view wx:if="{{event.status === 'draft' || event.status === 'polling'}}" class="pick-tap pick-tap-a" bindtap="setEvStatus" data-status="registration" data-label="开放报名">开放报名</view>
         <view wx:if="{{event.status === 'polling' || event.status === 'registration'}}" class="pick-tap pick-tap-off" bindtap="setEvStatus" data-status="closed" data-label="截止关闭">关闭</view>
@@ -138,15 +139,6 @@
         <view style="flex:1;margin-left:16rpx;font-size:28rpx;color:#e8f0eb;">
           {{item.displayName}}<text wx:if="{{item.guests > 0}}" class="text-muted" style="font-size:22rpx;"> +{{item.guests}}{{item.guestNames ? '（' + item.guestNames + '）' : ''}}</text>
         </view>
-      </view>
-    </view>
-
-    <!-- ── Admin: free-text answers ───────────────────────────────────── -->
-    <view wx:if="{{isAdmin && textAnswerList.length > 0}}" class="card" style="padding-bottom:8rpx;">
-      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">填空回答（仅管理员可见）</view>
-      <view wx:for="{{textAnswerList}}" wx:key="title" style="margin-bottom:16rpx;">
-        <view style="font-size:26rpx;font-weight:700;color:#e8f0eb;margin-bottom:8rpx;">{{item.title}}</view>
-        <view wx:for="{{item.items}}" wx:key="name" wx:for-item="x" class="text-muted" style="font-size:24rpx;line-height:1.7;">{{x.name}}：{{x.answer}}</view>
       </view>
     </view>
 

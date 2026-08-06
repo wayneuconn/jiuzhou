@@ -35,6 +35,7 @@
     { "name": "getEvents", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "getEventDetail", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "joinEvent", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "getEventResults", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "getMembershipApplications", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "decideMembershipApplication", "config": { "timeout": 10, "runtime": "Nodejs16.13", "installDependency": true } }
   ]

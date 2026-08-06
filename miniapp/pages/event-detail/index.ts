@@ -69,8 +69,6 @@ Page({
     guestNames: '',
     inScope: true,
     isAdmin: false,
-    textAnswers: null as Record<string, Array<{ name: string; answer: string }>> | null,
-    textAnswerList: [] as Array<{ title: string; items: Array<{ name: string; answer: string }> }>,
     loading: true,
     loadError: false,
     blocked: false,
@@ -113,7 +111,6 @@ Page({
           pollCount: number
           pollTally: Tally[]
           signupTally: Tally[]
-          textAnswers: Record<string, Array<{ name: string; answer: string }>> | null
           callerInfo: { membershipType: string; role: string } | null
         }
       }
@@ -126,7 +123,7 @@ Page({
         })
         return
       }
-      const { event: ev, myReg, attendees, headcount, pollCount, pollTally, signupTally, textAnswers, callerInfo } = res.result
+      const { event: ev, myReg, attendees, headcount, pollCount, pollTally, signupTally, callerInfo } = res.result
       this._event = ev
       const isAdmin = callerInfo?.role === 'admin'
 
@@ -139,16 +136,6 @@ Page({
         || (ev.scope === 'all')
         || (ev.scope === 'member' && ['annual', 'per_session'].includes(mt))
         || (ev.scope === 'annual' && mt === 'annual')
-
-      // Text answers → renderable list (admin only)
-      const textAnswerList: Array<{ title: string; items: Array<{ name: string; answer: string }> }> = []
-      if (textAnswers) {
-        for (const q of [...(ev.pollQuestions || []), ...(ev.signupQuestions || [])]) {
-          if (q.type === 'text' && textAnswers[q.id]?.length) {
-            textAnswerList.push({ title: q.title, items: textAnswers[q.id] })
-          }
-        }
-      }
 
       this.setData({
         event: ev,
@@ -167,7 +154,6 @@ Page({
         guestNames: myReg?.guestNames ?? '',
         inScope,
         isAdmin,
-        textAnswerList,
       })
     } catch (err) {
       console.error('loadEvent failed', err)
@@ -177,6 +163,10 @@ Page({
     }
   },
   retryLoad() { this.loadEvent() },
+
+  goResults() {
+    wx.navigateTo({ url: `/pages/admin/event-results/index?id=${this.data.eventId}` })
+  },
 
   // ── answer pickers (shared by poll/signup via data-phase) ────────────────
   pickOption(e: WechatMiniprogram.BaseEvent) {

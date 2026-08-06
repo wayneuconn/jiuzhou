@@ -51,20 +51,6 @@ exports.main = async (event, context) => {
 
   const myReg = caller ? (regs.find(r => r.uid === caller._id) ?? null) : null
 
-  // Free-text answers for admins
-  let textAnswers = null
-  if (isAdmin) {
-    textAnswers = {}
-    for (const [qs, field] of [[ev.pollQuestions, 'pollAnswers'], [ev.signupQuestions, 'signupAnswers']]) {
-      for (const q of qs || []) {
-        if (q.type !== 'text') continue
-        textAnswers[q.id] = regs
-          .map(r => ({ name: r.displayName, answer: (r[field] || {})[q.id] }))
-          .filter(x => typeof x.answer === 'string' && x.answer.trim())
-      }
-    }
-  }
-
   return {
     event: { ...ev, id: ev._id },
     myReg,
@@ -73,7 +59,6 @@ exports.main = async (event, context) => {
     headcount,
     pollTally: tally(ev.pollQuestions, regs, 'pollAnswers'),
     signupTally: tally(ev.signupQuestions, confirmed, 'signupAnswers'),
-    textAnswers,
     callerInfo: caller ? { membershipType: caller.membershipType ?? 'none', role: caller.role ?? 'guest' } : null,
   }
 }

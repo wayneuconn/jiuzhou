@@ -1,0 +1,108 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="text-muted" style="text-align:center;padding:60rpx 0;">加载中...</view>
+
+  <view wx:elif="{{loadError}}" style="text-align:center;padding:80rpx 0;">
+    <view class="text-muted" style="margin-bottom:24rpx;">加载失败，请检查网络</view>
+    <button class="btn-ghost" style="display:inline-block;" bindtap="retryLoad">重试</button>
+  </view>
+
+  <block wx:else>
+    <!-- Header -->
+    <view class="flex-row" style="justify-content:space-between;align-items:flex-start;margin-bottom:8rpx;">
+      <view style="flex:1;min-width:0;">
+        <view style="font-size:40rpx;font-weight:900;color:#e8f0eb;">{{title}}</view>
+        <view class="text-muted" style="font-size:24rpx;margin-top:4rpx;">{{eventDateStr}} · {{statusLabel}}</view>
+      </view>
+      <view class="live-dot-wrap"><view class="live-dot"></view><text style="font-size:20rpx;color:#00C9A7;">实时</text></view>
+    </view>
+
+    <!-- Stats -->
+    <view class="flex-row" style="gap:12rpx;margin:20rpx 0;">
+      <view class="stat-tile">
+        <view class="stat-num" style="color:#F0B429;">{{polledCount}}</view>
+        <view class="stat-label">已投票</view>
+      </view>
+      <view class="stat-tile">
+        <view class="stat-num" style="color:#00C9A7;">{{confirmedCount}}</view>
+        <view class="stat-label">已报名</view>
+      </view>
+      <view class="stat-tile">
+        <view class="stat-num" style="color:#e8f0eb;">{{headcount}}</view>
+        <view class="stat-label">总人数(含家属)</view>
+      </view>
+    </view>
+
+    <!-- Chase lists -->
+    <view wx:if="{{showChase && (polledNotSigned || notRespondedCount > 0)}}" class="card">
+      <view wx:if="{{polledNotSigned}}" style="margin-bottom:16rpx;">
+        <view style="font-size:24rpx;font-weight:700;color:#F0B429;margin-bottom:6rpx;">🔔 投过票但还没报名</view>
+        <view class="text-muted" style="font-size:24rpx;line-height:1.7;">{{polledNotSigned}}</view>
+      </view>
+      <view wx:if="{{notRespondedCount > 0}}">
+        <view style="font-size:24rpx;font-weight:700;color:#7A8FA6;margin-bottom:6rpx;">😴 还没响应（{{notRespondedCount}} 人）</view>
+        <view class="text-muted" style="font-size:24rpx;line-height:1.7;">{{notResponded}}</view>
+      </view>
+    </view>
+
+    <!-- Poll question results -->
+    <block wx:if="{{pollResults.length > 0}}">
+      <view class="section-label">投票结果</view>
+      <view wx:for="{{pollResults}}" wx:key="id" wx:for-item="q" class="card">
+        <view class="q-title">{{q.title}} <text class="text-muted" style="font-size:22rpx;font-weight:400;">{{q.answered}} 人回答</text></view>
+        <block wx:if="{{q.type !== 'text'}}">
+          <view wx:for="{{q.opts}}" wx:key="label" wx:for-item="o" style="margin-bottom:16rpx;">
+            <view class="flex-row" style="justify-content:space-between;margin-bottom:6rpx;">
+              <view style="font-size:26rpx;color:#e8f0eb;">{{o.label}}</view>
+              <view style="font-size:26rpx;font-weight:900;color:#F0B429;">{{o.count}}票</view>
+            </view>
+            <view class="bar-track"><view class="bar-fill bar-gold" style="width:{{o.pct}}%;"></view></view>
+            <view wx:if="{{o.names}}" class="text-muted" style="font-size:22rpx;margin-top:6rpx;line-height:1.6;">{{o.names}}</view>
+          </view>
+        </block>
+        <block wx:else>
+          <view wx:for="{{q.textItems}}" wx:key="name" wx:for-item="x" class="text-row">
+            <view style="font-size:24rpx;font-weight:700;color:#e8f0eb;flex-shrink:0;">{{x.name}}</view>
+            <view class="text-muted" style="font-size:24rpx;line-height:1.6;">{{x.answer}}</view>
+          </view>
+        </block>
+      </view>
+    </block>
+
+    <!-- Signup question results -->
+    <block wx:if="{{signupResults.length > 0}}">
+      <view class="section-label">报名问卷（仅统计已报名者）</view>
+      <view wx:for="{{signupResults}}" wx:key="id" wx:for-item="q" class="card">
+        <view class="q-title">{{q.title}} <text class="text-muted" style="font-size:22rpx;font-weight:400;">{{q.answered}} 人回答</text></view>
+        <block wx:if="{{q.type !== 'text'}}">
+          <view wx:for="{{q.opts}}" wx:key="label" wx:for-item="o" style="margin-bottom:16rpx;">
+            <view class="flex-row" style="justify-content:space-between;margin-bottom:6rpx;">
+              <view style="font-size:26rpx;color:#e8f0eb;">{{o.label}}</view>
+              <view style="font-size:26rpx;font-weight:900;color:#00C9A7;">{{o.count}}人</view>
+            </view>
+            <view class="bar-track"><view class="bar-fill bar-teal" style="width:{{o.pct}}%;"></view></view>
+            <view wx:if="{{o.names}}" class="text-muted" style="font-size:22rpx;margin-top:6rpx;line-height:1.6;">{{o.names}}</view>
+          </view>
+        </block>
+        <block wx:else>
+          <view wx:for="{{q.textItems}}" wx:key="name" wx:for-item="x" class="text-row">
+            <view style="font-size:24rpx;font-weight:700;color:#e8f0eb;flex-shrink:0;">{{x.name}}</view>
+            <view class="text-muted" style="font-size:24rpx;line-height:1.6;">{{x.answer}}</view>
+          </view>
+        </block>
+      </view>
+    </block>
+
+    <!-- Attendees -->
+    <block wx:if="{{attendees.length > 0}}">
+      <view class="section-label">报名名单</view>
+      <view class="card" style="padding-bottom:8rpx;">
+        <view wx:for="{{attendees}}" wx:key="displayName" class="player-row">
+          <view style="width:40rpx;text-align:center;font-size:22rpx;font-weight:900;color:#3A4E63;flex-shrink:0;">{{index + 1}}</view>
+          <view style="flex:1;margin-left:16rpx;font-size:28rpx;color:#e8f0eb;">
+            {{item.displayName}}<text wx:if="{{item.guests > 0}}" class="text-muted" style="font-size:22rpx;"> +{{item.guests}}{{item.guestNames ? '（' + item.guestNames + '）' : ''}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
+  </block>
+</view>

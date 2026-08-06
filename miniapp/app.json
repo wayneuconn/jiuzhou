@@ -13,6 +13,7 @@
     "pages/admin/applications/index",
     "pages/admin/matches/index",
     "pages/admin/events/index",
+    "pages/admin/event-results/index",
     "pages/admin/members/index",
     "pages/admin/settings/index",
     "pages/admin/attendance/index",
