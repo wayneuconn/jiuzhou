@@ -53,7 +53,7 @@ async function recalcMatchState(matchId) {
 
 // Fill free slots from the waitlist by (tier, position). During R1 only
 // annual (tier 1) waiters may come in — friends and 次卡 wait for R2.
-async function promoteFromWaitlist(matchId) {
+async function promoteFromWaitlist(matchId, inheritTeam = null) {
   const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
   const match = matchSnap.data
   if (!match) return
@@ -83,16 +83,20 @@ async function promoteFromWaitlist(matchId) {
     if (!next) break
 
     const regId = next._id
+    // The replacement takes over the team of whoever vacated the slot, so a
+    // post-draft withdrawal doesn't leave anyone unassigned.
+    const teamPatch = inheritTeam ? { team: inheritTeam } : {}
+    inheritTeam = null
     if (next.isGuest || next.autoAccept !== false) {
       await db.collection('registrations').doc(regId).update({
-        data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null },
+        data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null, ...teamPatch },
       }).catch(() => {})
       const notifyUid = next.isGuest ? next.broughtBy : null
       if (notifyUid) await notifyPromoted(matchId, match, notifyUid, waitlistMinutes, true)
     } else {
       const deadlineTs = Date.now() + waitlistMinutes * 60 * 1000
       await db.collection('registrations').doc(regId).update({
-        data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadlineTs, waitlistPosition: null },
+        data: { status: 'promoted', promotedAt: db.serverDate(), confirmDeadline: deadlineTs, waitlistPosition: null, ...teamPatch },
       }).catch(() => {})
       await notifyPromoted(matchId, match, next.uid, waitlistMinutes, false)
     }
@@ -186,10 +190,11 @@ exports.main = async (event, context) => {
       throw new Error('只能移除自己带的朋友')
     }
     const freedSlot = ['confirmed', 'promoted'].includes(fSnap.data.status)
+    const freedTeam = freedSlot ? (fSnap.data.team ?? null) : null
     await db.collection('registrations').doc(fRegId).update({
       data: { status: 'withdrawn', waitlistPosition: null, promotedAt: null, confirmDeadline: null, team: null },
     })
-    if (freedSlot) await promoteFromWaitlist(matchId)
+    if (freedSlot) await promoteFromWaitlist(matchId, freedTeam)
     else await recalcMatchState(matchId)
     return { success: true }
   }
@@ -203,6 +208,7 @@ exports.main = async (event, context) => {
   if (!regSnap.data) throw new Error('registration not found')
 
   const wasConfirmed = ['confirmed', 'promoted'].includes(regSnap.data.status)
+  const vacatedTeam = wasConfirmed ? (regSnap.data.team ?? null) : null
 
   await db.collection('registrations').doc(regId).update({
     data: { status: newStatus, waitlistPosition: null, promotedAt: null, confirmDeadline: null, team: null },
@@ -245,7 +251,7 @@ exports.main = async (event, context) => {
     }).catch(() => {})
   }
 
-  if (wasConfirmed || friendFreedSlot) await promoteFromWaitlist(matchId)
+  if (wasConfirmed || friendFreedSlot) await promoteFromWaitlist(matchId, vacatedTeam)
   else await recalcMatchState(matchId)
 
   // A confirmed player leaving is what admins need to know about (补位);

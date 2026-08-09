@@ -46,7 +46,9 @@ exports.main = async (event) => {
   const matchSnap = await db.collection('matches').doc(matchId).get()
   const match = matchSnap.data
   if (!match) throw new Error('match not found')
-  if (match.status !== 'drafting') throw new Error('draft not active')
+  // 'ready' included: after the draft ends a late replacement can still be
+  // slotted onto a team by a captain/admin.
+  if (!['drafting', 'ready'].includes(match.status)) throw new Error('draft not active')
 
   const team = callerUid === match.captainA ? 'A' : callerUid === match.captainB ? 'B' : null
 

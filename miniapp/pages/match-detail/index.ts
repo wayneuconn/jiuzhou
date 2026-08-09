@@ -127,6 +127,7 @@ Page({
     showTacticsBtn: false,
     captainTips: '',
     draftNudgeText: '',
+    needAssignAlert: '',
     showTeams: false,
     hasScore: false,
     scoreAInput: '',
@@ -298,9 +299,9 @@ Page({
       const slotsLeft = Math.max(0, match.maxPlayers - confirmedCount)
       const isFull = confirmedCount >= match.maxPlayers
       const isOpen = match.status === 'registration_r1' || match.status === 'registration_r2'
-      // Full roster auto-flips to ready — the waitlist stays joinable until
-      // the hard lock (kickoff-1h / manual force-ready, autoReady false).
-      const waitlistOpen = isOpen || (match.status === 'ready' && match.autoReady === true)
+      // 'ready' covers a full roster and a finished draft alike — the waitlist
+      // stays joinable for replacements until the kickoff-1h hard lock.
+      const waitlistOpen = isOpen || (match.status === 'ready' && match.rosterLocked !== true)
       // Match-day 14:00 cutoff: afterwards signups queue for captain/admin review
       const kd = new Date(match.date)
       const cutoffMs = new Date(kd.getFullYear(), kd.getMonth(), kd.getDate(), 14, 0, 0).getTime()
@@ -398,7 +399,10 @@ Page({
       const isDraftPhase = match.status === 'drafting'
       const isCaptain = isCaptainA || isCaptainB
       const isDone = match.status === 'ready' || match.status === 'completed'
-      const showDraft = (isAdmin || isCaptain) && isDraftPhase && !!match.captainA && !!match.captainB
+      // Assignment UI stays available in 'ready' so late replacements can be
+      // slotted onto a team without reopening the draft.
+      const canAssign = (isAdmin || isCaptain) && !!match.captainA && !!match.captainB
+      const showDraft = canAssign && (isDraftPhase || match.status === 'ready')
       // Behavior tags (迟到/危险/缺席 → bans) stay admin-only; score and
       // goals/assists are open to this match's captains too.
       const showBehaviorTags = isAdmin && isDone && confirmedCount > 0
@@ -417,7 +421,7 @@ Page({
       if (isCaptain) {
         if (isOpen) captainTips = '你是本场队长：人齐后点「开始选人」，选人不分先后、先到先得'
         else if (isDraftPhase) captainTips = '点「选 → 你的队」选人，选错点 ↩ 退回；选完一批点「我选完了」提醒对方；双方都选好后点「选人结束」，不会自动结束'
-        else if (isDone) captainTips = '选人完成：去战术板拖动队员安排阵型；赛后在下方记录比分和每人进球/助攻'
+        else if (isDone) captainTips = '选人完成：去战术板排阵；有人请假时递补的球员会自动顶替他的队伍，若显示未分队请在下方安排；赛后记录比分和进球/助攻'
       }
 
       // Opponent captain's "your turn" nudge (shown to the nudged captain only)
@@ -431,7 +435,12 @@ Page({
       // Captain picker team (drives the single-button captain UI)
       const captainPickerTeam: 'A' | 'B' | '' = isCaptainA ? 'A' : isCaptainB ? 'B' : ''
       // Free-for-all drafting: both captains pick anytime, first tap wins
-      const draftTurnLabel = isDraftPhase ? '自由选人 · 先到先得' : ''
+      const draftTurnLabel = isDraftPhase ? '自由选人 · 先到先得' : (showDraft ? '补位分队' : '')
+      // Someone came off the waitlist after the draft and has no team yet
+      const unassignedCount = confirmedList.filter(r => !r.team).length
+      const needAssignAlert = match.status === 'ready' && unassignedCount > 0
+        ? `有 ${unassignedCount} 人递补进名单还没分队，请队长/管理员在下方安排`
+        : ''
       // Hide team labels until drafting is fully complete (reveal moment), except for admins/captains.
       const draftComplete = match.status === 'ready' || match.status === 'completed'
       const showTeams = draftComplete || isAdmin || isCaptainA || isCaptainB
@@ -483,6 +492,7 @@ Page({
         showTacticsBtn,
         captainTips,
         draftNudgeText,
+        needAssignAlert,
         hasScore,
         scoreAInput: hasScore ? String(match.scoreA) : '',
         scoreBInput: hasScore ? String(match.scoreB) : '',

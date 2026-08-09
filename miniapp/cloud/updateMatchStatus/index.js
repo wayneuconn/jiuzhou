@@ -203,7 +203,9 @@ exports.main = async (event) => {
       if (!draftKickoff && !draftFinish) throw new Error('admins only')
     }
 
-    const updateData = { status, autoReady: false }
+    // rosterLocked is only set by the kickoff-1h cron; any manual status
+    // change (incl. 选人结束) leaves the waitlist open for replacements.
+    const updateData = { status, autoReady: false, rosterLocked: false }
 
     // Entering drafting: captains lock to their teams; picking itself is
     // free-for-all (no turn order), so no draftState is needed.
@@ -353,8 +355,10 @@ exports.main = async (event) => {
     if (!regSnap.data || !['waitlist', 'promoted'].includes(regSnap.data.status)) {
       throw new Error('该球员不在候补名单中')
     }
+    // Optional team lets the admin/captain fill a specific side in one tap
+    const teamPatch = ['A', 'B'].includes(event.team) ? { team: event.team } : {}
     await db.collection('registrations').doc(regId).update({
-      data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null },
+      data: { status: 'confirmed', waitlistPosition: null, promotedAt: null, confirmDeadline: null, ...teamPatch },
     })
     await recalcMatchState(matchId)
     return { success: true }

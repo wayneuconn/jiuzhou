@@ -218,7 +218,7 @@ exports.main = async (event, context) => {
     const backPosition = (wlMaxSnap.data[0]?.waitlistPosition ?? 0) + 1
 
     await db.collection('registrations').doc(regId).update({
-      data: { status: 'waitlist', promotedAt: null, confirmDeadline: null, waitlistPosition: backPosition },
+      data: { status: 'waitlist', promotedAt: null, confirmDeadline: null, waitlistPosition: backPosition, team: null },
     }).catch(() => {})
 
     await promoteFromWaitlist(matchId, waitlistMinutes)
@@ -250,7 +250,9 @@ exports.main = async (event, context) => {
     .get().catch(() => ({ data: [] }))
   let locked = 0
   for (const m of cutoffSnap.data) {
-    await db.collection('matches').doc(m._id).update({ data: { status: 'ready', autoReady: false } }).catch(() => {})
+    // rosterLocked distinguishes the kickoff-1h hard lock from a manual
+    // 选人结束 (both land on ready) — the waitlist stays open for the latter.
+    await db.collection('matches').doc(m._id).update({ data: { status: 'ready', autoReady: false, rosterLocked: true } }).catch(() => {})
     locked++
   }
 

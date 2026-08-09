@@ -73,6 +73,8 @@ export interface Match {
   maxPlayers: number
   status: MatchStatus
   autoReady?: boolean
+  // true only after the kickoff-1h cron lock — a manual 选人结束 leaves it false
+  rosterLocked?: boolean
   round2Link?: string
   captainA?: string | null
   captainB?: string | null

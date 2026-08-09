@@ -160,6 +160,12 @@
       <view class="text-muted">报名已关闭</view>
     </view>
 
+    <!-- Late replacement with no team yet -->
+    <view wx:if="{{needAssignAlert}}" style="display:flex;flex-direction:row;align-items:center;gap:12rpx;background:rgba(240,180,41,0.12);border:1rpx solid rgba(240,180,41,0.35);border-radius:12rpx;padding:14rpx 20rpx;margin-bottom:16rpx;">
+      <view style="font-size:26rpx;flex-shrink:0;">⚠️</view>
+      <view style="font-size:22rpx;color:#F0B429;line-height:1.6;">{{needAssignAlert}}</view>
+    </view>
+
     <!-- Stage-aware guide for captains -->
     <view wx:if="{{captainTips}}" style="display:flex;flex-direction:row;align-items:flex-start;gap:12rpx;background:rgba(0,201,167,0.08);border:1rpx solid rgba(0,201,167,0.25);border-radius:12rpx;padding:14rpx 20rpx;margin-bottom:16rpx;">
       <view style="font-size:26rpx;flex-shrink:0;">💡</view>
@@ -280,7 +286,7 @@
     <!-- ── Draft: team assignment ─────────────────────────────────────── -->
     <view wx:if="{{showDraft}}" style="margin-top:8rpx;">
       <view class="flex-row" style="justify-content:space-between;align-items:baseline;margin-bottom:16rpx;">
-        <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;">选人</view>
+        <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;">{{match.status === 'drafting' ? '选人' : '分队调整'}}</view>
         <view wx:if="{{draftTurnLabel}}" style="font-size:24rpx;font-weight:700;color:#F0B429;">
           {{draftTurnLabel}}
         </view>
@@ -312,10 +318,10 @@
           </view>
         </view>
       </view>
-      <view wx:else class="text-muted" style="font-size:28rpx;margin-bottom:16rpx;">所有球员已分配完毕，请点下方「选人结束」</view>
+      <view wx:else class="text-muted" style="font-size:28rpx;margin-bottom:16rpx;">{{match.status === 'drafting' ? '所有球员已分配完毕，请点下方「选人结束」' : '全员已分队，有人递补进来会显示在这里'}}</view>
 
       <!-- Captain round controls: nudge the opponent / end the draft -->
-      <view class="flex-row" style="gap:16rpx;margin-top:16rpx;">
+      <view wx:if="{{match.status === 'drafting'}}" class="flex-row" style="gap:16rpx;margin-top:16rpx;">
         <button wx:if="{{captainPickerTeam}}" class="action-btn-ghost" bindtap="nudgeOpponent" disabled="{{busy}}">📣 我选完了，该对方</button>
         <button class="action-btn-teal" bindtap="endDraft" disabled="{{busy}}">✅ 选人结束</button>
       </view>

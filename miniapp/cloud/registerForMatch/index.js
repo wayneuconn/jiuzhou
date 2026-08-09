@@ -195,9 +195,11 @@ exports.main = async (event, context) => {
   // stay joinable then. Only the hard lock (kickoff-1h / manual force-ready,
   // autoReady false) closes everything.
   const regOpen = ['registration_r1', 'registration_r2'].includes(match.status)
-  const waitlistOnlyOpen = match.status === 'ready' && match.autoReady === true
+  // 'ready' covers both a full roster and a finished draft — the waitlist must
+  // stay joinable so replacements exist, until the kickoff-1h hard lock.
+  const waitlistOnlyOpen = match.status === 'ready' && match.rosterLocked !== true
   if (!regOpen && !waitlistOnlyOpen) {
-    throw new Error('registration not open')
+    throw new Error('报名与候补已截止')
   }
 
   // ── bring-a-friend: annual members with an active own registration ────────
