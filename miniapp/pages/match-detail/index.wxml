@@ -142,7 +142,15 @@
     <view wx:elif="{{actionState === 'needMembership'}}" class="action-card action-neutral">
       <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;">报名需要会员身份</view>
       <view class="text-muted" style="font-size:24rpx;margin-top:8rpx;line-height:1.7;">
-        新朋友请先在群内联系管理员开通会员资格，然后到「我的」页申请次卡（填写真实姓名），管理员确认后即可报名。
+        新朋友请先联系管理员开通次卡资格，再到「我的」页提交申请（填写真实姓名），管理员确认后即可报名。
+      </view>
+      <view class="contact-card" style="margin-top:16rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:10rpx;">开通次卡资格请联系管理员</view>
+        <view class="flex-row" style="align-items:center;gap:12rpx;flex-wrap:wrap;">
+          <view class="contact-name">{{adminContact.name}}</view>
+          <view class="contact-wx">微信号 {{adminContact.wechat}}</view>
+          <view class="contact-copy" catchtap="copyWechat">复制</view>
+        </view>
       </view>
       <button class="inline-btn" style="margin-top:16rpx;" bindtap="goApplyMembership">去申请会员 →</button>
     </view>
@@ -447,8 +455,17 @@
       <view class="modal-handle"></view>
       <view style="font-size:36rpx;font-weight:900;color:#e8f0eb;margin-bottom:12rpx;">帮朋友报名候补</view>
       <view class="text-muted" style="font-size:26rpx;margin-bottom:24rpx;line-height:1.7;">
-        朋友将加入候补，优先级在年卡本人之后、次卡之前，有空位时自动递补（每人最多带 2 位）。递补成功后请联系管理员确认参赛。
+        朋友将加入候补，优先级在年卡本人之后、次卡之前，有空位时自动递补（每人最多带 2 位）。递补成功后请联系管理员为朋友办理次卡资格。
       </view>
+      <view class="contact-card" style="margin-top:16rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:10rpx;">朋友的次卡资格请联系管理员办理</view>
+        <view class="flex-row" style="align-items:center;gap:12rpx;flex-wrap:wrap;">
+          <view class="contact-name">{{adminContact.name}}</view>
+          <view class="contact-wx">微信号 {{adminContact.wechat}}</view>
+          <view class="contact-copy" catchtap="copyWechat">复制</view>
+        </view>
+      </view>
+
       <input class="friend-input" placeholder="朋友称呼，例：小李（王强朋友）" value="{{friendName}}"
         bindinput="onFriendNameInput" adjust-position="{{false}}"/>
       <view class="text-muted" style="font-size:22rpx;margin:24rpx 0 12rpx;">擅长位置（至少 1 个，最多 3 个）</view>

@@ -1,6 +1,7 @@
 import type { Match, Registration, MatchTag } from '../../types/index'
 import { formatDate, STATUS_LABEL, STATUS_BADGE, REG_STATUS_LABEL } from '../../utils/format'
 import { bankAdminSubscribe } from '../../utils/subscribe'
+import { ADMIN_CONTACT, copyAdminWechat } from '../../utils/contact'
 
 function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath()
@@ -150,6 +151,7 @@ Page({
     canProxy: false,
     showRulesModal: false,
     statsDirty: false,
+    adminContact: ADMIN_CONTACT,
     captainPickerTeam: '' as 'A' | 'B' | '',
     draftTurnLabel: '',
   },
@@ -544,6 +546,8 @@ Page({
   goHome() { wx.switchTab({ url: '/pages/home/index' }) },
 
   goTactics() { wx.switchTab({ url: '/pages/tactics/index' }) },
+
+  copyWechat() { copyAdminWechat() },
 
   // catch handler for modal content taps — stops propagation to the overlay
   noop() {},
