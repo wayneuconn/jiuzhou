@@ -275,6 +275,12 @@ exports.main = async (event, context) => {
     throw new Error(`该账号已被禁赛，还剩 ${target.banGamesLeft} 场`)
   }
 
+  // At/over the late threshold → this registration carries the GK duty, and
+  // completing the match clears the tally.
+  const cfgSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
+  const lateThreshold = cfgSnap.data?.lateThreshold ?? 0
+  const gkPenalty = lateThreshold > 0 && (target.lateCount ?? 0) >= lateThreshold
+
   const confirmedCount = confirmedSnap.total ?? 0
   // After the match-day cutoff (14:00 ET) everything queues for manual review
   // — except admin proxy registration, which IS the review.
@@ -306,6 +312,7 @@ exports.main = async (event, context) => {
         waitlistTier: myTier,
         registeredAt: db.serverDate(),
         autoAccept: reAutoAccept,
+        gkPenalty,
       },
     })
     let reStatus = mustWait ? 'waitlist' : 'confirmed'
@@ -337,6 +344,7 @@ exports.main = async (event, context) => {
       team: null,
       tags: [],
       autoAccept: typeof event.autoAccept === 'boolean' ? event.autoAccept : true,
+      gkPenalty,
     },
   })
 
@@ -351,6 +359,7 @@ exports.main = async (event, context) => {
     status,
     roster23: status === 'confirmed' && confirmedCount + 1 === 23,
     postCutoff,
+    gkPenalty,
   }
 }
 

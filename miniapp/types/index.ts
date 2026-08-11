@@ -105,6 +105,9 @@ export interface Registration {
   tags?: MatchTag[]
   goals?: number
   assists?: number
+  // Registered while at/over the late threshold — must play GK this match;
+  // completing it clears their 迟到 tally.
+  gkPenalty?: boolean
   // Waitlist priority: 1 = annual self, 2 = friend brought by annual, 3 = per_session/other
   waitlistTier?: number
   // Guest (friend) registrations added by an annual member
@@ -199,6 +202,9 @@ export interface AppConfig {
   season: string
   cardThresholds: CardThresholds
   waitlistConfirmMinutes: number
+  // Late-arrival threshold: at this many 迟到, the player must play GK next
+  // match. 0 disables the rule.
+  lateThreshold: number
   defaultAgreementText: string
   defaultAnnouncement: string
   perSessionFee: number

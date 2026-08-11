@@ -26,6 +26,7 @@ Page({
         season: '',
         cardThresholds: DEFAULT_THRESHOLDS,
         waitlistConfirmMinutes: 30,
+        lateThreshold: 3,
         defaultAgreementText: '',
         defaultAnnouncement: '',
         perSessionFee: 0,

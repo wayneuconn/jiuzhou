@@ -78,6 +78,7 @@ interface RegVM extends Registration {
   friendOf: string
   tierTag: string
   canRemove: boolean
+  isGk: boolean
   posTags: Array<{ pos: string; cls: string }>
 }
 
@@ -133,6 +134,10 @@ Page({
     scoreAInput: '',
     scoreBInput: '',
     banLeft: 0,
+    lateWarning: '',
+    lateOver: false,
+    myLate: 0,
+    lateThreshold: 0,
     loadError: false,
     canBringFriend: false,
     canStartDraft: false,
@@ -219,11 +224,12 @@ Page({
           match: Match
           registrations: Registration[]
           agreementText: string
-          callerInfo: { membershipType: string; role: string; banGamesLeft: number } | null
+          lateThreshold: number
+          callerInfo: { membershipType: string; role: string; banGamesLeft: number; lateCount: number } | null
         }
       }
 
-      const { match, registrations, agreementText, callerInfo } = cfRes.result
+      const { match, registrations, agreementText, callerInfo, lateThreshold } = cfRes.result
 
       // Silent polls: skip rendering entirely when nothing changed — a full
       // setData re-render can shift the scroll position mid-draft.
@@ -266,6 +272,7 @@ Page({
           ? (isAdmin || r.broughtBy === user?._id)
           : (isAdmin && r.uid !== user?._id),
         // Only the primary position gets the group color — backups stay grey
+        isGk: !!r.gkPenalty,
         posTags: (r.preferredPositions ?? []).map((pos, i) => ({
           pos,
           cls: i === 0 ? (POS_GROUP_CLS[pos] ?? 'pos-chip-secondary') : 'pos-chip-secondary',
@@ -313,6 +320,14 @@ Page({
       const hasPriorityWaiters = waitlistList.some(r => (r.waitlistTier ?? 1) <= myTier)
       const notRegistered = !myReg || myReg.status === 'withdrawn' || myReg.status === 'excused'
       const banLeft = user?.banGamesLeft ?? 0
+      // Late tally at/over threshold → GK duty for the next match played
+      const myLate = callerInfo?.lateCount ?? 0
+      const lateOver = lateThreshold > 0 && myLate >= lateThreshold
+      const lateWarning = lateOver
+        ? (myReg?.gkPenalty
+            ? `你已累计迟到 ${myLate} 次，本场需要担任门将；顺利完赛后记录清零`
+            : `你已累计迟到 ${myLate} 次，报名下一场时需要担任门将`)
+        : ''
 
       let actionState: ActionState = 'loading'
       let waitlistBtnText = ''
@@ -484,6 +499,10 @@ Page({
         agreementText: match.agreementText || agreementText || '报名即表示您同意遵守队伍规则并出席已报名的比赛。',
         isAdmin,
         banLeft,
+        lateWarning,
+        lateOver,
+        myLate,
+        lateThreshold,
         showDraft,
         showBehaviorTags,
         showAdminCaptain,
@@ -726,6 +745,16 @@ Page({
 
   async register() {
     this.setData({ showAgreementModal: false })
+    // Late tally over threshold: this match must be played in goal
+    if (this.data.lateOver) {
+      const gk = await wx.showModal({
+        title: '本场需要担任门将',
+        content: `你已累计迟到 ${this.data.myLate} 次（阈值 ${this.data.lateThreshold} 次），本场比赛需要担任门将。顺利完成本场后迟到记录将清零。确认报名吗？`,
+        confirmText: '接受并报名',
+        confirmColor: '#F0B429',
+      })
+      if (!gk.confirm) return
+    }
     // Slot #23 is at risk: warn before committing
     if (this.data.confirmedCount === 22) {
       const warn = await wx.showModal({

@@ -134,6 +134,46 @@ async function notifyMatchOpen(matchId, match, membershipType, text) {
   } catch (_) {}
 }
 
+// A GK-penalty player who actually turned out gets their 迟到 tally wiped;
+// both they and the admins are told. (活动开始通知: thing4/thing2/date5)
+async function clearLatePenalties(matchId, match) {
+  try {
+    const regsSnap = await db.collection('registrations')
+      .where({ matchId, status: 'confirmed', gkPenalty: true })
+      .limit(100).get().catch(() => ({ data: [] }))
+    if (regsSnap.data.length === 0) return
+    const d = new Date(match.date)
+    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] }))
+
+    for (const reg of regsSnap.data) {
+      const uSnap = await db.collection('users').doc(reg.uid).get().catch(() => ({ data: null }))
+      if (!uSnap.data) continue
+      await db.collection('users').doc(reg.uid).update({ data: { lateCount: 0 } }).catch(() => {})
+      const name = uSnap.data.displayName || '球员'
+      const send = (openid, title, body) => cloud.callFunction({
+        name: 'sendSubscribeMsg',
+        data: {
+          type: 'matchOpen',
+          toOpenid: openid,
+          data: {
+            page: `/pages/match-detail/index?id=${matchId}`,
+            templateData: {
+              thing4: { value: title.slice(0, 20) },
+              thing2: { value: body.slice(0, 20) },
+              date5: { value: timeStr },
+            },
+          },
+        },
+      }).catch(() => {})
+      if (uSnap.data.openid) await send(uSnap.data.openid, '迟到记录已清零', '感谢准时出席本场')
+      for (const admin of adminsSnap.data) {
+        if (admin.openid) await send(admin.openid, `${name} 迟到记录已清零`, '已完成门将场次')
+      }
+    }
+  } catch (_) {}
+}
+
 async function notifyPromoted(matchId, match, uid, waitlistMinutes, isGuestNotice) {
   try {
     const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
@@ -285,6 +325,7 @@ exports.main = async (event) => {
         .where({ banGamesLeft: _.gt(0) })
         .update({ data: { banGamesLeft: _.inc(-1) } })
         .catch(() => {})
+      await clearLatePenalties(matchId, match)
     }
 
     return { success: true }
@@ -391,6 +432,38 @@ exports.main = async (event) => {
 
     if (hadLate !== hasLate) {
       await db.collection('users').doc(uid).update({ data: { lateCount: _.inc(hasLate ? 1 : -1) } })
+      if (hasLate) {
+        // Crossing the threshold means GK duty next match — flag it to admins
+        const cfg = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
+        const th = cfg.data?.lateThreshold ?? 0
+        const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
+        const n = uSnap.data?.lateCount ?? 0
+        if (th > 0 && n >= th) {
+          const mSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+          const nm = uSnap.data?.displayName || '球员'
+          const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] }))
+          const d = new Date(mSnap.data?.date ?? Date.now())
+          const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+          for (const admin of adminsSnap.data) {
+            if (!admin.openid) continue
+            await cloud.callFunction({
+              name: 'sendSubscribeMsg',
+              data: {
+                type: 'adminAlert',
+                toOpenid: admin.openid,
+                data: {
+                  page: `/pages/match-detail/index?id=${matchId}`,
+                  templateData: {
+                    thing4: { value: `${nm} 迟到已达 ${n} 次`.slice(0, 20) },
+                    thing2: { value: '下一场需担任门将' },
+                    date5: { value: timeStr },
+                  },
+                },
+              },
+            }).catch(() => {})
+          }
+        }
+      }
     }
     if (hadDangerous !== hasDangerous) {
       await db.collection('users').doc(uid).update({ data: { dangerousCount: _.inc(hasDangerous ? 1 : -1) } })

@@ -59,10 +59,12 @@ exports.main = async (event, context) => {
     callerUid: callerUid ?? null,
     // Fresh identity for the action-state logic — globalData on the client is
     // a login-time snapshot and goes stale when an admin changes membership.
+    lateThreshold: configSnap.data?.lateThreshold ?? 0,
     callerInfo: caller ? {
       membershipType: caller.membershipType ?? 'none',
       role: caller.role ?? 'guest',
       banGamesLeft: caller.banGamesLeft ?? 0,
+      lateCount: caller.lateCount ?? 0,
     } : null,
   }
 }
