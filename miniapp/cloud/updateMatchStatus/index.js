@@ -134,42 +134,37 @@ async function notifyMatchOpen(matchId, match, membershipType, text) {
   } catch (_) {}
 }
 
-// A GK-penalty player who actually turned out gets their 迟到 tally wiped;
-// both they and the admins are told. (活动开始通知: thing4/thing2/date5)
-async function clearLatePenalties(matchId, match) {
+// Manual 迟到 clearing: a captain/admin confirms the player actually served
+// their half in goal. Notifies the player and the admins.
+async function clearLateFor(matchId, match, uid) {
+  const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
+  if (!uSnap.data) throw new Error('球员不存在')
+  await db.collection('users').doc(uid).update({ data: { lateCount: 0 } })
+  await db.collection('registrations').doc(matchId + '_' + uid)
+    .update({ data: { gkPenalty: false } }).catch(() => {})
   try {
-    const regsSnap = await db.collection('registrations')
-      .where({ matchId, status: 'confirmed', gkPenalty: true })
-      .limit(100).get().catch(() => ({ data: [] }))
-    if (regsSnap.data.length === 0) return
+    const name = uSnap.data.displayName || '球员'
     const d = new Date(match.date)
     const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
-    const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] }))
-
-    for (const reg of regsSnap.data) {
-      const uSnap = await db.collection('users').doc(reg.uid).get().catch(() => ({ data: null }))
-      if (!uSnap.data) continue
-      await db.collection('users').doc(reg.uid).update({ data: { lateCount: 0 } }).catch(() => {})
-      const name = uSnap.data.displayName || '球员'
-      const send = (openid, title, body) => cloud.callFunction({
-        name: 'sendSubscribeMsg',
+    const send = (openid, title, body) => cloud.callFunction({
+      name: 'sendSubscribeMsg',
+      data: {
+        type: 'matchOpen',
+        toOpenid: openid,
         data: {
-          type: 'matchOpen',
-          toOpenid: openid,
-          data: {
-            page: `/pages/match-detail/index?id=${matchId}`,
-            templateData: {
-              thing4: { value: title.slice(0, 20) },
-              thing2: { value: body.slice(0, 20) },
-              date5: { value: timeStr },
-            },
+          page: `/pages/match-detail/index?id=${matchId}`,
+          templateData: {
+            thing4: { value: title.slice(0, 20) },
+            thing2: { value: body.slice(0, 20) },
+            date5: { value: timeStr },
           },
         },
-      }).catch(() => {})
-      if (uSnap.data.openid) await send(uSnap.data.openid, '迟到记录已清零', '感谢准时出席本场')
-      for (const admin of adminsSnap.data) {
-        if (admin.openid) await send(admin.openid, `${name} 迟到记录已清零`, '已完成门将场次')
-      }
+      },
+    }).catch(() => {})
+    if (uSnap.data.openid) await send(uSnap.data.openid, '迟到记录已清零', '已完成半场门将')
+    const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] }))
+    for (const admin of adminsSnap.data) {
+      if (admin.openid) await send(admin.openid, `${name} 迟到记录已清零`, '已完成半场门将')
     }
   } catch (_) {}
 }
@@ -209,7 +204,7 @@ exports.main = async (event) => {
   const isAdmin = user.role === 'admin'
   // Non-admins may only attempt the captain-scoped actions (each validated
   // below against THIS match's captains); everything else is admin-only.
-  const CAPTAIN_ACTIONS = ['setStatus', 'bumpWaitlist', 'setScore', 'setStat']
+  const CAPTAIN_ACTIONS = ['setStatus', 'bumpWaitlist', 'setScore', 'setStat', 'clearLatePenalty']
   if (!isAdmin && action && !CAPTAIN_ACTIONS.includes(action)) {
     throw new Error('admins only')
   }
@@ -325,7 +320,6 @@ exports.main = async (event) => {
         .where({ banGamesLeft: _.gt(0) })
         .update({ data: { banGamesLeft: _.inc(-1) } })
         .catch(() => {})
-      await clearLatePenalties(matchId, match)
     }
 
     return { success: true }
@@ -350,6 +344,16 @@ exports.main = async (event) => {
 
     await db.collection('matches').doc(matchId).update({ data: update })
     if (update.maxPlayers !== undefined) await recalcMatchState(matchId)
+    return { success: true }
+  }
+
+  // ── clear a 迟到 tally after the player served their half in goal ─────────
+  if (action === 'clearLatePenalty') {
+    if (!isAdmin) await assertCaptain(matchId)
+    const mSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+    if (!mSnap.data) throw new Error('match not found')
+    if (!event.uid) throw new Error('uid required')
+    await clearLateFor(matchId, mSnap.data, event.uid)
     return { success: true }
   }
 

@@ -135,6 +135,7 @@ Page({
     scoreBInput: '',
     banLeft: 0,
     lateWarning: '',
+    gkList: [] as Array<{ uid: string; displayName: string }>,
     lateOver: false,
     myLate: 0,
     lateThreshold: 0,
@@ -325,8 +326,8 @@ Page({
       const lateOver = lateThreshold > 0 && myLate >= lateThreshold
       const lateWarning = lateOver
         ? (myReg?.gkPenalty
-            ? `你已累计迟到 ${myLate} 次，本场需要担任门将；顺利完赛后记录清零`
-            : `你已累计迟到 ${myLate} 次，报名下一场时需要担任门将`)
+            ? `你已累计迟到 ${myLate} 次，本场需要担任半场门将。赛后请提醒队长或管理员帮你清零记录`
+            : `你已累计迟到 ${myLate} 次，报名下一场时需要担任半场门将`)
         : ''
 
       let actionState: ActionState = 'loading'
@@ -426,6 +427,11 @@ Page({
       const showStats = (isAdmin || isCaptain) && isDone && confirmedCount > 0
       const hasScore = typeof match.scoreA === 'number' && typeof match.scoreB === 'number'
 
+      // Players still owing a GK half — captains/admins clear these manually
+      const gkList = (isAdmin || isCaptain)
+        ? confirmedList.filter(r => r.gkPenalty).map(r => ({ uid: r.uid, displayName: r.displayName }))
+        : []
+
       // Jump to the tactics board once teams exist (players on a team see
       // theirs; captains can pre-plan during drafting)
       const showTacticsBtn = (isDone && (!!myReg?.team || isCaptain || isAdmin))
@@ -500,6 +506,7 @@ Page({
         isAdmin,
         banLeft,
         lateWarning,
+        gkList,
         lateOver,
         myLate,
         lateThreshold,
@@ -748,8 +755,8 @@ Page({
     // Late tally over threshold: this match must be played in goal
     if (this.data.lateOver) {
       const gk = await wx.showModal({
-        title: '本场需要担任门将',
-        content: `你已累计迟到 ${this.data.myLate} 次（阈值 ${this.data.lateThreshold} 次），本场比赛需要担任门将。顺利完成本场后迟到记录将清零。确认报名吗？`,
+        title: '本场需要担任半场门将',
+        content: `你已累计迟到 ${this.data.myLate} 次（阈值 ${this.data.lateThreshold} 次），本场需要担任半场门将。完成后请提醒队长或管理员帮你清零记录。确认报名吗？`,
         confirmText: '接受并报名',
         confirmColor: '#F0B429',
       })
@@ -959,6 +966,29 @@ Page({
 
   onScoreAInput(e: WechatMiniprogram.Input) { this.setData({ scoreAInput: e.detail.value }) },
   onScoreBInput(e: WechatMiniprogram.Input) { this.setData({ scoreBInput: e.detail.value }) },
+
+  async clearLate(e: WechatMiniprogram.BaseEvent) {
+    const { uid, name } = e.currentTarget.dataset as { uid: string; name: string }
+    const res = await wx.showModal({
+      title: `确认 ${name} 已当半场门将？`,
+      content: '确认后其迟到记录清零，本人和管理员都会收到通知',
+      confirmColor: '#00C9A7',
+    })
+    if (!res.confirm) return
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'updateMatchStatus',
+        data: { action: 'clearLatePenalty', matchId: this.data.matchId, uid },
+      })
+      wx.showToast({ title: '已清零', icon: 'success' })
+      this.loadMatch()
+    } catch (err: unknown) {
+      wx.showModal({ title: '操作失败', content: errText(err, '操作失败'), showCancel: false })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
 
   async saveScore() {
     bankAdminSubscribe()

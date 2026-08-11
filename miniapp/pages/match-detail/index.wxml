@@ -233,7 +233,7 @@
         <view wx:if="{{item.isCaptainA}}" class="badge badge-team-a" style="margin-left:8rpx;">队长A</view>
         <view wx:elif="{{item.isCaptainB}}" class="badge badge-team-b" style="margin-left:8rpx;">队长B</view>
         <view wx:elif="{{item.teamLabel}}" class="badge {{item.teamLabel === 'A' ? 'badge-team-a' : 'badge-team-b'}}" style="margin-left:8rpx;">{{item.teamLabel}}</view>
-        <view wx:if="{{item.isGk}}" class="badge badge-gold" style="margin-left:8rpx;">🧤 门将</view>
+        <view wx:if="{{item.isGk}}" class="badge badge-gold" style="margin-left:8rpx;">🧤 半场门将</view>
         <view wx:if="{{item.status === 'promoted'}}" class="badge badge-gold" style="margin-left:8rpx;">待确认</view>
         <view wx:if="{{item.canRemove && match.status !== 'completed' && match.status !== 'cancelled'}}"
           class="pick-tap pick-tap-off" style="margin-left:8rpx;"
@@ -375,6 +375,18 @@
             style="text-align:center;" placeholder="-" adjust-position="{{false}}"/>
         </view>
         <button class="inline-btn" style="margin-top:30rpx;" bindtap="saveScore" disabled="{{busy}}">保存</button>
+      </view>
+    </view>
+
+    <!-- ── GK duty: captains/admins confirm who served their half ─────── -->
+    <view wx:if="{{gkList.length > 0}}" style="margin-top:8rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:8rpx;">🧤 门将义务</view>
+      <view class="text-muted" style="font-size:22rpx;margin-bottom:12rpx;line-height:1.6;">以下球员因累计迟到需担任半场门将。谁真的守了半场，点「已完成」清零他的迟到记录；没排上的保留到下一场</view>
+      <view class="card" style="padding-bottom:8rpx;">
+        <view wx:for="{{gkList}}" wx:key="uid" class="player-row draft-row">
+          <view class="draft-player-name" style="flex:1;">{{item.displayName}}</view>
+          <view class="pick-tap pick-tap-a" bindtap="clearLate" data-uid="{{item.uid}}" data-name="{{item.displayName}}">✓ 已完成，清零</view>
+        </view>
       </view>
     </view>
 
