@@ -12,6 +12,7 @@
         <view class="flex-row" style="gap:12rpx;align-items:center;margin-bottom:8rpx;">
           <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;">{{item.title}}</view>
           <view wx:if="{{item.pinned}}" class="badge badge-teal">置顶</view>
+          <view wx:if="{{item.popup}}" class="badge badge-gold">弹窗</view>
         </view>
         <view class="text-muted" style="font-size:24rpx;line-height:1.5;">{{item.content}}</view>
       </view>
@@ -40,9 +41,26 @@
         <textarea class="ann-textarea" value="{{form.content}}" bindinput="onContent" placeholder="公告内容..." auto-height adjust-position="{{false}}" maxlength="-1"/>
         <view class="text-muted" style="font-size:20rpx;margin-top:8rpx;">支持 Markdown：**粗体**、- 列表、### 标题、--- 分割线</view>
       </view>
-      <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:28rpx;">
+      <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:20rpx;">
         <view style="font-size:28rpx;color:#e8f0eb;">置顶</view>
         <switch checked="{{form.pinned}}" bindchange="onPinned" color="#00C9A7"/>
+      </view>
+
+      <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
+        <view>
+          <view style="font-size:28rpx;color:#e8f0eb;">弹窗提醒</view>
+          <view class="text-muted" style="font-size:20rpx;margin-top:4rpx;">每次打开比赛详情页时弹出</view>
+        </view>
+        <switch checked="{{form.popup}}" bindchange="onPopup" color="#F0B429"/>
+      </view>
+      <view wx:if="{{form.popup}}" style="margin-bottom:28rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">弹到哪天为止（留空 = 一直弹）</view>
+        <view class="flex-row" style="gap:12rpx;align-items:center;">
+          <picker mode="date" value="{{form.popupUntil}}" bindchange="onPopupUntil" style="flex:1;">
+            <view class="ann-input">{{form.popupUntil || '一直显示'}}</view>
+          </picker>
+          <view wx:if="{{form.popupUntil}}" class="text-muted" style="font-size:24rpx;padding:0 12rpx;" bindtap="clearPopupUntil">清除</view>
+        </view>
       </view>
 
       <view class="flex-row" style="gap:16rpx;">

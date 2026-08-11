@@ -50,7 +50,22 @@ exports.main = async (event, context) => {
     }
   }
 
+  // Active popup announcement (newest one still within its window)
+  let popupAnn = null
+  try {
+    const now = Date.now()
+    const annSnap = await db.collection('announcements')
+      .where({ popup: true })
+      .orderBy('createdAt', 'desc')
+      .limit(5)
+      .get()
+      .catch(() => ({ data: [] }))
+    const live = annSnap.data.find(a => !a.popupUntil || a.popupUntil > now)
+    if (live) popupAnn = { id: live._id, title: live.title, content: live.content }
+  } catch (_) {}
+
   return {
+    popupAnn,
     match,
     registrations: registrations.map(r => ({ ...r, id: r._id })),
     agreementText: configSnap.data?.defaultAgreementText ?? '',

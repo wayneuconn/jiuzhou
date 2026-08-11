@@ -533,6 +533,21 @@
     </view>
   </view>
 
+  <!-- ── Popup announcement ────────────────────────────────────────────── -->
+  <view wx:if="{{showPopupAnn}}" class="modal-overlay" bindtap="closePopupAnn">
+    <view class="modal-sheet" catchtap="noop">
+      <view class="modal-handle"></view>
+      <view class="flex-row" style="align-items:center;gap:12rpx;margin-bottom:20rpx;">
+        <view style="font-size:32rpx;">📢</view>
+        <view style="font-size:34rpx;font-weight:900;color:#e8f0eb;">{{popupAnnTitle}}</view>
+      </view>
+      <scroll-view scroll-y style="max-height:600rpx;margin-bottom:32rpx;">
+        <rich-text nodes="{{popupAnnHtml}}" style="display:block;font-size:26rpx;line-height:1.8;"/>
+      </scroll-view>
+      <button class="modal-btn-teal" bindtap="closePopupAnn">知道了</button>
+    </view>
+  </view>
+
   <!-- ── Rules modal ───────────────────────────────────────────────────── -->
   <view wx:if="{{showRulesModal}}" class="modal-overlay" bindtap="closeRulesModal">
     <view class="modal-sheet" catchtap="noop">

@@ -1,5 +1,5 @@
 import type { Match, Registration, MatchTag } from '../../types/index'
-import { formatDate, STATUS_LABEL, STATUS_BADGE, REG_STATUS_LABEL } from '../../utils/format'
+import { formatDate, STATUS_LABEL, STATUS_BADGE, REG_STATUS_LABEL, markdownToHtml } from '../../utils/format'
 import { bankAdminSubscribe } from '../../utils/subscribe'
 import { ADMIN_CONTACT, copyAdminWechat } from '../../utils/contact'
 
@@ -157,6 +157,9 @@ Page({
     proxyLoading: false,
     canProxy: false,
     showRulesModal: false,
+    showPopupAnn: false,
+    popupAnnTitle: '',
+    popupAnnHtml: '',
     statsDirty: false,
     adminContact: ADMIN_CONTACT,
     captainPickerTeam: '' as 'A' | 'B' | '',
@@ -167,6 +170,7 @@ Page({
   _draftPoll: null as ReturnType<typeof setInterval> | null,
   _loading: false,
   _lastSig: '',
+  _popupShown: false,
   _registrations: [] as Registration[],
   _confirmedListRaw: [] as RegVM[],
   _shareTempPath: '' as string,
@@ -226,11 +230,12 @@ Page({
           registrations: Registration[]
           agreementText: string
           lateThreshold: number
+          popupAnn: { id: string; title: string; content: string } | null
           callerInfo: { membershipType: string; role: string; banGamesLeft: number; lateCount: number } | null
         }
       }
 
-      const { match, registrations, agreementText, callerInfo, lateThreshold } = cfRes.result
+      const { match, registrations, agreementText, callerInfo, lateThreshold, popupAnn } = cfRes.result
 
       // Silent polls: skip rendering entirely when nothing changed — a full
       // setData re-render can shift the scroll position mid-draft.
@@ -250,6 +255,16 @@ Page({
       if (user && callerInfo) {
         user = { ...user, ...callerInfo } as typeof user
         app.globalData.userProfile = user
+      }
+
+      // Popup announcement: once per page open, never during silent polls
+      if (popupAnn && !silent && !this._popupShown) {
+        this._popupShown = true
+        this.setData({
+          popupAnnTitle: popupAnn.title,
+          popupAnnHtml: markdownToHtml(popupAnn.content || ''),
+          showPopupAnn: true,
+        })
       }
 
       const isAdmin = user?.role === 'admin'
@@ -602,6 +617,7 @@ Page({
   closeAgreementModal() { this.setData({ showAgreementModal: false }) },
   openWaitlistModal()   { this.setData({ showWaitlistModal: true }) },
   closeWaitlistModal()  { this.setData({ showWaitlistModal: false }) },
+  closePopupAnn()       { this.setData({ showPopupAnn: false }) },
   openRulesModal()      { this.setData({ showRulesModal: true }) },
   closeRulesModal()     { this.setData({ showRulesModal: false }) },
   openFriendModal()     { this.setData({ showFriendModal: true, friendName: '', friendPosMap: {} }) },

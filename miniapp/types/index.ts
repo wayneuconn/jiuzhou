@@ -194,6 +194,9 @@ export interface Announcement {
   title: string
   content: string
   pinned: boolean
+  // Pops up on the match page when opened; popupUntil null = no expiry
+  popup?: boolean
+  popupUntil?: number | null
   createdAt: number
   updatedAt: number
 }

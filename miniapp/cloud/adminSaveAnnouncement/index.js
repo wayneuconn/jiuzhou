@@ -8,13 +8,16 @@ exports.main = async (event) => {
   const caller = userSnap.data[0]
   if (!caller || caller.role !== 'admin') throw new Error('admins only')
 
-  const { id, title, content, pinned } = event
+  const { id, title, content, pinned, popup, popupUntil } = event
   if (!title || !content) throw new Error('title and content required')
 
   const data = {
     title,
     content,
     pinned: !!pinned,
+    popup: !!popup,
+    // null = show indefinitely
+    popupUntil: typeof popupUntil === 'number' ? popupUntil : null,
     updatedAt: db.serverDate(),
   }
 
