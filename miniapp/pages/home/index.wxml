@@ -7,7 +7,7 @@
     <!-- Header -->
     <view class="flex-row" style="justify-content:space-between;align-items:flex-end;margin-bottom:32rpx;">
       <view>
-        <view style="font-size:56rpx;font-weight:900;letter-spacing:4rpx;">九州</view>
+        <view style="font-size:56rpx;font-weight:900;letter-spacing:4rpx;" bindtap="tapLogo">九州</view>
         <view class="text-muted" style="font-size:22rpx;letter-spacing:6rpx;text-transform:uppercase;margin-top:4rpx;">Football Team</view>
       </view>
       <view wx:if="{{season}}" class="badge badge-gold">{{season}} Season</view>
@@ -62,4 +62,14 @@
       <rich-text nodes="{{item.contentHtml}}" style="display:block;font-size:26rpx;line-height:1.7;"/>
     </view>
   </block>
+</view>
+
+<!-- ── Easter egg: fireworks ─────────────────────────────────────────── -->
+<view wx:if="{{showEgg}}" class="egg-layer">
+  <view
+    wx:for="{{eggParticles}}"
+    wx:key="index"
+    class="egg-spark"
+    style="left:{{item.x}}px;top:{{item.y}}px;width:{{item.size}}px;height:{{item.size}}px;background:{{item.color}};transition-delay:{{item.delay}}ms;transform:translate({{eggBoom ? item.dx : 0}}px,{{eggBoom ? item.dy : 0}}px) scale({{eggBoom ? 0.3 : 1}});opacity:{{eggBoom ? 0 : 1}};"/>
+  <view class="egg-text">九州四周年快乐</view>
 </view>

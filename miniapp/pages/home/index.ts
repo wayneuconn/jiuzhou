@@ -10,6 +10,40 @@ interface ActiveEventVM {
   statusLabel: string
 }
 
+const EGG_COLORS = ['#00C9A7', '#F0B429', '#EF4444', '#3B82F6', '#e8f0eb', '#B87333']
+
+interface EggParticle {
+  x: number; y: number; dx: number; dy: number
+  size: number; color: string; delay: number
+}
+
+// Three staggered bursts of radiating sparks, sized to the screen
+function buildFireworks(w: number, h: number): EggParticle[] {
+  const bursts = [
+    { x: w * 0.28, y: h * 0.3, delay: 0 },
+    { x: w * 0.72, y: h * 0.24, delay: 260 },
+    { x: w * 0.5, y: h * 0.46, delay: 520 },
+  ]
+  const out: EggParticle[] = []
+  bursts.forEach((b, bi) => {
+    const count = 22
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + bi
+      const dist = 90 + Math.random() * 90
+      out.push({
+        x: b.x,
+        y: b.y,
+        dx: Math.cos(angle) * dist,
+        dy: Math.sin(angle) * dist,
+        size: 6 + Math.random() * 8,
+        color: EGG_COLORS[Math.floor(Math.random() * EGG_COLORS.length)],
+        delay: b.delay + Math.random() * 120,
+      })
+    }
+  })
+  return out
+}
+
 Page({
   data: {
     announcements: [] as AnnVM[],
@@ -17,7 +51,14 @@ Page({
     activeEvent: null as ActiveEventVM | null,
     season: '',
     loading: true,
+    showEgg: false,
+    eggBoom: false,
+    eggParticles: [] as EggParticle[],
   },
+
+  _eggTaps: 0,
+  _eggLastTap: 0,
+  _eggTimers: [] as Array<ReturnType<typeof setTimeout>>,
 
   onShow() {
     wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage'] })
@@ -57,6 +98,29 @@ Page({
     } finally {
       this.setData({ loading: false })
     }
+  },
+
+  // Easter egg: ten taps on the 九州 wordmark sets off fireworks
+  tapLogo() {
+    const now = Date.now()
+    // taps must keep coming — a long pause starts the count over
+    this._eggTaps = now - this._eggLastTap > 1500 ? 1 : this._eggTaps + 1
+    this._eggLastTap = now
+    if (this._eggTaps < 10 || this.data.showEgg) return
+    this._eggTaps = 0
+
+    const { windowWidth: w, windowHeight: h } = wx.getSystemInfoSync()
+    this.setData({ showEgg: true, eggBoom: false, eggParticles: buildFireworks(w, h) })
+    wx.vibrateShort({ type: 'medium' })
+    this._eggTimers.push(setTimeout(() => this.setData({ eggBoom: true }), 60))
+    this._eggTimers.push(setTimeout(() => {
+      this.setData({ showEgg: false, eggParticles: [] })
+    }, 3000))
+  },
+
+  onUnload() {
+    this._eggTimers.forEach(clearTimeout)
+    this._eggTimers = []
   },
 
   goToMatch() {

@@ -17,3 +17,41 @@
   height: 4rpx;
   background: linear-gradient(90deg, #00C9A7, rgba(0,201,167,0.3), transparent);
 }
+
+
+/* ── Easter egg: fireworks overlay ──────────────────────────────────────── */
+.egg-layer {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 2000;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.egg-spark {
+  position: absolute;
+  border-radius: 50%;
+  transition: transform 1.4s cubic-bezier(0.15, 0.7, 0.3, 1), opacity 1.4s ease-out;
+}
+
+.egg-text {
+  position: absolute;
+  top: 52%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 60rpx;
+  font-weight: 900;
+  letter-spacing: 8rpx;
+  color: #F0B429;
+  text-shadow: 0 0 30rpx rgba(240,180,41,0.8), 0 0 60rpx rgba(0,201,167,0.5);
+  animation: eggPop 3s ease-out forwards;
+}
+
+@keyframes eggPop {
+  0%   { opacity: 0; transform: scale(0.4); }
+  18%  { opacity: 1; transform: scale(1.12); }
+  28%  { transform: scale(1); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.05); }
+}
