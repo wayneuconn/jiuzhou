@@ -441,7 +441,7 @@ Page({
       let captainTips = ''
       if (isCaptain) {
         if (isOpen) captainTips = '你是本场队长：人齐后点「开始选人」，选人不分先后、先到先得'
-        else if (isDraftPhase) captainTips = '点「选 → 你的队」选人，选错点 ↩ 退回；选完一批点「我选完了」提醒对方；双方都选好后点「选人结束」，不会自动结束'
+        else if (isDraftPhase) captainTips = '点「选 → 你的队」选人，选错点 ↩ 退回；带 🧤 的球员因累计迟到需当半场门将，每场最多 2 人；选完一批点「我选完了」提醒对方；双方都选好后点「选人结束」'
         else if (isDone) captainTips = '选人完成：去战术板排阵；有人请假时递补的球员会自动顶替他的队伍，若显示未分队请在下方安排；赛后记录比分和进球/助攻'
       }
 

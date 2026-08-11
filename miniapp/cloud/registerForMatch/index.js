@@ -279,7 +279,20 @@ exports.main = async (event, context) => {
   // completing the match clears the tally.
   const cfgSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
   const lateThreshold = cfgSnap.data?.lateThreshold ?? 0
-  const gkPenalty = lateThreshold > 0 && (target.lateCount ?? 0) >= lateThreshold
+  let gkPenalty = lateThreshold > 0 && (target.lateCount ?? 0) >= lateThreshold
+  if (gkPenalty) {
+    // Two teams → at most two half-GKs per match, first come first served.
+    // Anyone beyond that keeps the duty for a later match.
+    const gkSnap = await db.collection('registrations')
+      .where({
+        matchId,
+        gkPenalty: true,
+        uid: _.neq(target._id),
+        status: _.in(['confirmed', 'promoted', 'waitlist']),
+      })
+      .count().catch(() => ({ total: 0 }))
+    if ((gkSnap.total ?? 0) >= 2) gkPenalty = false
+  }
 
   const confirmedCount = confirmedSnap.total ?? 0
   // After the match-day cutoff (14:00 ET) everything queues for manual review

@@ -308,7 +308,9 @@
         <view class="text-muted" style="font-size:24rpx;margin-bottom:12rpx;">待分配 · {{unassignedList.length}} 人</view>
         <view wx:for="{{unassignedList}}" wx:key="uid" class="player-row draft-row">
           <view class="draft-player-info">
-            <view class="draft-player-name">{{item.displayName}}</view>
+            <view class="draft-player-name">
+              {{item.displayName}}<text wx:if="{{item.isGk}}" style="font-size:22rpx;color:#F0B429;"> 🧤半场门将</text>
+            </view>
             <view wx:if="{{item.posTags.length > 0}}" style="display:flex;flex-direction:row;gap:6rpx;margin-top:4rpx;flex-wrap:wrap;">
               <view wx:for="{{item.posTags}}" wx:key="pos" wx:for-item="p"
                 class="pos-chip {{p.cls}}">{{p.pos}}</view>
@@ -339,6 +341,7 @@
           <view wx:for="{{teamAList}}" wx:key="uid" class="flex-row" style="justify-content:space-between;align-items:center;padding:6rpx 0;">
             <view class="flex-row" style="align-items:center;gap:8rpx;min-width:0;">
               <view style="font-size:26rpx;color:#e8f0eb;">{{item.displayName}}</view>
+              <view wx:if="{{item.isGk}}" style="font-size:20rpx;color:#F0B429;flex-shrink:0;">🧤</view>
               <view wx:if="{{item.posTags[0]}}" class="pos-chip {{item.posTags[0].cls}}" style="flex-shrink:0;">{{item.posTags[0].pos}}</view>
             </view>
             <view wx:if="{{!item.isCaptainA && !item.isCaptainB && (isAdmin || captainPickerTeam === 'A')}}"
@@ -350,6 +353,7 @@
           <view wx:for="{{teamBList}}" wx:key="uid" class="flex-row" style="justify-content:space-between;align-items:center;padding:6rpx 0;">
             <view class="flex-row" style="align-items:center;gap:8rpx;min-width:0;">
               <view style="font-size:26rpx;color:#e8f0eb;">{{item.displayName}}</view>
+              <view wx:if="{{item.isGk}}" style="font-size:20rpx;color:#F0B429;flex-shrink:0;">🧤</view>
               <view wx:if="{{item.posTags[0]}}" class="pos-chip {{item.posTags[0].cls}}" style="flex-shrink:0;">{{item.posTags[0].pos}}</view>
             </view>
             <view wx:if="{{!item.isCaptainA && !item.isCaptainB && (isAdmin || captainPickerTeam === 'B')}}"
