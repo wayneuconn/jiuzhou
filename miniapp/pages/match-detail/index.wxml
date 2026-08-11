@@ -152,11 +152,7 @@
       </view>
       <view class="contact-card" style="margin-top:16rpx;">
         <view class="text-muted" style="font-size:22rpx;margin-bottom:10rpx;">开通次卡资格请联系管理员</view>
-        <view class="flex-row" style="align-items:center;gap:12rpx;flex-wrap:wrap;">
-          <view class="contact-name">{{adminContact.name}}</view>
-          <view class="contact-wx">微信号 {{adminContact.wechat}}</view>
-          <view class="contact-copy" catchtap="copyWechat">复制</view>
-        </view>
+        <view class="contact-name">{{adminContact.name}}</view>
       </view>
       <button class="inline-btn" style="margin-top:16rpx;" bindtap="goApplyMembership">去申请会员 →</button>
     </view>
@@ -488,11 +484,7 @@
       </view>
       <view class="contact-card" style="margin-top:16rpx;">
         <view class="text-muted" style="font-size:22rpx;margin-bottom:10rpx;">朋友的次卡资格请联系管理员办理</view>
-        <view class="flex-row" style="align-items:center;gap:12rpx;flex-wrap:wrap;">
-          <view class="contact-name">{{adminContact.name}}</view>
-          <view class="contact-wx">微信号 {{adminContact.wechat}}</view>
-          <view class="contact-copy" catchtap="copyWechat">复制</view>
-        </view>
+        <view class="contact-name">{{adminContact.name}}</view>
       </view>
 
       <input class="friend-input" placeholder="朋友称呼，例：小李（王强朋友）" value="{{friendName}}"

@@ -1,6 +1,6 @@
 import type { User, MembershipApplication } from '../../types/index'
 import { getCardTier, getNextTierInfo, TIER_COLOR, DEFAULT_THRESHOLDS, TIER_LABEL } from '../../utils/format'
-import { ADMIN_CONTACT, copyAdminWechat } from '../../utils/contact'
+import { ADMIN_CONTACT } from '../../utils/contact'
 
 const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST']
 const PRIORITY_LABELS = ['首选', '次选', '第三']
@@ -99,7 +99,6 @@ Page({
 
   goSetup() { wx.navigateTo({ url: '/pages/onboard/profile/index' }) },
 
-  copyWechat() { copyAdminWechat() },
 
   _applyUser(user: User) {
     const app = getApp<{ globalData: { cardThresholds: typeof DEFAULT_THRESHOLDS | null } }>()

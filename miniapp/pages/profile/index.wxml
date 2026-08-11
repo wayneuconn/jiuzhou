@@ -152,11 +152,7 @@
       <view style="font-size:32rpx;font-weight:700;color:#e8f0eb;margin-bottom:16rpx;">申请会员</view>
       <view class="contact-card" style="margin-bottom:24rpx;">
         <view class="text-muted" style="font-size:22rpx;margin-bottom:10rpx;">提交申请前请先联系管理员办理</view>
-        <view class="flex-row" style="align-items:center;gap:12rpx;flex-wrap:wrap;">
-          <view class="contact-name">{{adminContact.name}}</view>
-          <view class="contact-wx">微信号 {{adminContact.wechat}}</view>
-          <view class="contact-copy" catchtap="copyWechat">复制</view>
-        </view>
+        <view class="contact-name">{{adminContact.name}}</view>
       </view>
 
 
