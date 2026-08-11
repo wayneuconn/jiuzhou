@@ -139,6 +139,7 @@ async function notifyMatchOpen(matchId, match, membershipType, text) {
 async function clearLateFor(matchId, match, uid) {
   const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
   if (!uSnap.data) throw new Error('球员不存在')
+  // Only the current tally resets — the lifetime record stays put
   await db.collection('users').doc(uid).update({ data: { lateCount: 0 } })
   await db.collection('registrations').doc(matchId + '_' + uid)
     .update({ data: { gkPenalty: false } }).catch(() => {})
@@ -435,7 +436,11 @@ exports.main = async (event) => {
     await db.collection('registrations').doc(regId).update({ data: { tags: newTags } })
 
     if (hadLate !== hasLate) {
-      await db.collection('users').doc(uid).update({ data: { lateCount: _.inc(hasLate ? 1 : -1) } })
+      // lateCount is the actionable tally (zeroed after GK duty);
+      // lateCountTotal is the permanent record that survives seasons.
+      await db.collection('users').doc(uid).update({
+        data: { lateCount: _.inc(hasLate ? 1 : -1), lateCountTotal: _.inc(hasLate ? 1 : -1) },
+      })
       if (hasLate) {
         // Crossing the threshold means GK duty next match — flag it to admins
         const cfg = await db.collection('config').doc('app').get().catch(() => ({ data: null }))

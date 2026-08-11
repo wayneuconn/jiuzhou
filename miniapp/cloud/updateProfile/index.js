@@ -38,6 +38,7 @@ exports.main = async (event, context) => {
         membershipType: 'none',
         attendanceCount: 0,
         lateCount: 0,
+        lateCountTotal: 0,
         dangerousCount: 0,
         createdAt: db.serverDate(),
         ...profileData,

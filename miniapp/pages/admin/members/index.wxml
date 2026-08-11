@@ -27,8 +27,9 @@
         </view>
       </view>
     </view>
-    <view wx:if="{{item.lateCount > 0 || item.dangerousCount > 0}}" class="flex-row" style="gap:12rpx;">
-      <view wx:if="{{item.lateCount > 0}}" class="badge badge-gold">迟到 {{item.lateCount}}</view>
+    <view wx:if="{{item.lateCount > 0 || item.lateCountTotal > 0 || item.dangerousCount > 0}}" class="flex-row" style="gap:12rpx;flex-wrap:wrap;">
+      <view wx:if="{{item.lateCount > 0}}" class="badge badge-gold">当前迟到 {{item.lateCount}}</view>
+      <view wx:if="{{item.lateCountTotal > 0}}" class="badge badge-grey">累计迟到 {{item.lateCountTotal}}</view>
       <view wx:if="{{item.dangerousCount > 0}}" class="badge badge-red">危险 {{item.dangerousCount}}</view>
     </view>
   </view>

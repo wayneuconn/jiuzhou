@@ -80,7 +80,8 @@
         <view style="width:1rpx;background:#1E2D3D;height:60rpx;align-self:center;"></view>
         <view>
           <view style="font-size:48rpx;font-weight:900;color:{{user.lateCount > 0 ? '#F0B429' : '#e8f0eb'}};">{{user.lateCount}}</view>
-          <view class="text-muted" style="font-size:22rpx;margin-top:4rpx;">迟到</view>
+          <view class="text-muted" style="font-size:22rpx;margin-top:4rpx;">当前迟到</view>
+          <view class="text-muted" style="font-size:20rpx;">累计 {{user.lateCountTotal || 0}}</view>
         </view>
         <view style="width:1rpx;background:#1E2D3D;height:60rpx;align-self:center;"></view>
         <view>

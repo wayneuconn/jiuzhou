@@ -19,7 +19,10 @@ export interface User {
   role: UserRole
   membershipType: MembershipType
   attendanceCount: number
+  // Current tally — drives the GK rule and is zeroed once served
   lateCount: number
+  // Lifetime tally — never cleared, carries across seasons
+  lateCountTotal: number
   dangerousCount: number
   banGamesLeft: number
   createdAt: number
