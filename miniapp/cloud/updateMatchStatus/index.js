@@ -34,6 +34,25 @@ function etTimestamp(dateStr, timeStr) {
   return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + hh * 3600000 + (mm || 0) * 60000
 }
 
+// Score follows the per-player goal tallies unless an admin/captain typed one
+// in by hand (own goals, missed entries) — scoreManual pins it in that case.
+async function recomputeScoreFromGoals(matchId) {
+  const mSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+  const m = mSnap.data
+  if (!m || m.scoreManual === true) return
+  const regsSnap = await db.collection('registrations')
+    .where({ matchId, status: _.in(['confirmed', 'promoted']) })
+    .field({ team: true, goals: true })
+    .limit(100)
+    .get().catch(() => ({ data: [] }))
+  let a = 0, b = 0
+  for (const r of regsSnap.data) {
+    if (r.team === 'A') a += r.goals ?? 0
+    else if (r.team === 'B') b += r.goals ?? 0
+  }
+  await db.collection('matches').doc(matchId).update({ data: { scoreA: a, scoreB: b } }).catch(() => {})
+}
+
 async function recalcMatchState(matchId) {
   const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
   if (!matchSnap.data) return
@@ -205,7 +224,7 @@ exports.main = async (event) => {
   const isAdmin = user.role === 'admin'
   // Non-admins may only attempt the captain-scoped actions (each validated
   // below against THIS match's captains); everything else is admin-only.
-  const CAPTAIN_ACTIONS = ['setStatus', 'bumpWaitlist', 'setScore', 'setStat', 'clearLatePenalty']
+  const CAPTAIN_ACTIONS = ['setStatus', 'bumpWaitlist', 'setScore', 'setStat', 'clearLatePenalty', 'autoScore']
   if (!isAdmin && action && !CAPTAIN_ACTIONS.includes(action)) {
     throw new Error('admins only')
   }
@@ -369,7 +388,15 @@ exports.main = async (event) => {
     const matchSnap = await db.collection('matches').doc(matchId).get()
     if (!matchSnap.data) throw new Error('match not found')
     if (!['ready', 'completed'].includes(matchSnap.data.status)) throw new Error('比赛未开始，无法记录比分')
-    await db.collection('matches').doc(matchId).update({ data: { scoreA, scoreB } })
+    await db.collection('matches').doc(matchId).update({ data: { scoreA, scoreB, scoreManual: true } })
+    return { success: true }
+  }
+
+  // ── hand the score back to the goal tallies ──────────────────────────────
+  if (action === 'autoScore') {
+    if (!isAdmin) await assertCaptain(matchId)
+    await db.collection('matches').doc(matchId).update({ data: { scoreManual: false } }).catch(() => {})
+    await recomputeScoreFromGoals(matchId)
     return { success: true }
   }
 
@@ -388,6 +415,7 @@ exports.main = async (event) => {
       throw new Error('player not in roster')
     }
     await db.collection('registrations').doc(regId).update({ data: { goals, assists } })
+    await recomputeScoreFromGoals(matchId)
     return { success: true }
   }
 
@@ -415,6 +443,8 @@ exports.main = async (event) => {
     const { uid, team } = event
     const regId = matchId + '_' + uid
     await db.collection('registrations').doc(regId).update({ data: { team: team ?? null } })
+    // moving a scorer between sides changes the tally-derived score
+    await recomputeScoreFromGoals(matchId)
     return { success: true }
   }
 

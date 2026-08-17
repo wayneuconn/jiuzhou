@@ -86,6 +86,9 @@ export interface Match {
   agreementText: string
   scoreA?: number | null
   scoreB?: number | null
+  // true once someone typed a score by hand — stops the goal tallies from
+  // overwriting it
+  scoreManual?: boolean
   createdAt: number
 }
 

@@ -131,6 +131,7 @@ Page({
     needAssignAlert: '',
     showTeams: false,
     hasScore: false,
+    scoreManual: false,
     scoreAInput: '',
     scoreBInput: '',
     banLeft: 0,
@@ -441,6 +442,7 @@ Page({
       const showScoreEditor = (isAdmin || isCaptain) && isDone
       const showStats = (isAdmin || isCaptain) && isDone && confirmedCount > 0
       const hasScore = typeof match.scoreA === 'number' && typeof match.scoreB === 'number'
+      const scoreManual = match.scoreManual === true
 
       // Players still owing a GK half — captains/admins clear these manually
       const gkList = (isAdmin || isCaptain)
@@ -535,6 +537,7 @@ Page({
         draftNudgeText,
         needAssignAlert,
         hasScore,
+        scoreManual,
         scoreAInput: hasScore ? String(match.scoreA) : '',
         scoreBInput: hasScore ? String(match.scoreB) : '',
         showTeams,
@@ -997,6 +1000,28 @@ Page({
         data: { action: 'clearLatePenalty', matchId: this.data.matchId, uid },
       })
       wx.showToast({ title: '已清零', icon: 'success' })
+      this.loadMatch()
+    } catch (err: unknown) {
+      wx.showModal({ title: '操作失败', content: errText(err, '操作失败'), showCancel: false })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  async autoScore() {
+    const res = await wx.showModal({
+      title: '改回自动计算？',
+      content: '比分将按每人进球记录自动汇总，之后录入进球会同步更新比分',
+      confirmColor: '#00C9A7',
+    })
+    if (!res.confirm) return
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'updateMatchStatus',
+        data: { action: 'autoScore', matchId: this.data.matchId },
+      })
+      wx.showToast({ title: '已改回自动', icon: 'success' })
       this.loadMatch()
     } catch (err: unknown) {
       wx.showModal({ title: '操作失败', content: errText(err, '操作失败'), showCancel: false })

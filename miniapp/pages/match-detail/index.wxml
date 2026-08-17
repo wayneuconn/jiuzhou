@@ -361,7 +361,11 @@
 
     <!-- ── Admin: score editor ────────────────────────────────────────── -->
     <view wx:if="{{showScoreEditor}}" class="card" style="margin-top:8rpx;">
-      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:20rpx;">比分记录</view>
+      <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:8rpx;">
+        <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;">比分记录</view>
+        <view wx:if="{{scoreManual}}" class="pick-tap pick-tap-off" bindtap="autoScore">改回自动</view>
+      </view>
+      <view class="text-muted" style="font-size:22rpx;margin-bottom:16rpx;line-height:1.6;">{{scoreManual ? '已手动填写，不再随进球记录变动；可点「改回自动」恢复' : '按下方进球记录自动汇总，无需填写；如有乌龙球或漏记可手动改写覆盖'}}</view>
       <view class="flex-row" style="align-items:center;gap:16rpx;">
         <view style="flex:1;text-align:center;">
           <view style="font-size:22rpx;font-weight:900;color:#3B82F6;margin-bottom:8rpx;">A队</view>
