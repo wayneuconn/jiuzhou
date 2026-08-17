@@ -392,6 +392,14 @@ exports.main = async (event) => {
     return { success: true }
   }
 
+  // ── 娱乐局 toggle (admins only, before or after the match) ───────────────
+  if (action === 'toggleCasual') {
+    const mSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+    if (!mSnap.data) throw new Error('match not found')
+    await db.collection('matches').doc(matchId).update({ data: { casual: event.casual === true } })
+    return { success: true, casual: event.casual === true }
+  }
+
   // ── hand the score back to the goal tallies ──────────────────────────────
   if (action === 'autoScore') {
     if (!isAdmin) await assertCaptain(matchId)

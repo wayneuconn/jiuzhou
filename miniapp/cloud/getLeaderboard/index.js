@@ -46,7 +46,7 @@ exports.main = async (event, context) => {
     : { status: 'completed', date: _.gte(startTs) }
   const matches = await getAll(() => db.collection('matches')
     .where(matchFilter)
-    .field({ captainA: true, captainB: true, scoreA: true, scoreB: true, date: true }))
+    .field({ captainA: true, captainB: true, scoreA: true, scoreB: true, date: true, casual: true }))
   const matchIdSet = new Set(matches.map(m => m._id))
 
   // ── goals / assists ────────────────────────────────────────────────────────
@@ -87,6 +87,8 @@ exports.main = async (event, context) => {
     capMap[uid] = c
   }
   for (const m of matches) {
+    // 娱乐局 doesn't count toward captain standings
+    if (m.casual === true) continue
     if (typeof m.scoreA !== 'number' || typeof m.scoreB !== 'number') continue
     record(m.captainA, m.scoreA - m.scoreB)
     record(m.captainB, m.scoreB - m.scoreA)

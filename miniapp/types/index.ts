@@ -89,6 +89,8 @@ export interface Match {
   // true once someone typed a score by hand — stops the goal tallies from
   // overwriting it
   scoreManual?: boolean
+  // 娱乐局: score isn't shown and the match is left out of the captain board
+  casual?: boolean
   createdAt: number
 }
 

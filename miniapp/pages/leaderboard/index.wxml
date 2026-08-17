@@ -58,7 +58,7 @@
       <view class="text-muted" style="margin-top:16rpx;">暂无队长战绩（赛后记录比分即自动统计）</view>
     </view>
     <block wx:else>
-      <view class="text-muted" style="font-size:22rpx;margin-bottom:12rpx;">按场均积分排名（胜3平1负0），同分比场均净胜球 · 数据来自赛后比分记录</view>
+      <view class="text-muted" style="font-size:22rpx;margin-bottom:12rpx;">按场均积分排名（胜3平1负0），同分比场均净胜球 · 数据来自赛后比分记录，娱乐局不计入</view>
       <view class="card" style="padding-bottom:8rpx;">
         <view wx:for="{{captains}}" wx:key="uid" class="player-row">
           <view style="width:56rpx;text-align:center;font-size:26rpx;font-weight:900;color:{{index === 0 ? '#F0B429' : index === 1 ? '#A8A9AD' : index === 2 ? '#B87333' : '#3A4E63'}};flex-shrink:0;">{{index + 1}}</view>

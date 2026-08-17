@@ -132,6 +132,7 @@ Page({
     showTeams: false,
     hasScore: false,
     scoreManual: false,
+    isCasual: false,
     scoreAInput: '',
     scoreBInput: '',
     banLeft: 0,
@@ -443,6 +444,7 @@ Page({
       const showStats = (isAdmin || isCaptain) && isDone && confirmedCount > 0
       const hasScore = typeof match.scoreA === 'number' && typeof match.scoreB === 'number'
       const scoreManual = match.scoreManual === true
+      const isCasual = match.casual === true
 
       // Players still owing a GK half — captains/admins clear these manually
       const gkList = (isAdmin || isCaptain)
@@ -538,6 +540,7 @@ Page({
         needAssignAlert,
         hasScore,
         scoreManual,
+        isCasual,
         scoreAInput: hasScore ? String(match.scoreA) : '',
         scoreBInput: hasScore ? String(match.scoreB) : '',
         showTeams,
@@ -1000,6 +1003,31 @@ Page({
         data: { action: 'clearLatePenalty', matchId: this.data.matchId, uid },
       })
       wx.showToast({ title: '已清零', icon: 'success' })
+      this.loadMatch()
+    } catch (err: unknown) {
+      wx.showModal({ title: '操作失败', content: errText(err, '操作失败'), showCancel: false })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  async toggleCasual() {
+    const turningOn = !this.data.isCasual
+    const res = await wx.showModal({
+      title: turningOn ? '标记为娱乐局？' : '取消娱乐局标记？',
+      content: turningOn
+        ? '本场不显示比分，也不计入队长积分榜（进球/助攻照常统计）'
+        : '本场恢复显示比分并计入队长积分榜',
+      confirmColor: '#F0B429',
+    })
+    if (!res.confirm) return
+    this.setData({ busy: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'updateMatchStatus',
+        data: { action: 'toggleCasual', matchId: this.data.matchId, casual: turningOn },
+      })
+      wx.showToast({ title: turningOn ? '已设为娱乐局' : '已取消', icon: 'success' })
       this.loadMatch()
     } catch (err: unknown) {
       wx.showModal({ title: '操作失败', content: errText(err, '操作失败'), showCancel: false })

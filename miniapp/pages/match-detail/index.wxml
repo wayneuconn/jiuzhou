@@ -27,7 +27,11 @@
           </view>
           <view style="font-size:22rpx;color:#3A4E63;text-align:right;line-height:1.5;">点击右上角<br/>··· 分享</view>
         </view>
-        <view wx:if="{{hasScore}}" class="flex-row" style="align-items:center;gap:20rpx;margin-top:20rpx;">
+        <view wx:if="{{isCasual}}" class="flex-row" style="align-items:center;gap:16rpx;margin-top:20rpx;">
+          <view style="font-size:32rpx;">🎲</view>
+          <view style="font-size:34rpx;font-weight:900;color:#F0B429;">娱乐局 · 不计分</view>
+        </view>
+        <view wx:elif="{{hasScore}}" class="flex-row" style="align-items:center;gap:20rpx;margin-top:20rpx;">
           <view style="font-size:24rpx;font-weight:900;color:#3B82F6;">A队</view>
           <view style="font-size:44rpx;font-weight:900;color:#e8f0eb;">{{match.scoreA}} : {{match.scoreB}}</view>
           <view style="font-size:24rpx;font-weight:900;color:#EF4444;">B队</view>
@@ -37,6 +41,9 @@
           <view wx:if="{{captainAName}}" class="badge badge-team-a">队长A · {{captainAName}}</view>
           <view wx:if="{{captainBName}}" class="badge badge-team-b">队长B · {{captainBName}}</view>
           <view class="badge badge-grey" bindtap="openRulesModal">📖 报名规则</view>
+          <view wx:if="{{isAdmin}}" class="badge {{isCasual ? 'badge-gold' : 'badge-grey'}}" bindtap="toggleCasual">
+            {{isCasual ? '🎲 取消娱乐局' : '🎲 标记娱乐局'}}
+          </view>
         </view>
         <view wx:if="{{scheduleLine1 || scheduleLine3}}" style="margin-top:16rpx;">
           <view wx:if="{{scheduleLine1}}" class="text-muted" style="font-size:22rpx;line-height:1.6;">⏱ {{scheduleLine1}}</view>
@@ -365,8 +372,8 @@
         <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;">比分记录</view>
         <view wx:if="{{scoreManual}}" class="pick-tap pick-tap-off" bindtap="autoScore">改回自动</view>
       </view>
-      <view class="text-muted" style="font-size:22rpx;margin-bottom:16rpx;line-height:1.6;">{{scoreManual ? '已手动填写，不再随进球记录变动；可点「改回自动」恢复' : '按下方进球记录自动汇总，无需填写；如有乌龙球或漏记可手动改写覆盖'}}</view>
-      <view class="flex-row" style="align-items:center;gap:16rpx;">
+      <view class="text-muted" style="font-size:22rpx;margin-bottom:16rpx;line-height:1.6;">{{isCasual ? '本场为娱乐局：不显示比分，也不计入队长积分榜；进球/助攻照常统计' : (scoreManual ? '已手动填写，不再随进球记录变动；可点「改回自动」恢复' : '按下方进球记录自动汇总，无需填写；如有乌龙球或漏记可手动改写覆盖')}}</view>
+      <view wx:if="{{!isCasual}}" class="flex-row" style="align-items:center;gap:16rpx;">
         <view style="flex:1;text-align:center;">
           <view style="font-size:22rpx;font-weight:900;color:#3B82F6;margin-bottom:8rpx;">A队</view>
           <input class="form-input" type="number" value="{{scoreAInput}}" bindinput="onScoreAInput"
