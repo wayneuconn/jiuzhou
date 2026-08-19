@@ -3,7 +3,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
-// Match-day registration cutoff: 14:00 ET on the day of kickoff. After this,
+// Match-day registration cutoff: 12:00 ET on the day of kickoff. After this,
 // new signups queue for manual review and auto-promotion pauses — slots are
 // filled only by captains/admins (bumpWaitlist).
 function registrationCutoffTs(matchDate) {
@@ -14,7 +14,7 @@ function registrationCutoffTs(matchDate) {
   const mo = Number(parts.find(p => p.type === 'month').value)
   const da = Number(parts.find(p => p.type === 'day').value)
   const utcBase = new Date(Date.UTC(y, mo - 1, da))
-  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + 14 * 3600000
+  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + 12 * 3600000
 }
 
 // Returns how many minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
@@ -100,16 +100,23 @@ async function promoteFromWaitlist(matchId, waitlistMinutes) {
       .where({ matchId, status: _.in(['confirmed', 'promoted']) })
       .count().catch(() => ({ total: null }))
     if (cnt.total === null || cnt.total >= match.maxPlayers) break
+    // Never leave the roster at 23: past 22 players are admitted in pairs, so
+    // a lone 23rd waits for a 24th instead of taking the odd slot.
+    const evenGate = cnt.total === 22 && match.maxPlayers > 22
 
     const waitSnap = await db.collection('registrations')
       .where({ matchId, status: 'waitlist' })
       .limit(100)
       .get()
       .catch(() => ({ data: [] }))
-    const next = waitSnap.data
+    const eligible = waitSnap.data
       .map(r => ({ ...r, _tier: r.waitlistTier ?? 1 }))
       .filter(r => r._tier <= maxTier)
-      .sort((a, b) => a._tier - b._tier || (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))[0]
+      // Auto-promotion only runs before the cutoff, where membership priority
+      // rules the queue (after it, captains/admins pick manually in FCFS order)
+      .sort((a, b) => a._tier - b._tier || (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))
+    if (evenGate && eligible.length < 2) break
+    const next = eligible[0]
     if (!next) break
 
     const regId = next._id
@@ -256,18 +263,18 @@ exports.main = async (event, context) => {
     locked++
   }
 
-  // ── 1d. Even-roster rule at the match-day cutoff (14:00 ET) ─────────────
-  // If the roster sits at exactly 23 when the cutoff passes, the newest
-  // confirmed non-captain drops to the HEAD of the waitlist (tier 0) so the
-  // game runs 22 — and they're first back in if a 24th appears via manual bump.
-  const evenRosterSnap = await db.collection('matches')
+  // ── 1d. Noon cutoff: no 24th player showed, so the game is a 22 ─────────
+  // The roster is never left at 23 (registerForMatch holds the odd signup),
+  // so at the cutoff we simply cap at 22 — the pending 23rd stays on the
+  // waitlist and only comes in if someone drops out.
+  const capSnap = await db.collection('matches')
     .where({
       status: _.in(['registration_r1', 'registration_r2']),
       date: _.gt(now.getTime()),
     })
     .get().catch(() => ({ data: [] }))
-  let evenRostered = 0
-  for (const m of evenRosterSnap.data) {
+  let capped = 0
+  for (const m of capSnap.data) {
     if (m.evenRosterApplied === true) continue
     if (now.getTime() < registrationCutoffTs(m.date)) continue
     await db.collection('matches').doc(m._id).update({ data: { evenRosterApplied: true } }).catch(() => {})
@@ -275,58 +282,45 @@ exports.main = async (event, context) => {
     const cntSnap = await db.collection('registrations')
       .where({ matchId: m._id, status: _.in(['confirmed', 'promoted']) })
       .count().catch(() => ({ total: 0 }))
-    if ((cntSnap.total ?? 0) !== 23) continue
+    const cnt = cntSnap.total ?? 0
+    if (cnt >= 24) continue  // full 24 — play 12v12, leave the cap alone
 
-    const newestSnap = await db.collection('registrations')
-      .where({
-        matchId: m._id,
-        status: 'confirmed',
-        uid: _.nin([m.captainA ?? '__none__', m.captainB ?? '__none__']),
-      })
-      .orderBy('registeredAt', 'desc')
-      .limit(1)
-      .get().catch(() => ({ data: [] }))
-    const demoted = newestSnap.data[0]
-    if (!demoted) continue
+    await db.collection('matches').doc(m._id).update({ data: { maxPlayers: 22 } }).catch(() => {})
+    capped++
 
-    await db.collection('registrations').doc(demoted._id).update({
-      data: { status: 'waitlist', waitlistTier: 0, waitlistPosition: 0, team: null, promotedAt: null, confirmDeadline: null },
-    }).catch(() => {})
-
-    // Tell the player (or the bringer, for a guest)
+    // Let the player holding the unpaired 23rd spot know it didn't fill
     try {
-      const notifyUid = demoted.isGuest ? demoted.broughtBy : demoted.uid
-      const uSnap = notifyUid ? await db.collection('users').doc(notifyUid).get().catch(() => ({ data: null })) : { data: null }
-      if (uSnap.data?.openid) {
-        const d = new Date(m.date)
-        const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
-        await cloud.callFunction({
-          name: 'sendSubscribeMsg',
-          data: {
-            type: 'promoted',
-            toOpenid: uSnap.data.openid,
+      const wSnap = await db.collection('registrations')
+        .where({ matchId: m._id, status: 'waitlist' })
+        .orderBy('registeredAt', 'asc')
+        .limit(1)
+        .get().catch(() => ({ data: [] }))
+      const pending = wSnap.data[0]
+      if (cnt === 22 && pending) {
+        const notifyUid = pending.isGuest ? pending.broughtBy : pending.uid
+        const uSnap = notifyUid ? await db.collection('users').doc(notifyUid).get().catch(() => ({ data: null })) : { data: null }
+        if (uSnap.data?.openid) {
+          const d = new Date(m.date)
+          const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+          await cloud.callFunction({
+            name: 'sendSubscribeMsg',
             data: {
-              page: `/pages/match-detail/index?id=${m._id}`,
-              templateData: {
-                thing2: { value: '九州足球比赛' },
-                time4: { value: timeStr },
-                thing5: { value: (m.location || '待定').slice(0, 20) },
-                thing6: { value: demoted.isGuest ? '未满24人,你的朋友转为候补' : '未满24人,你暂转为候补首位' },
+              type: 'promoted',
+              toOpenid: uSnap.data.openid,
+              data: {
+                page: `/pages/match-detail/index?id=${m._id}`,
+                templateData: {
+                  thing2: { value: '九州足球比赛' },
+                  time4: { value: timeStr },
+                  thing5: { value: (m.location || '待定').slice(0, 20) },
+                  thing6: { value: '未满24人,本场22人踢,你在候补首位' },
+                },
               },
             },
-          },
-        })
+          })
+        }
       }
     } catch (_) {}
-    evenRostered++
-  }
-
-  // ── 1e. Close one-off events past their signup deadline ─────────────────
-  const dueEventsSnap = await db.collection('events')
-    .where({ status: 'registration', deadline: _.and(_.gt(0), _.lt(now.getTime())) })
-    .get().catch(() => ({ data: [] }))
-  for (const ev of dueEventsSnap.data) {
-    await db.collection('events').doc(ev._id).update({ data: { status: 'closed' } }).catch(() => {})
   }
 
   // ── 2. Auto-complete matches whose date has passed ───────────────────────

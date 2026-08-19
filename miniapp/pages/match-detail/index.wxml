@@ -559,13 +559,14 @@
       <scroll-view scroll-y style="max-height:640rpx;margin-bottom:32rpx;">
         <view class="rule-line"><text class="rule-num">1</text>R1 年卡轮：比赛发布后先开放年卡会员报名；次卡可先加入候补排队。</view>
         <view class="rule-line"><text class="rule-num">2</text>R2 开放轮：开球前 8 小时自动开放，年卡、次卡会员均可报名。新朋友需先联系管理员开通次卡（可在「我的」页提交申请）。</view>
-        <view class="rule-line"><text class="rule-num">3</text>报名截止：比赛日 14:00 后报名一律进入候补，由队长/管理员审核补入；若 14:00 时名单为 23 人，最后报名者转为候补第一位，保证 22 人双数开赛（满 24 人正常出战）。开球前 1 小时名单最终锁定。</view>
-        <view class="rule-line"><text class="rule-num">4</text>候补优先级：年卡本人 &gt; 年卡带的朋友 &gt; 次卡；同级按加入候补先后。有空位时自动按此顺序递补，不可插队。</view>
-        <view class="rule-line"><text class="rule-num">5</text>带朋友：年卡会员完成自己报名后，可帮朋友加入候补，每人最多 2 位；朋友递补成功会通知带人者。带人者退出或请假后，朋友转为普通候补（按次卡优先级重新排队）。</view>
-        <view class="rule-line"><text class="rule-num">6</text>递补确认：关闭「自动接受」的候补，递补时需在限时内确认，超时排回队尾。</view>
-        <view class="rule-line"><text class="rule-num">7</text>请假 / 退出：开赛前可随时操作，空出的名额自动递补给候补。</view>
-        <view class="rule-line"><text class="rule-num">8</text>缺席：报名后无故缺席将被禁赛 4 场。</view>
-        <view class="rule-line"><text class="rule-num">9</text>管理员可视情况直接调整名单。</view>
+        <view class="rule-line"><text class="rule-num">3</text>双数开赛：名单满 22 人后，第 23 位报名者暂列候补第一位，等第 24 位一起进名单；比赛日 12:00 仍未满 24 人则本场按 22 人踢。</view>
+        <view class="rule-line"><text class="rule-num">4</text>报名截止：比赛日 12:00 后报名一律进入候补，此时不再区分年卡/次卡，按报名先后由队长/管理员补入；开球前 1 小时名单最终锁定。</view>
+        <view class="rule-line"><text class="rule-num">5</text>候补优先级（12:00 前）：年卡本人 &gt; 年卡带的朋友 &gt; 次卡；同级按加入候补先后，有空位自动按此顺序递补，不可插队。12:00 后改为纯报名先后。</view>
+        <view class="rule-line"><text class="rule-num">6</text>带朋友：年卡会员完成自己报名后，可帮朋友加入候补，每人最多 2 位；朋友递补成功会通知带人者。带人者退出或请假后，朋友转为普通候补（按次卡优先级重新排队）。</view>
+        <view class="rule-line"><text class="rule-num">7</text>递补确认：关闭「自动接受」的候补，递补时需在限时内确认，超时排回队尾。</view>
+        <view class="rule-line"><text class="rule-num">8</text>请假 / 退出：开赛前可随时操作，空出的名额自动递补给候补。</view>
+        <view class="rule-line"><text class="rule-num">9</text>缺席：报名后无故缺席将被禁赛 4 场。</view>
+        <view class="rule-line"><text class="rule-num">10</text>管理员可视情况直接调整名单。</view>
       </scroll-view>
       <button class="modal-btn-teal" bindtap="closeRulesModal">知道了</button>
     </view>

@@ -302,12 +302,18 @@ Page({
         .filter(r => r.status === 'confirmed' || r.status === 'promoted')
         .map(toVM)
       // Waitlist order = promotion order: priority tier first, then arrival
+      // Past the noon cutoff membership priority stops mattering — the queue
+      // is plain first-come-first-served by registration time.
+      const pastCutoff = Date.now() >= new Date(
+        new Date(match.date).getFullYear(), new Date(match.date).getMonth(),
+        new Date(match.date).getDate(), 12, 0, 0).getTime()
       const waitlistList: RegVM[] = active
         .filter(r => r.status === 'waitlist')
         .map(toVM)
-        .sort((a, b) =>
-          ((a.waitlistTier ?? 1) - (b.waitlistTier ?? 1))
-          || ((a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99)))
+        .sort((a, b) => pastCutoff
+          ? ((a.registeredAt ?? 0) - (b.registeredAt ?? 0))
+          : (((a.waitlistTier ?? 1) - (b.waitlistTier ?? 1))
+             || ((a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))))
       const excusedList: RegVM[] = active.filter(r => r.status === 'excused' && !r.isGuest).map(toVM)
 
       const myReg = user ? (registrations.find(r => r.uid === user._id) ?? null) : null
@@ -327,9 +333,9 @@ Page({
       // 'ready' covers a full roster and a finished draft alike — the waitlist
       // stays joinable for replacements until the kickoff-1h hard lock.
       const waitlistOpen = isOpen || (match.status === 'ready' && match.rosterLocked !== true)
-      // Match-day 14:00 cutoff: afterwards signups queue for captain/admin review
+      // Match-day noon cutoff: afterwards signups queue for captain/admin review
       const kd = new Date(match.date)
-      const cutoffMs = new Date(kd.getFullYear(), kd.getMonth(), kd.getDate(), 14, 0, 0).getTime()
+      const cutoffMs = new Date(kd.getFullYear(), kd.getMonth(), kd.getDate(), 12, 0, 0).getTime()
       const postCutoff = waitlistOpen && Date.now() >= cutoffMs
       const isR1 = match.status === 'registration_r1'
       const myTier = isAdmin || user?.membershipType === 'annual' ? 1 : 3
@@ -376,7 +382,7 @@ Page({
         actionState = 'r1Blocked'
       } else if (notRegistered && waitlistOpen && postCutoff) {
         actionState = 'canWaitlist'
-        waitlistBtnText = `加入候补 — 14:00 后需审核补入 (${confirmedCount}/${match.maxPlayers})`
+        waitlistBtnText = `加入候补 — 12:00 后需审核补入 (${confirmedCount}/${match.maxPlayers})`
       } else if (notRegistered && isOpen && !isFull && !hasPriorityWaiters) {
         actionState = 'canRegister'
       } else if (notRegistered && waitlistOpen) {
@@ -414,7 +420,7 @@ Page({
         scheduleLine1 = `名单锁定：开球前 1 小时（${lockTime}）`
       }
       if (waitlistOpen && !postCutoff) {
-        scheduleLine3 = '比赛日 14:00 报名截止，此后候补需队长/管理员审核补入'
+        scheduleLine3 = '比赛日 12:00 报名截止；此后候补按报名先后由队长/管理员补入'
       }
 
       // Draft views sort GK → DEF → MID → FWD (stable within a group);
@@ -755,16 +761,33 @@ Page({
     const { uid, name } = e.currentTarget.dataset as { uid: string; name: string }
     const res = await wx.showModal({ title: `直接把 ${name} 提进名单？`, content: '', confirmColor: '#00C9A7' })
     if (!res.confirm) return
+    await this._doBump(uid, name, false)
+  },
+
+  async _doBump(uid: string, name: string, force: boolean) {
     this.setData({ busy: true })
     try {
       await wx.cloud.callFunction({
         name: 'updateMatchStatus',
-        data: { action: 'bumpWaitlist', matchId: this.data.matchId, uid },
+        data: { action: 'bumpWaitlist', matchId: this.data.matchId, uid, force },
       })
       wx.showToast({ title: '已提升', icon: 'success' })
       this.loadMatch()
     } catch (err: unknown) {
       const msg = errText(err, '操作失败')
+      // The roster guard reports back so the admin can decide knowingly
+      if (!force && (msg.startsWith('FULL:') || msg.startsWith('ODD:'))) {
+        const detail = msg.slice(msg.indexOf(':') + 1)
+        const ok = await wx.showModal({
+          title: '确认补入？',
+          content: `${detail}。仍要把 ${name} 补进名单吗？`,
+          confirmText: '仍然补入',
+          confirmColor: '#F0B429',
+        })
+        this.setData({ busy: false })
+        if (ok.confirm) await this._doBump(uid, name, true)
+        return
+      }
       wx.showModal({ title: '操作失败', content: msg, showCancel: false })
     } finally {
       this.setData({ busy: false })

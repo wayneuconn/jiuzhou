@@ -10,7 +10,7 @@ function etOffsetMinutes(date) {
   return Math.round((new Date(utcStr) - new Date(etStr)) / 60000)
 }
 
-// Match-day registration cutoff: 14:00 ET on the day of kickoff. After this,
+// Match-day registration cutoff: 12:00 ET on the day of kickoff. After this,
 // new signups queue for manual review and auto-promotion pauses — slots are
 // filled only by captains/admins (bumpWaitlist).
 function registrationCutoffTs(matchDate) {
@@ -21,7 +21,7 @@ function registrationCutoffTs(matchDate) {
   const mo = Number(parts.find(p => p.type === 'month').value)
   const da = Number(parts.find(p => p.type === 'day').value)
   const utcBase = new Date(Date.UTC(y, mo - 1, da))
-  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + 14 * 3600000
+  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + 12 * 3600000
 }
 
 async function nextWaitlistPosition(matchId) {
@@ -70,16 +70,23 @@ async function promoteFromWaitlist(matchId, inheritTeam = null) {
       .where({ matchId, status: _.in(['confirmed', 'promoted']) })
       .count().catch(() => ({ total: null }))
     if (cnt.total === null || cnt.total >= match.maxPlayers) break
+    // Never leave the roster at 23: past 22 players are admitted in pairs, so
+    // a lone 23rd waits for a 24th instead of taking the odd slot.
+    const evenGate = cnt.total === 22 && match.maxPlayers > 22
 
     const waitSnap = await db.collection('registrations')
       .where({ matchId, status: 'waitlist' })
       .limit(100)
       .get()
       .catch(() => ({ data: [] }))
-    const next = waitSnap.data
+    const eligible = waitSnap.data
       .map(r => ({ ...r, _tier: r.waitlistTier ?? 1 }))
       .filter(r => r._tier <= maxTier)
-      .sort((a, b) => a._tier - b._tier || (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))[0]
+      // Auto-promotion only runs before the cutoff, where membership priority
+      // rules the queue (after it, captains/admins pick manually in FCFS order)
+      .sort((a, b) => a._tier - b._tier || (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))
+    if (evenGate && eligible.length < 2) break
+    const next = eligible[0]
     if (!next) break
 
     const regId = next._id
