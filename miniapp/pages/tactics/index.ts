@@ -23,6 +23,17 @@ const SLOTS: [number, number][] = [
 
 type VisibilityState = 'loading' | 'no-match' | 'not-yet' | 'no-team' | 'ok'
 
+// Sample 4-4-2 shown whenever the viewer has no live formation to look at, so
+// the tab always explains itself instead of rendering an empty state.
+const DEMO_LINEUP = [
+  { pos: 'GK', name: '门将' },
+  { pos: 'LB', name: '左后卫' }, { pos: 'CB', name: '中后卫' },
+  { pos: 'CB', name: '中后卫' }, { pos: 'RB', name: '右后卫' },
+  { pos: 'LM', name: '左前卫' }, { pos: 'CM', name: '中场' },
+  { pos: 'CM', name: '中场' }, { pos: 'RM', name: '右前卫' },
+  { pos: 'ST', name: '前锋' }, { pos: 'ST', name: '前锋' },
+]
+
 Page({
   data: {
     players: [] as PitchPlayer[],
@@ -42,6 +53,7 @@ Page({
     dualView: false,
     state: 'loading' as VisibilityState,
     lockMessage: '',
+    demoPlayers: [] as PitchPlayer[],
   },
 
   onLoad() {
@@ -68,6 +80,26 @@ Page({
       penH, penW, penX,
       goalW, goalX, goalH,
       dotX, dotTopY, dotBotY,
+    })
+
+    const half = Math.round(tokenPx / 2)
+    const demoSlots: [number, number][] = [
+      [0.5, 0.95],
+      [0.13, 0.82], [0.38, 0.85], [0.62, 0.85], [0.87, 0.82],
+      [0.13, 0.66], [0.38, 0.68], [0.62, 0.68], [0.87, 0.66],
+      [0.34, 0.54], [0.66, 0.54],
+    ]
+    this.setData({
+      demoPlayers: DEMO_LINEUP.map((d, i) => ({
+        uid: 'demo' + i,
+        name: d.name,
+        initial: d.pos.charAt(0),
+        position: d.pos,
+        team: 'A' as const,
+        x: Math.round(demoSlots[i][0] * pw - half),
+        y: Math.round(demoSlots[i][1] * ph - half),
+        isMe: false,
+      })),
     })
   },
 

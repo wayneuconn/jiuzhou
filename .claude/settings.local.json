@@ -62,7 +62,19 @@
       "Bash(wait)",
       "Bash(npx tsc *)",
       "Bash(npx tcb *)",
-      "Bash(chmod +x *)"
+      "Bash(chmod +x *)",
+      "Bash([ ! -f \"$d/package.json\" ])",
+      "Bash(xargs cat *)",
+      "Bash(xargs ls *)",
+      "Bash(git revert *)",
+      "Bash(yes)",
+      "Bash(awk -F'│' 'NR>0 && /[a-z0-9]+/ {gsub\\(/ /,\"\",$3\\); if\\($3\\) print $3}')",
+      "Bash(yes \"\")",
+      "Bash(xargs sed -i '' \"s|menus: \\\\['shareAppMessage', 'shareTimeline'\\\\]|menus: ['shareAppMessage']|g\")",
+      "WebSearch",
+      "WebFetch(domain:developers.weixin.qq.com)",
+      "WebFetch(domain:www.landiannews.com)",
+      "Bash(node --check cloud/getMatchDetail/index.js)"
     ]
   }
 }
