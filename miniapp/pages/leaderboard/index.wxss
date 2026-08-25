@@ -47,3 +47,15 @@
   background: #00C9A7;
   color: #0D1117;
 }
+
+/* Guests share one leaderboard row per name — flag them so a repeated
+   nickname isn't mistaken for a regular member. */
+.guest-tag {
+  flex-shrink: 0;
+  font-size: 18rpx;
+  color: #7A8FA6;
+  border: 1rpx solid rgba(122, 143, 166, 0.4);
+  border-radius: 6rpx;
+  padding: 2rpx 8rpx;
+  line-height: 1.4;
+}

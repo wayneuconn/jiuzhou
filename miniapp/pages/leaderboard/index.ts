@@ -3,6 +3,7 @@ interface BoardRow {
   displayName: string
   goals: number
   assists: number
+  isGuest?: boolean
 }
 
 interface CaptainRow {

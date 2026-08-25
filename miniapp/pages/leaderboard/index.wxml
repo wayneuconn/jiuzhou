@@ -30,7 +30,10 @@
     <view wx:else class="card" style="padding-bottom:8rpx;">
       <view wx:for="{{scorers}}" wx:key="uid" class="player-row">
         <view style="width:56rpx;text-align:center;font-size:26rpx;font-weight:900;color:{{index === 0 ? '#F0B429' : index === 1 ? '#A8A9AD' : index === 2 ? '#B87333' : '#3A4E63'}};flex-shrink:0;">{{index + 1}}</view>
-        <view style="flex:1;margin-left:16rpx;font-size:28rpx;font-weight:600;color:#e8f0eb;">{{item.displayName}}</view>
+        <view class="flex-row" style="flex:1;margin-left:16rpx;align-items:center;gap:10rpx;min-width:0;">
+          <view style="font-size:28rpx;font-weight:600;color:#e8f0eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{item.displayName}}</view>
+          <view wx:if="{{item.isGuest}}" class="guest-tag">访客</view>
+        </view>
         <view class="text-muted" style="font-size:24rpx;margin-right:16rpx;">助攻 {{item.assists}}</view>
         <view style="font-size:32rpx;font-weight:900;color:#00C9A7;">{{item.goals}}</view>
       </view>
@@ -45,7 +48,10 @@
     <view wx:else class="card" style="padding-bottom:8rpx;">
       <view wx:for="{{assisters}}" wx:key="uid" class="player-row">
         <view style="width:56rpx;text-align:center;font-size:26rpx;font-weight:900;color:{{index === 0 ? '#F0B429' : index === 1 ? '#A8A9AD' : index === 2 ? '#B87333' : '#3A4E63'}};flex-shrink:0;">{{index + 1}}</view>
-        <view style="flex:1;margin-left:16rpx;font-size:28rpx;font-weight:600;color:#e8f0eb;">{{item.displayName}}</view>
+        <view class="flex-row" style="flex:1;margin-left:16rpx;align-items:center;gap:10rpx;min-width:0;">
+          <view style="font-size:28rpx;font-weight:600;color:#e8f0eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{item.displayName}}</view>
+          <view wx:if="{{item.isGuest}}" class="guest-tag">访客</view>
+        </view>
         <view class="text-muted" style="font-size:24rpx;margin-right:16rpx;">进球 {{item.goals}}</view>
         <view style="font-size:32rpx;font-weight:900;color:#00C9A7;">{{item.assists}}</view>
       </view>

@@ -22,6 +22,18 @@ function periodStartTs(period) {
   return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000
 }
 
+// Guests have no account, so their identity is the name the bringer typed.
+// Normalise it (case, spaces, full-width punctuation) so 小王 / 小 王 / Xiao Wang
+// aren't three different scorers.
+function guestKey(name) {
+  const n = (name || '')
+    .toString()
+    .toLowerCase()
+    .replace(/[\s\u3000·・.,，。、-]/g, '')
+    .trim()
+  return n ? 'guest:' + n : ''
+}
+
 async function getAll(makeQuery) {
   const PAGE = 1000
   const out = []
@@ -52,16 +64,22 @@ exports.main = async (event, context) => {
   // ── goals / assists ────────────────────────────────────────────────────────
   const rows = (await getAll(() => db.collection('registrations')
     .where(_.or([{ goals: _.gt(0) }, { assists: _.gt(0) }]))
-    .field({ uid: true, displayName: true, goals: true, assists: true, matchId: true })))
+    .field({ uid: true, displayName: true, goals: true, assists: true, matchId: true, isGuest: true })))
     .filter(r => startTs === null || matchIdSet.has(r.matchId))
 
   const byUid = {}
   for (const r of rows) {
-    const cur = byUid[r.uid] ?? { uid: r.uid, displayName: r.displayName, goals: 0, assists: 0 }
+    // A guest gets a throwaway uid per registration, so keying on uid would
+    // list the same friend once per match. Fold guests together by name.
+    const key = r.isGuest ? guestKey(r.displayName) : r.uid
+    if (!key) continue
+    const cur = byUid[key] ?? {
+      uid: key, displayName: r.displayName, goals: 0, assists: 0, isGuest: !!r.isGuest,
+    }
     cur.goals += r.goals ?? 0
     cur.assists += r.assists ?? 0
     cur.displayName = r.displayName || cur.displayName
-    byUid[r.uid] = cur
+    byUid[key] = cur
   }
 
   const players = Object.values(byUid)
