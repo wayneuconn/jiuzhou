@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>从零到一做一个微信小程序</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm; }
+
+  :root{
+    --ink:#1c2b26;
+    --ink-soft:#4a5f58;
+    --ink-faint:#7c8e88;
+    --accent:#0f7a63;
+    --accent-soft:#e6f4f0;
+    --rule:#dbe5e1;
+    --warn:#8a6100;
+    --warn-bg:#fdf6e3;
+    --warn-line:#e8d5a3;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+  body{
+    margin:0;
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+    font-size:10.5pt;
+    line-height:1.72;
+    color:var(--ink);
+    background:#fff;
+  }
+
+  /* ── cover ─────────────────────────────────────────────── */
+  .cover{
+    height:263mm; display:flex; flex-direction:column;
+    break-after:page; page-break-after:always;
+  }
+  .cover-top{ padding-top:34mm; }
+  .cover-rule{ border-top:2.5pt solid var(--accent); margin:8mm 0 0; }
+  .toc{ margin-top:11mm; }
+  .toc-title{ font-size:8pt; letter-spacing:.28em; color:var(--ink-faint); font-weight:700; margin-bottom:4mm; }
+  .toc-item{ display:flex; align-items:baseline; gap:3mm; padding:1.6mm 0; font-size:9.5pt; }
+  .toc-n{ color:var(--accent); font-weight:800; flex:0 0 5mm; }
+  .toc-t{ font-weight:600; }
+  .toc-d{ color:var(--ink-faint); font-size:8.5pt; }
+  .kicker{
+    font-size:8.5pt; letter-spacing:.32em; color:var(--accent);
+    font-weight:700; text-transform:uppercase; margin-bottom:5mm;
+  }
+  h1{
+    font-size:25pt; line-height:1.25; margin:0 0 4mm;
+    font-weight:800; letter-spacing:-.01em; color:var(--ink);
+  }
+  .subtitle{ font-size:11.5pt; color:var(--ink-soft); line-height:1.7; margin:0 0 6mm; max-width:135mm; }
+  .byline{ font-size:9pt; color:var(--ink-faint); letter-spacing:.04em; }
+
+
+  /* ── sections ──────────────────────────────────────────── */
+  h2:first-of-type{ margin-top:0; }
+  h2{
+    font-size:14pt; font-weight:800; color:var(--ink);
+    margin:7.5mm 0 3.5mm; padding-bottom:2mm;
+    border-bottom:1pt solid var(--rule);
+    break-after:avoid; page-break-after:avoid;
+  }
+  h2 .n{ color:var(--accent); margin-right:2.5mm; font-variant-numeric:tabular-nums; }
+
+  h3{
+    font-size:11pt; font-weight:700; color:var(--ink);
+    margin:5mm 0 2.5mm;
+    break-after:avoid; page-break-after:avoid;
+  }
+  h3 .step{
+    display:inline-block; min-width:6.5mm; height:6.5mm; line-height:6.5mm;
+    text-align:center; border-radius:50%;
+    background:var(--accent); color:#fff;
+    font-size:8.5pt; font-weight:800; margin-right:2.5mm;
+    vertical-align:.4mm; padding:0 1.5mm;
+  }
+
+  p{ margin:0 0 2.6mm; }
+  ul{ margin:0 0 3mm; padding-left:5mm; }
+  li{ margin-bottom:1.4mm; }
+  strong{ font-weight:700; color:var(--ink); }
+  em{ font-style:normal; background:linear-gradient(transparent 62%, var(--accent-soft) 62%); font-weight:600; }
+
+  .lead{ color:var(--ink-soft); font-size:10pt; margin-bottom:4mm; }
+
+  /* ── callouts ──────────────────────────────────────────── */
+  .note{
+    border-left:2.5pt solid var(--accent); background:var(--accent-soft);
+    padding:3.2mm 4mm; border-radius:0 3pt 3pt 0; margin:3.5mm 0 4mm;
+    font-size:9.5pt; line-height:1.75;
+    break-inside:avoid; page-break-inside:avoid;
+  }
+  .note p:last-child, .warn p:last-child{ margin-bottom:0; }
+  .note-title{ font-weight:800; color:var(--accent); font-size:9pt; letter-spacing:.06em; margin-bottom:1.5mm; }
+
+  .warn{
+    border:1pt solid var(--warn-line); background:var(--warn-bg);
+    padding:3.2mm 4mm; border-radius:3pt; margin:3.5mm 0 4mm;
+    font-size:9.5pt; line-height:1.75; color:var(--warn);
+    break-inside:avoid; page-break-inside:avoid;
+  }
+  .warn strong{ color:var(--warn); }
+
+  /* ── dialogue sample ───────────────────────────────────── */
+  .quote{
+    border-left:2pt solid var(--rule); padding:1mm 0 1mm 4mm;
+    margin:3mm 0 4mm; color:var(--ink-soft); font-size:9.5pt;
+    break-inside:avoid; page-break-inside:avoid;
+  }
+
+  /* ── two-column definition rows ────────────────────────── */
+  .rows{ margin:3mm 0 4mm; border-top:1pt solid var(--rule); }
+  .row{
+    display:flex; gap:5mm; padding:3mm 0;
+    border-bottom:1pt solid var(--rule);
+    break-inside:avoid; page-break-inside:avoid;
+  }
+  .row-k{ flex:0 0 33mm; font-weight:700; font-size:9.5pt; color:var(--accent); line-height:1.6; }
+  .row-v{ flex:1; font-size:9.5pt; line-height:1.7; }
+  .row-v p{ margin:0 0 1.5mm; }
+  .row-v p:last-child{ margin:0; }
+
+  .tag{
+    display:inline-block; font-size:7.5pt; font-weight:700;
+    padding:.4mm 1.8mm; border-radius:2pt; margin-left:1.5mm;
+    background:var(--accent); color:#fff; vertical-align:.5mm; letter-spacing:.04em;
+  }
+  .tag.gray{ background:var(--ink-faint); }
+
+  .section{ break-inside:auto; }
+  .keep{ break-inside:avoid; page-break-inside:avoid; }
+
+  hr.soft{ border:none; border-top:1pt solid var(--rule); margin:8mm 0; }
+
+  .closing{
+    margin-top:6mm; padding:4.5mm; border:1pt solid var(--rule);
+    border-radius:3pt; background:#fafcfb;
+    break-inside:avoid; page-break-inside:avoid;
+  }
+  .closing h3{ margin-top:0; }
+  .closing ol{ margin:0; padding-left:5mm; }
+  .closing li{ margin-bottom:2.5mm; }
+
+  .footer-note{
+    margin-top:7mm; padding-top:3mm; border-top:1pt solid var(--rule);
+    font-size:8.5pt; color:var(--ink-faint); line-height:1.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+ <div class="cover-top">
+  <div class="kicker">一个真实项目的完整记录</div>
+  <h1>从零到一做一个<br>微信小程序</h1>
+  <p class="subtitle">
+    以「九州」为例 —— 一个给业余足球队用的报名、分队与数据统计工具。
+    从想清楚规则，到写代码、拉真人试用、办资质、过审上线，把整个过程拆开来讲。
+  </p>
+  <div class="byline">新泽西</div>
+  <div class="cover-rule"></div>
+ </div>
+
+  <div class="toc">
+    <div class="toc-title">目录</div>
+    <div class="toc-item"><span class="toc-n">一</span><span class="toc-t">一个小程序由哪几块拼起来</span><span class="toc-d">— 前端、后端、数据库</span></div>
+    <div class="toc-item"><span class="toc-n">二</span><span class="toc-t">实际经历的七个步骤</span><span class="toc-d">— 从定规则到过审</span></div>
+    <div class="toc-item"><span class="toc-n">三</span><span class="toc-t">资质：注册、备案、认证</span><span class="toc-d">— 主体、ICP、公安、网信、隐私</span></div>
+    <div class="toc-item"><span class="toc-n">四</span><span class="toc-t">用了什么工具</span><span class="toc-d">— AI 助手与官方工具链</span></div>
+    <div class="toc-item"><span class="toc-n">五</span><span class="toc-t">节奏</span><span class="toc-d">— 以及五件值得先知道的事</span></div>
+  </div>
+</div>
+
+<div class="section">
+<h2><span class="n">一</span>一个小程序由哪几块拼起来</h2>
+
+<p class="lead">你在手机上点的那个「小程序」，背后其实是三样东西：</p>
+
+<div class="rows">
+  <div class="row">
+    <div class="row-k">前端页面</div>
+    <div class="row-v"><p>用户看到、点的界面：报名按钮、名单、榜单、战术板。</p></div>
+  </div>
+  <div class="row">
+    <div class="row-k">后端逻辑</div>
+    <div class="row-v">
+      <p>用户看不见的规则。比如"满 22 人后第 23 个人要进候补""中午 12 点还没凑够 24 人就改成 22 人打"。</p>
+      <p>这些<strong>不能放在手机里算</strong>，否则容易被绕过，所以跑在服务器上。</p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="row-k">数据库</div>
+    <div class="row-v"><p>存谁报了名、谁进了几个球、谁当队长赢了几场。</p></div>
+  </div>
+</div>
+
+<div class="note">
+  <div class="note-title">为什么选小程序而不是 APP</div>
+  <p>微信自带「云开发」，把服务器和数据库打包好了 —— 不用租机器、不用备案域名、不用搞运维。加上不用下载、群里发个链接就能用，对一个几十人的球队来说，这是唯一合理的形态。</p>
+</div>
+</div>
+
+<div class="section">
+<h2><span class="n">二</span>实际经历的七个步骤</h2>
+
+<h3><span class="step">1</span>先定清楚要解决什么问题</h3>
+<p>这步最重要，也最不像"开发"。</p>
+<p>40 人的球队，每周靠微信群接龙：谁报了名、谁是候补、谁鸽了、谁进了球，全靠人脑记，每周都要吵一遍。</p>
+<p>所以第一步不是写代码，是<strong>把规则写成白纸黑字</strong> —— 报名分几轮、候补怎么排优先级、年卡和次卡差别在哪、迟到怎么罚。<em>规则想不清楚，后面写什么都是白写。</em></p>
+
+<h3><span class="step">2</span>搭骨架</h3>
+<p>开通云开发环境 → 设计数据库表（用户、比赛、报名记录）→ 跑通微信登录。</p>
+<p>这一步做完，页面还很丑，但"点一下有反应"了。心理上这是最关键的一步。</p>
+
+<h3><span class="step">3</span>打通一条完整链路</h3>
+<p>建比赛 → 报名 → 生成名单和候补 → 分队 → 赛后记比分。</p>
+<p><strong>先把一件事从头到尾做通，比同时铺开十个功能强得多。</strong>半成品的十个功能等于零个功能。</p>
+
+<h3><span class="step">4</span>拉真人来用</h3>
+<p>早期就发到球队群里让大家真报名。</p>
+<p>真实用户 5 分钟能暴露出自己测一天都发现不了的问题 —— 比如"带朋友时输名字，弹窗会自己关掉"这种，自己测的时候根本想不到要那么点。</p>
+
+<h3><span class="step">5</span>一轮完整体检</h3>
+<p>功能堆到一定量之后，做了一次全项目审查，一口气找出约 30 个问题：并发报名会超员、候补过期没人处理、权限没校验（普通成员能改别人的报名状态）等等。</p>
+<div class="warn">
+  <p><strong>这类 bug 平时用不出来，出事的时候一定是最热闹的那天。</strong>两个人同时点报名、正好卡在名额最后一个 —— 平时一年遇不到一次，一旦遇到就是当场吵架。</p>
+</div>
+
+<h3><span class="step">6</span>持续加功能，都是被真实需求推出来的</h3>
+<p>射手榜助攻榜、队长积分榜、战术板拖拽排阵、队长自由选人、年卡次卡自助申请 + 管理员审批、迟到罚当门将、周年庆报名问卷、娱乐局不计分……</p>
+<p><strong>没有一个是拍脑袋想的，全是群里有人提。</strong></p>
+
+<h3><span class="step">7</span>提交审核 —— 最容易卡住的一关</h3>
+<p>被拒了两次，两次原因完全不同：</p>
+<ul>
+  <li><strong>第一次：</strong>页面里出现了"缴费""费用"字样 —— 个人主体小程序不能涉及任何交易；另外还有"必须登录才能浏览"，也违规。</li>
+  <li><strong>第二次：</strong>【战术】页面对审核员来说是<strong>空的</strong>。他没参加任何比赛，自然看不到任何阵型，页面上只有一句"暂无进行中的比赛"，被判定"无具体运营内容"。</li>
+</ul>
+<p>第二次的解法是：改成<strong>没比赛时也展示一个示例 4-4-2 阵型 + 功能说明</strong>，才过。</p>
+<div class="note">
+  <div class="note-title">教训</div>
+  <p>审核员是个<strong>陌生人</strong>。你的小程序在他手里长什么样，跟在你手里完全不一样 —— 他没有会员身份、没报过名、不在任何队伍里。<em>所有"需要有数据才好看"的页面，在他那儿都是白板。</em></p>
+</div>
+</div>
+
+<div class="section">
+<h2><span class="n">三</span>资质：注册、备案、认证</h2>
+<p class="lead">写代码之前先要有个"身份"。这部分跟技术无关，纯粹是行政流程，但<strong>不走完，代码写得再好也上不了线</strong>。顺序上它在提交审核之前。</p>
+
+<h3>1 · 主体注册</h3>
+<p>注册小程序时要选主体类型：<strong>个人 / 企业 / 海外主体</strong>。</p>
+<div class="rows">
+  <div class="row">
+    <div class="row-k">个人主体<span class="tag">本项目</span></div>
+    <div class="row-v">
+      <p>身份证 + 人脸核身，免费，最快。</p>
+      <p>代价是限制多 —— <strong>不能涉及任何交易和收款</strong>，可选的服务类目也少。</p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="row-k">企业主体</div>
+    <div class="row-v">
+      <p>要营业执照，还要做<strong>微信认证</strong>（每年 300 元核验费，由第三方机构核验企业真实身份）。</p>
+      <p>认证过了才能开微信支付、开更多类目和接口。</p>
+    </div>
+  </div>
+</div>
+<p>咱们这个是个人主体，<strong>所以没做微信认证</strong>。这直接决定了产品形态：第一次提审被拒就是因为页面里写了"缴费""费用"。<em>个人主体连提"钱"都不行</em> —— 会费只能线下收，小程序里连金额都不能显示。</p>
+
+<h3>2 · 小程序备案（ICP 备案）</h3>
+<p>2023 年 9 月起工信部要求：<strong>所有小程序必须先备案才能上架</strong>，存量没备案的也被清退了。</p>
+<p>流程是在小程序后台提交（主体信息、负责人证件、服务内容、使用场景），微信先初审，再转交给你所在省的<strong>通信管理局</strong>审批。快则几天，慢则两三周，中间可能被打回补材料。</p>
+<div class="note">
+  <div class="note-title">要分清两件事</div>
+  <p><strong>备案 = 你有没有资格上线。</strong>工信部管，一次性。</p>
+  <p><strong>版本审核 = 你这一版内容合不合规。</strong>微信管，每次发版都要过。</p>
+</div>
+
+<h3>3 · 公安联网备案</h3>
+<p>备案通过后一般要求 30 日内，再到全国互联网安全管理服务平台做一次公安备案。归公安部，跟上面那个是<strong>两个独立系统</strong>，别以为做完一个就完事了。</p>
+
+<h3>4 · 网信办这边</h3>
+<p>常规工具类小程序<strong>一般不直接跟网信办打交道</strong>。会被卷进去的是三种情况：</p>
+<ul>
+  <li>有<strong>舆论属性或社会动员能力</strong>的功能（公开论坛、能让陌生人互相发帖、直播）→ 要做安全评估备案</li>
+  <li>用了<strong>算法推荐</strong>（个性化排序、推荐流）→ 要做算法备案</li>
+  <li>接了<strong>生成式 AI</strong> → 要做大模型备案</li>
+</ul>
+<p>咱们这个球队工具三条都不沾：没有公开发帖、榜单是死规则排序不是推荐算法、没接 AI 对话。所以这一层不用管。</p>
+<div class="warn">
+  <p><strong>但如果你想加一个"队内动态 / 评论区"，性质立刻就变了。</strong>这是很多人踩的坑 —— 一个看起来无害的功能，可能把你整个小程序推进另一套监管口径里。</p>
+</div>
+
+<h3>5 · 用户隐私保护指引</h3>
+<p>这是<strong>微信平台自己的要求</strong>，不是政府部门，但不填就发不了版。要在后台逐条声明：收集了哪些信息、干什么用、存多久、出问题找谁。</p>
+<p>关键点是 <em>"你用了什么接口，就得声明什么"</em>。</p>
+<p>所以当时把"复制管理员微信号"改成只显示昵称 —— <strong>少调一个剪贴板接口，就少一条声明、少一份说明责任。</strong>能不收的信息就别收，这在合规上是最省事的策略。</p>
+
+<div class="warn">
+  <p><strong>⚠️ 两个提醒：</strong>具体的费用、时限和要求这几年一直在变，以你小程序后台<strong>当时</strong>的提示为准；另外如果主体是<strong>海外</strong>的，备案规则跟境内主体完全不同，得单独查。</p>
+</div>
+</div>
+
+<div class="section">
+<h2><span class="n">四</span>用了什么工具</h2>
+
+<div class="rows">
+  <div class="row">
+    <div class="row-k">Claude Code<span class="tag">主力</span></div>
+    <div class="row-v">
+      <p>命令行 AI 编程助手。能直接读写项目文件、跑命令、部署后端函数、查改线上数据库。</p>
+      <p>绝大部分时间是<strong>一个 agent 在干活</strong>；需要大范围翻代码或做整体审查时，才并行开几个子 agent 分头查、再汇总。</p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="row-k">微信开发者工具</div>
+    <div class="row-v"><p>官方 IDE，用来预览、真机调试、上传版本。也能用命令行上传，省得点来点去。</p></div>
+  </div>
+  <div class="row">
+    <div class="row-k">CloudBase CLI</div>
+    <div class="row-v"><p>一条命令把后端函数发到云上，也能直接改线上数据 —— 比如"把某人这场改成请假状态"。</p></div>
+  </div>
+  <div class="row">
+    <div class="row-k">Git / GitHub</div>
+    <div class="row-v"><p>存全部改动历史，改坏了能退回去。队友误提交的代码也是这么撤销的。</p></div>
+  </div>
+</div>
+
+<div class="note">
+  <div class="note-title">关于 AI 写代码这件事</div>
+  <p>AI 不会替你决定"第 23 个人该怎么办" —— <strong>那是业务判断</strong>。它负责的是把这个判断准确、无 bug 地实现出来，并且在你没想到的地方提醒你"两个人同时点会怎样"。</p>
+</div>
+</div>
+
+<div class="section">
+<h2><span class="n">五</span>节奏</h2>
+<p>不是一口气做完的，是<strong>每周踢完球发现一个问题，改一点</strong> —— 报名规则不合适就调，有人说看不懂就加引导，被拒了就改。</p>
+<p>所以不用等"想好了"再开始。第一版只要能让人报上名就够了，剩下的会被真实使用推着往前走。</p>
+<p><em>真正花时间的从来不是"写代码"，是想清楚规则、发现边界情况、以及应付资质和审核。</em></p>
+
+<div class="closing">
+  <h3>如果你也想做一个，五件事值得先知道</h3>
+  <ol>
+    <li><strong>先把规则写成文字，再动手。</strong>规则含糊，代码一定返工。</li>
+    <li><strong>资质流程尽早启动。</strong>备案要等几天到几周，别等代码写完才发现上不了线。</li>
+    <li><strong>选个人主体就彻底放弃"钱"这个字。</strong>产品形态一开始就要按这个设计。</li>
+    <li><strong>尽早给真人用。</strong>五个真实用户比你自己测一星期有用。</li>
+    <li><strong>用陌生人的眼睛看一遍每个页面。</strong>没数据的时候它长什么样？那才是审核员看到的。</li>
+  </ol>
+</div>
+
+<div class="footer-note">
+  本文基于「九州」小程序的真实开发记录整理。文中涉及的备案、认证费用与时限以官方最新公告为准。
+</div>
+</div>
+
+</body>
+</html>
