@@ -74,7 +74,8 @@
       "WebSearch",
       "WebFetch(domain:developers.weixin.qq.com)",
       "WebFetch(domain:www.landiannews.com)",
-      "Bash(node --check cloud/getMatchDetail/index.js)"
+      "Bash(node --check cloud/getMatchDetail/index.js)",
+      "Bash(/Applications/wechatwebdevtools.app/Contents/MacOS/cli islogin *)"
     ]
   }
 }

@@ -75,11 +75,18 @@ exports.main = async (event, context) => {
     // Fresh identity for the action-state logic — globalData on the client is
     // a login-time snapshot and goes stale when an admin changes membership.
     lateThreshold: configSnap.data?.lateThreshold ?? 0,
+    // Penalty-GK halves already committed here, so the signup sheet only
+    // offers a 全场 slot when the match can still absorb one.
+    gkHalvesTaken: registrations
+      .filter(r => r.gkPenalty && ['confirmed', 'promoted', 'waitlist'].includes(r.status))
+      .reduce((n, r) => n + (r.gkHalves ?? 1), 0),
     callerInfo: caller ? {
       membershipType: caller.membershipType ?? 'none',
       role: caller.role ?? 'guest',
       banGamesLeft: caller.banGamesLeft ?? 0,
       lateCount: caller.lateCount ?? 0,
+      gkHalvesOwed: caller.gkHalvesOwed ?? 0,
+      absentCount: caller.absentCount ?? 0,
     } : null,
   }
 }

@@ -24,6 +24,12 @@ export interface User {
   // Lifetime tally — never cleared, carries across seasons
   lateCountTotal: number
   dangerousCount: number
+  // Lifetime 旷赛 tally — never cleared
+  absentCount: number
+  // Halves of GK duty still owed for 旷赛. Paid off in goal, one half at a
+  // time: 2 owed can be served as one full match or across two matches.
+  gkHalvesOwed: number
+  // Manual admin sanction only — 旷赛 no longer bans anyone
   banGamesLeft: number
   createdAt: number
 }
@@ -113,9 +119,15 @@ export interface Registration {
   tags?: MatchTag[]
   goals?: number
   assists?: number
-  // Registered while at/over the late threshold — must play GK this match;
-  // completing it clears their 迟到 tally.
+  // Carries a GK duty this match: either the 迟到 threshold was crossed or
+  // there's 旷赛 debt outstanding. Serving it settles the matching tally.
   gkPenalty?: boolean
+  // Halves this match's duty covers: 1 = 半场, 2 = 全场 (chosen at signup)
+  gkHalves?: number
+  // Which tally the duty answers to
+  gkReason?: 'late' | 'absent'
+  // Halves a captain/admin confirmed were actually served
+  gkHalvesServed?: number
   // Waitlist priority: 1 = annual self, 2 = friend brought by annual, 3 = per_session/other
   waitlistTier?: number
   // Guest (friend) registrations added by an annual member
@@ -216,6 +228,8 @@ export interface AppConfig {
   // Late-arrival threshold: at this many 迟到, the player must play GK next
   // match. 0 disables the rule.
   lateThreshold: number
+  // 旷赛 penalty, in halves of GK duty (2 = one full match). 0 disables it.
+  absentGkHalves: number
   defaultAgreementText: string
   defaultAnnouncement: string
   perSessionFee: number

@@ -3,6 +3,10 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+// Penalty-GK halves a single match can absorb: one keeper per team, so either
+// two players at a half each, or one player taking the whole match.
+const GK_HALVES_PER_MATCH = 2
+
 // Minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
 function etOffsetMinutes(date) {
   const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC' })
@@ -282,14 +286,18 @@ exports.main = async (event, context) => {
     throw new Error(`该账号已被禁赛，还剩 ${target.banGamesLeft} 场`)
   }
 
-  // At/over the late threshold → this registration carries the GK duty, and
-  // completing the match clears the tally.
+  // This registration may carry a GK duty, from either of two tallies. 旷赛
+  // debt outranks the 迟到 threshold: it's the heavier penalty, and the 迟到
+  // duty simply waits for a later match.
   const cfgSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
   const lateThreshold = cfgSnap.data?.lateThreshold ?? 0
-  let gkPenalty = lateThreshold > 0 && (target.lateCount ?? 0) >= lateThreshold
+  const halvesOwed = Math.max(0, target.gkHalvesOwed ?? 0)
+  const lateOver = lateThreshold > 0 && (target.lateCount ?? 0) >= lateThreshold
+  let gkPenalty = halvesOwed > 0 || lateOver
+  let gkReason = halvesOwed > 0 ? 'absent' : 'late'
+  let gkHalves = 0
   if (gkPenalty) {
-    // Two teams → at most two half-GKs per match, first come first served.
-    // Anyone beyond that keeps the duty for a later match.
+    // First come first served; anyone past the match's capacity keeps the duty.
     const gkSnap = await db.collection('registrations')
       .where({
         matchId,
@@ -297,8 +305,20 @@ exports.main = async (event, context) => {
         uid: _.neq(target._id),
         status: _.in(['confirmed', 'promoted', 'waitlist']),
       })
-      .count().catch(() => ({ total: 0 }))
-    if ((gkSnap.total ?? 0) >= 2) gkPenalty = false
+      .get().catch(() => ({ data: [] }))
+    const taken = gkSnap.data.reduce((n, r) => n + (r.gkHalves ?? 1), 0)
+    const room = Math.max(0, GK_HALVES_PER_MATCH - taken)
+    // 迟到 duty is always a single half. 旷赛 debt is paid a half or a whole
+    // match at a time — the player picks at signup, defaulting to one half.
+    const wanted = gkReason === 'absent'
+      ? Math.min(halvesOwed, parseInt(event.gkHalves, 10) === 2 ? 2 : 1)
+      : 1
+    gkHalves = Math.min(wanted, room)
+    if (gkHalves < 1) {
+      gkPenalty = false
+      gkHalves = 0
+      gkReason = null
+    }
   }
 
   const confirmedCount = confirmedSnap.total ?? 0
@@ -337,6 +357,8 @@ exports.main = async (event, context) => {
         registeredAt: db.serverDate(),
         autoAccept: reAutoAccept,
         gkPenalty,
+        gkHalves,
+        gkReason,
       },
     })
     let reStatus = mustWait ? 'waitlist' : 'confirmed'
@@ -352,6 +374,9 @@ exports.main = async (event, context) => {
       // match-day cutoff, this player drops back to the waitlist head
       roster23: reStatus === 'confirmed' && confirmedCount + 1 === 23,
       postCutoff,
+      gkPenalty,
+      gkHalves,
+      gkReason,
     }
   }
 
@@ -369,6 +394,8 @@ exports.main = async (event, context) => {
       tags: [],
       autoAccept: typeof event.autoAccept === 'boolean' ? event.autoAccept : true,
       gkPenalty,
+      gkHalves,
+      gkReason,
     },
   })
 
@@ -387,6 +414,8 @@ exports.main = async (event, context) => {
     pendingPair,
     postCutoff,
     gkPenalty,
+    gkHalves,
+    gkReason,
   }
 }
 

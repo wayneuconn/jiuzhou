@@ -4,7 +4,7 @@ const MEMBERSHIP_LABEL: Record<string, string> = { annual: '年卡', per_session
 const MEMBERSHIP_BADGE: Record<string, string> = { annual: 'badge-teal', per_session: 'badge-gold', none: 'badge-grey' }
 const ROLE_LABEL: Record<string, string> = { admin: '管理员', member: '会员', guest: '访客' }
 
-type MemberVM = User & { id: string; membershipLabel: string; membershipBadge: string; roleLabel: string; isBanned: boolean }
+type MemberVM = User & { id: string; membershipLabel: string; membershipBadge: string; roleLabel: string; isBanned: boolean; owesGk: boolean }
 
 const FILTERS = [
   { key: 'nonAnnual', label: '非年卡' },
@@ -45,6 +45,8 @@ Page({
           membershipBadge: MEMBERSHIP_BADGE[u.membershipType] ?? 'badge-grey',
           roleLabel: ROLE_LABEL[u.role] ?? u.role,
           isBanned: (u.banGamesLeft ?? 0) > 0,
+          gkHalvesOwed: u.gkHalvesOwed ?? 0,
+          owesGk: (u.gkHalvesOwed ?? 0) > 0,
         }))
         .sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt))
       this.setData({ members }, () => this.applyFilter())
@@ -111,6 +113,26 @@ Page({
     try {
       await wx.cloud.callFunction({ name: 'adminUpdateUser', data: { uid: id, banGamesLeft: games } })
       wx.showToast({ title: games === 0 ? '已解禁' : `已禁赛 ${games} 场`, icon: 'success' })
+      this.loadMembers()
+    } catch (err: unknown) { this._showError(err) }
+  },
+
+  // 旷赛 debt is normally booked by the 缺席 tag and burned down by captains
+  // signing off each half — this is the manual fix-up for miscounts and pardons
+  async setGkDebt(e: WechatMiniprogram.BaseEvent) {
+    const { id, current } = e.currentTarget.dataset as { id: string; current: number }
+    const owed = current ?? 0
+    const itemList = owed > 0
+      ? ['免除欠账', '欠 1 个半场', '欠 2 个半场（旷赛 1 次）', '欠 4 个半场（旷赛 2 次）']
+      : ['欠 1 个半场', '欠 2 个半场（旷赛 1 次）', '欠 4 个半场（旷赛 2 次）']
+    const halvesMap = owed > 0 ? [0, 1, 2, 4] : [1, 2, 4]
+    const res = await wx.showActionSheet({ itemList }).catch(() => null)
+    if (!res) return
+    const halves = halvesMap[res.tapIndex]
+    if (halves === undefined) return
+    try {
+      await wx.cloud.callFunction({ name: 'adminUpdateUser', data: { uid: id, gkHalvesOwed: halves } })
+      wx.showToast({ title: halves === 0 ? '已免除' : `欠 ${halves} 个半场`, icon: 'success' })
       this.loadMembers()
     } catch (err: unknown) { this._showError(err) }
   },

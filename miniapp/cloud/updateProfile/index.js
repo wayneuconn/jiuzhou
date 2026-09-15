@@ -40,6 +40,8 @@ exports.main = async (event, context) => {
         lateCount: 0,
         lateCountTotal: 0,
         dangerousCount: 0,
+        absentCount: 0,
+        gkHalvesOwed: 0,
         createdAt: db.serverDate(),
         ...profileData,
       },

@@ -29,8 +29,10 @@ miniapp/
 ## 开发
 
 1. 微信开发者工具打开 `miniapp/` 目录
-2. 类型检查：`cd miniapp && npm run tsc`
-3. 云函数部署：`tcb fn deploy <name> -e <envId> --force`（需 `tcb login`）
+2. 类型检查 + 单元测试：`cd miniapp && npm test`（离线跑，不需要登录）
+   - 只跑测试：`npm run test:unit`；云函数逻辑用内存版 wx-server-sdk 打桩（`test/stub-sdk.js`），断言真实业务规则
+   - 线上冒烟（需 `tcb login`）：`npm run smoke`
+3. 云函数部署：`./scripts/tcb.sh fn deploy <name> -e <envId> --force`（需 `./scripts/tcb.sh login`）
 4. 前端发布：开发者工具「上传」→ 体验版 / 提交审核
 
 ### Contributor 须知
@@ -44,4 +46,4 @@ miniapp/
 - **报名分两轮**：R1 年卡优先（次卡可候补），开球前 8 小时自动进入 R2 全员开放，开球前 1 小时锁定名单
 - **候补优先级**：年卡本人 > 年卡带的朋友 > 次卡/其他，同级先到先得，空位自动递补
 - **选人**：管理员设两名队长 → 自由选人（先到先得）→ 选完自动就绪
-- **纪律**：缺席自动禁赛 4 场，每完成一场递减 1 场
+- **纪律**：缺席罚守门——欠 2 个半场门将，可一场守满全场一次还清，或分两场各守半场；每场最多安排 2 个半场（排不上顺延），赛后由队长/管理员按实际时长核实扣减。禁赛改为管理员手动手段

@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "tsc": "tsc --noEmit",
-    "test": "tsc --noEmit && bash scripts/smoke-test.sh",
+    "test": "tsc --noEmit && node --test test/*.test.js",
+    "test:unit": "node --test test/*.test.js",
     "smoke": "bash scripts/smoke-test.sh"
   },
   "devDependencies": {
