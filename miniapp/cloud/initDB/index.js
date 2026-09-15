@@ -39,6 +39,7 @@ exports.main = async (event, context) => {
           cardThresholds: { bronze: 5, silver: 10, gold: 20, blue: 30 },
           waitlistConfirmMinutes: 30,
           lateThreshold: 3,
+          absentGkHalves: 2,
           defaultAgreementText: '参与者需遵守比赛规则，尊重裁判和对手，安全第一。',
           defaultAnnouncement: '欢迎加入九州球队！',
           perSessionFee: 20,

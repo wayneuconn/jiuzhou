@@ -27,6 +27,7 @@ Page({
         cardThresholds: DEFAULT_THRESHOLDS,
         waitlistConfirmMinutes: 30,
         lateThreshold: 3,
+        absentGkHalves: 2,
         defaultAgreementText: '',
         defaultAnnouncement: '',
         perSessionFee: 0,
@@ -55,7 +56,7 @@ Page({
 
   onInput(e: WechatMiniprogram.Input) {
     const field = (e.currentTarget.dataset as { field: string }).field
-    const numericFields = ['waitlistConfirmMinutes', 'perSessionFee', 'recurringHour', 'recurringMinute', 'recurringMaxPlayers']
+    const numericFields = ['waitlistConfirmMinutes', 'perSessionFee', 'recurringHour', 'recurringMinute', 'recurringMaxPlayers', 'lateThreshold', 'absentGkHalves']
     const value = numericFields.includes(field) ? parseFloat(e.detail.value) || 0 : e.detail.value
     this.setData({ [`config.${field}`]: value })
   },

@@ -160,15 +160,34 @@ async function notifyMatchOpen(matchId, match, membershipType, text) {
   } catch (_) {}
 }
 
-// Manual 迟到 clearing: a captain/admin confirms the player actually served
-// their half in goal. Notifies the player and the admins.
-async function clearLateFor(matchId, match, uid) {
+// Manual GK-duty sign-off: a captain/admin confirms the player actually kept
+// goal, and for how long. A 迟到 duty zeroes that tally; a 旷赛 duty burns down
+// the half-by-half debt, so someone who served only one of two halves still
+// owes the other next match. Notifies the player and the admins.
+async function clearGkFor(matchId, match, uid, halvesServed) {
   const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
   if (!uSnap.data) throw new Error('球员不存在')
-  // Only the current tally resets — the lifetime record stays put
-  await db.collection('users').doc(uid).update({ data: { lateCount: 0 } })
-  await db.collection('registrations').doc(matchId + '_' + uid)
-    .update({ data: { gkPenalty: false } }).catch(() => {})
+  const regId = matchId + '_' + uid
+  const regSnap = await db.collection('registrations').doc(regId).get().catch(() => ({ data: null }))
+  const reg = regSnap && regSnap.data ? regSnap.data : null
+  // Rows written before the 旷赛 rule change carry no reason — all 迟到 back then
+  const reason = reg?.gkReason ?? 'late'
+  const served = Math.max(1, Math.min(2, parseInt(halvesServed, 10) || reg?.gkHalves || 1))
+  const servedText = served >= 2 ? '全场' : '半场'
+
+  let title = '迟到记录已清零'
+  let body = '已完成半场门将'
+  if (reason === 'absent') {
+    const left = Math.max(0, (uSnap.data.gkHalvesOwed ?? 0) - served)
+    await db.collection('users').doc(uid).update({ data: { gkHalvesOwed: left } })
+    title = left > 0 ? '门将义务已记录' : '旷赛处罚已还清'
+    body = left > 0 ? `已守${servedText},还欠 ${left} 个半场` : `已守${servedText},无欠账`
+  } else {
+    // Only the current tally resets — the lifetime record stays put
+    await db.collection('users').doc(uid).update({ data: { lateCount: 0 } })
+  }
+  await db.collection('registrations').doc(regId)
+    .update({ data: { gkPenalty: false, gkHalvesServed: served } }).catch(() => {})
   try {
     const name = uSnap.data.displayName || '球员'
     const d = new Date(match.date)
@@ -188,11 +207,36 @@ async function clearLateFor(matchId, match, uid) {
         },
       },
     }).catch(() => {})
-    if (uSnap.data.openid) await send(uSnap.data.openid, '迟到记录已清零', '已完成半场门将')
+    if (uSnap.data.openid) await send(uSnap.data.openid, title, body)
     const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] }))
     for (const admin of adminsSnap.data) {
-      if (admin.openid) await send(admin.openid, `${name} 迟到记录已清零`, '已完成半场门将')
+      if (admin.openid) await send(admin.openid, `${name} ${title}`, body)
     }
+  } catch (_) {}
+}
+
+// 旷赛 tagging: tell the player what they now owe and how to work it off.
+async function notifyAbsentPenalty(matchId, uid, userDoc, halvesOwed) {
+  try {
+    if (!userDoc.openid) return
+    const mSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
+    const d = new Date(mSnap.data?.date ?? Date.now())
+    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    await cloud.callFunction({
+      name: 'sendSubscribeMsg',
+      data: {
+        type: 'matchOpen',
+        toOpenid: userDoc.openid,
+        data: {
+          page: `/pages/match-detail/index?id=${matchId}`,
+          templateData: {
+            thing4: { value: `旷赛记录：欠 ${halvesOwed} 个半场门将`.slice(0, 20) },
+            thing2: { value: '报名下一场时选择还清方式' },
+            date5: { value: timeStr },
+          },
+        },
+      },
+    }).catch(() => {})
   } catch (_) {}
 }
 
@@ -231,7 +275,7 @@ exports.main = async (event) => {
   const isAdmin = user.role === 'admin'
   // Non-admins may only attempt the captain-scoped actions (each validated
   // below against THIS match's captains); everything else is admin-only.
-  const CAPTAIN_ACTIONS = ['setStatus', 'bumpWaitlist', 'setScore', 'setStat', 'clearLatePenalty', 'autoScore']
+  const CAPTAIN_ACTIONS = ['setStatus', 'bumpWaitlist', 'setScore', 'setStat', 'clearGkPenalty', 'clearLatePenalty', 'autoScore']
   if (!isAdmin && action && !CAPTAIN_ACTIONS.includes(action)) {
     throw new Error('admins only')
   }
@@ -374,13 +418,15 @@ exports.main = async (event) => {
     return { success: true }
   }
 
-  // ── clear a 迟到 tally after the player served their half in goal ─────────
-  if (action === 'clearLatePenalty') {
+  // ── sign off a GK duty the player just served ─────────────────────────────
+  // 'clearLatePenalty' is the pre-旷赛-rule name, still accepted because a
+  // cached client build may keep sending it.
+  if (action === 'clearGkPenalty' || action === 'clearLatePenalty') {
     if (!isAdmin) await assertCaptain(matchId)
     const mSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
     if (!mSnap.data) throw new Error('match not found')
     if (!event.uid) throw new Error('uid required')
-    await clearLateFor(matchId, mSnap.data, event.uid)
+    await clearGkFor(matchId, mSnap.data, event.uid, event.halves)
     return { success: true }
   }
 
@@ -540,15 +586,18 @@ exports.main = async (event) => {
       await db.collection('users').doc(uid).update({ data: { dangerousCount: _.inc(hasDangerous ? 1 : -1) } })
     }
     if (hadAbsent !== hasAbsent) {
+      // 旷赛 is worked off in goal, not by sitting out: the player owes N halves
+      // of GK duty (default 2 = one full match), redeemable one half at a time.
+      const cfg = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
+      const penalty = Math.max(0, parseInt(cfg.data?.absentGkHalves ?? 2, 10) || 0)
       const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
       if (uSnap.data) {
-        const current = uSnap.data.banGamesLeft ?? 0
-        const delta = hasAbsent ? 4 : -4
-        const newBan = Math.max(0, current + delta)
+        const newOwed = Math.max(0, (uSnap.data.gkHalvesOwed ?? 0) + (hasAbsent ? penalty : -penalty))
         const newAbsentCount = Math.max(0, (uSnap.data.absentCount ?? 0) + (hasAbsent ? 1 : -1))
         await db.collection('users').doc(uid).update({
-          data: { banGamesLeft: newBan, absentCount: newAbsentCount },
+          data: { gkHalvesOwed: newOwed, absentCount: newAbsentCount },
         })
+        if (hasAbsent && penalty > 0) await notifyAbsentPenalty(matchId, uid, uSnap.data, newOwed)
       }
     }
     return { success: true }

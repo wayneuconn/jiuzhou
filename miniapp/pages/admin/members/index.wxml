@@ -22,15 +22,19 @@
       <view class="flex-row" style="gap:10rpx;flex-shrink:0;margin-left:12rpx;">
         <view class="badge {{item.membershipBadge}}" bindtap="changeMembership" data-id="{{item.id}}" data-current="{{item.membershipType}}">{{item.membershipLabel}}</view>
         <view class="badge badge-grey" bindtap="changeRole" data-id="{{item.id}}" data-current="{{item.role}}">{{item.roleLabel}}</view>
+        <view class="badge {{item.owesGk ? 'badge-gold' : 'badge-grey'}}" bindtap="setGkDebt" data-id="{{item.id}}" data-current="{{item.gkHalvesOwed}}">
+          {{item.owesGk ? '🧤 欠' + item.gkHalvesOwed : '🧤'}}
+        </view>
         <view class="badge {{item.isBanned ? 'badge-red' : 'badge-grey'}}" bindtap="banPlayer" data-id="{{item.id}}" data-current="{{item.banGamesLeft}}">
           {{item.isBanned ? '禁赛' + item.banGamesLeft : '禁赛'}}
         </view>
       </view>
     </view>
-    <view wx:if="{{item.lateCount > 0 || item.lateCountTotal > 0 || item.dangerousCount > 0}}" class="flex-row" style="gap:12rpx;flex-wrap:wrap;">
+    <view wx:if="{{item.lateCount > 0 || item.lateCountTotal > 0 || item.dangerousCount > 0 || item.absentCount > 0}}" class="flex-row" style="gap:12rpx;flex-wrap:wrap;">
       <view wx:if="{{item.lateCount > 0}}" class="badge badge-gold">当前迟到 {{item.lateCount}}</view>
       <view wx:if="{{item.lateCountTotal > 0}}" class="badge badge-grey">累计迟到 {{item.lateCountTotal}}</view>
       <view wx:if="{{item.dangerousCount > 0}}" class="badge badge-red">危险 {{item.dangerousCount}}</view>
+      <view wx:if="{{item.absentCount > 0}}" class="badge badge-red">累计旷赛 {{item.absentCount}}</view>
     </view>
   </view>
 

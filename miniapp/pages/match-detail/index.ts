@@ -79,6 +79,7 @@ interface RegVM extends Registration {
   tierTag: string
   canRemove: boolean
   isGk: boolean
+  gkLabel: string
   posTags: Array<{ pos: string; cls: string }>
 }
 
@@ -137,10 +138,16 @@ Page({
     scoreBInput: '',
     banLeft: 0,
     lateWarning: '',
-    gkList: [] as Array<{ uid: string; displayName: string }>,
+    gkWarning: '',
+    gkList: [] as Array<{ uid: string; displayName: string; gkHalves: number; gkReason: string }>,
     lateOver: false,
     myLate: 0,
     lateThreshold: 0,
+    // 旷赛 debt: halves of GK duty still owed, and whether this match can
+    // still absorb a full-match slot so it can be cleared in one go
+    myGkOwed: 0,
+    gkRoomLeft: 0,
+    gkFullAvailable: false,
     loadError: false,
     canBringFriend: false,
     canStartDraft: false,
@@ -232,12 +239,20 @@ Page({
           registrations: Registration[]
           agreementText: string
           lateThreshold: number
+          gkHalvesTaken: number
           popupAnn: { id: string; title: string; content: string } | null
-          callerInfo: { membershipType: string; role: string; banGamesLeft: number; lateCount: number } | null
+          callerInfo: {
+            membershipType: string
+            role: string
+            banGamesLeft: number
+            lateCount: number
+            gkHalvesOwed: number
+            absentCount: number
+          } | null
         }
       }
 
-      const { match, registrations, agreementText, callerInfo, lateThreshold, popupAnn } = cfRes.result
+      const { match, registrations, agreementText, callerInfo, lateThreshold, gkHalvesTaken, popupAnn } = cfRes.result
 
       // Silent polls: skip rendering entirely when nothing changed — a full
       // setData re-render can shift the scroll position mid-draft.
@@ -291,6 +306,7 @@ Page({
           : (isAdmin && r.uid !== user?._id),
         // Only the primary position gets the group color — backups stay grey
         isGk: !!r.gkPenalty,
+        gkLabel: r.gkPenalty ? ((r.gkHalves ?? 1) >= 2 ? '全场' : '半场') : '',
         posTags: (r.preferredPositions ?? []).map((pos, i) => ({
           pos,
           cls: i === 0 ? (POS_GROUP_CLS[pos] ?? 'pos-chip-secondary') : 'pos-chip-secondary',
@@ -352,6 +368,32 @@ Page({
             ? `你已累计迟到 ${myLate} 次，本场需要担任半场门将。赛后请提醒队长或管理员帮你清零记录`
             : `你已累计迟到 ${myLate} 次，报名下一场时需要担任半场门将`)
         : ''
+
+      // 旷赛 debt, worked off in goal. Mirrors registerForMatch: at most
+      // GK_HALVES_PER_MATCH (2) penalty halves fit in one match, so a 全场 slot
+      // is only on offer while the match is still empty of penalty keepers.
+      const myGkOwed = callerInfo?.gkHalvesOwed ?? 0
+      const gkRoom = Math.max(0, 2 - (gkHalvesTaken ?? 0))
+      const gkFullAvailable = myGkOwed >= 2 && gkRoom >= 2
+      const holdsSpot = !!myReg && ['confirmed', 'promoted', 'waitlist'].includes(myReg.status)
+      let gkWarning = ''
+      if (myGkOwed > 0) {
+        if (myReg?.gkPenalty && myReg?.gkReason === 'absent') {
+          const claimed = myReg.gkHalves ?? 1
+          const rest = Math.max(0, myGkOwed - claimed)
+          gkWarning = `因旷赛你欠 ${myGkOwed} 个半场门将，本场已认领${claimed >= 2 ? '全场' : '半场'}`
+            + (rest > 0 ? `，还剩 ${rest} 个半场留到以后` : '，守完即还清')
+            + '。赛后请提醒队长或管理员记录'
+        } else if (holdsSpot) {
+          gkWarning = `因旷赛你欠 ${myGkOwed} 个半场门将，本场没排上门将位，顺延到下一场`
+        } else if (gkRoom < 1) {
+          gkWarning = `因旷赛你欠 ${myGkOwed} 个半场门将，本场门将名额已被占满，顺延到下一场`
+        } else if (gkFullAvailable) {
+          gkWarning = `因旷赛你欠 ${myGkOwed} 个半场门将，报名时可选择守满全场一次还清，或只守半场分次还`
+        } else {
+          gkWarning = `因旷赛你欠 ${myGkOwed} 个半场门将，本场只剩半场门将名额，报名即登记为守半场`
+        }
+      }
 
       let actionState: ActionState = 'loading'
       let waitlistBtnText = ''
@@ -452,9 +494,15 @@ Page({
       const scoreManual = match.scoreManual === true
       const isCasual = match.casual === true
 
-      // Players still owing a GK half — captains/admins clear these manually
+      // Penalty keepers this match — captains/admins sign these off manually,
+      // recording how many halves were actually served
       const gkList = (isAdmin || isCaptain)
-        ? confirmedList.filter(r => r.gkPenalty).map(r => ({ uid: r.uid, displayName: r.displayName }))
+        ? confirmedList.filter(r => r.gkPenalty).map(r => ({
+            uid: r.uid,
+            displayName: r.displayName,
+            gkHalves: r.gkHalves ?? 1,
+            gkReason: r.gkReason ?? 'late',
+          }))
         : []
 
       // Jump to the tactics board once teams exist (players on a team see
@@ -466,7 +514,7 @@ Page({
       let captainTips = ''
       if (isCaptain) {
         if (isOpen) captainTips = '你是本场队长：人齐后点「开始选人」，选人不分先后、先到先得'
-        else if (isDraftPhase) captainTips = '点「选 → 你的队」选人，选错点 ↩ 退回；带 🧤 的球员因累计迟到需当半场门将，每场最多 2 人；选完一批点「我选完了」提醒对方；双方都选好后点「选人结束」'
+        else if (isDraftPhase) captainTips = '点「选 → 你的队」选人，选错点 ↩ 退回；带 🧤 的球员需当门将（迟到累计=半场，旷赛=可选半场/全场），每场最多 2 个半场；选完一批点「我选完了」提醒对方；双方都选好后点「选人结束」'
         else if (isDone) captainTips = '选人完成：去战术板排阵；有人请假时递补的球员会自动顶替他的队伍，若显示未分队请在下方安排；赛后记录比分和进球/助攻'
       }
 
@@ -531,10 +579,14 @@ Page({
         isAdmin,
         banLeft,
         lateWarning,
+        gkWarning,
         gkList,
         lateOver,
         myLate,
         lateThreshold,
+        myGkOwed,
+        gkRoomLeft: gkRoom,
+        gkFullAvailable,
         showDraft,
         showBehaviorTags,
         showAdminCaptain,
@@ -794,10 +846,43 @@ Page({
     }
   },
 
+  // 旷赛 debt is paid in goal: a whole match clears two halves at once, a
+  // single half leaves the rest for a later match. Returns halves, 0 = 取消.
+  async _pickGkHalves(): Promise<number> {
+    const owed = this.data.myGkOwed
+    if (owed < 2 || !this.data.gkFullAvailable) {
+      const one = await wx.showModal({
+        title: '本场需担任半场门将',
+        content: `你因旷赛欠 ${owed} 个半场门将，本场登记为守半场`
+          + (owed > 1 ? `，剩下的 ${owed - 1} 个半场留到以后` : '，守完即还清')
+          + '。赛后请提醒队长或管理员记录。确认报名吗？',
+        confirmText: '接受并报名',
+        confirmColor: '#F0B429',
+      })
+      return one.confirm ? 1 : 0
+    }
+    try {
+      const pick = await wx.showActionSheet({
+        alertText: `你因旷赛欠 ${owed} 个半场门将，本场怎么还？`,
+        itemList: ['守满全场，一次还清（2 个半场）', '只守半场，还剩 1 个半场'],
+      })
+      return pick.tapIndex === 0 ? 2 : 1
+    } catch {
+      return 0
+    }
+  },
+
   async register() {
     this.setData({ showAgreementModal: false })
+    // 旷赛 debt outranks the 迟到 duty (matching registerForMatch), so only one
+    // of the two prompts ever shows
+    let gkHalves = 0
+    if (this.data.myGkOwed > 0 && this.data.gkRoomLeft > 0) {
+      gkHalves = await this._pickGkHalves()
+      if (gkHalves === 0) return
+    }
     // Late tally over threshold: this match must be played in goal
-    if (this.data.lateOver) {
+    if (this.data.lateOver && this.data.myGkOwed === 0) {
       const gk = await wx.showModal({
         title: '本场需要担任半场门将',
         content: `你已累计迟到 ${this.data.myLate} 次（阈值 ${this.data.lateThreshold} 次），本场需要担任半场门将。完成后请提醒队长或管理员帮你清零记录。确认报名吗？`,
@@ -822,9 +907,22 @@ Page({
       } catch (_) {}
       const res = await wx.cloud.callFunction({
         name: 'registerForMatch',
-        data: { matchId: this.data.matchId },
-      }) as unknown as { result: { status: string } }
-      wx.showToast({ title: res.result.status === 'waitlist' ? '已加入候补' : '报名成功', icon: 'success' })
+        data: { matchId: this.data.matchId, gkHalves },
+      }) as unknown as { result: { status: string; gkPenalty?: boolean; gkHalves?: number; gkReason?: string } }
+      const r = res.result
+      // Someone else may have claimed the GK slot between load and submit
+      const booked = r.gkReason === 'absent' ? (r.gkHalves ?? 0) : 0
+      if (gkHalves > 0 && booked < gkHalves) {
+        wx.showModal({
+          title: '报名成功',
+          content: booked === 0
+            ? '本场门将名额已被占满，旷赛欠下的半场顺延到下一场。'
+            : '本场只剩半场门将名额，已按守半场登记，剩下的顺延到下一场。',
+          showCancel: false,
+        })
+      } else {
+        wx.showToast({ title: r.status === 'waitlist' ? '已加入候补' : '报名成功', icon: 'success' })
+      }
       this.loadMatch()
     } catch (err: unknown) {
       wx.showToast({ title: (err as Error).message || '报名失败', icon: 'none' })
@@ -1011,11 +1109,18 @@ Page({
   onScoreAInput(e: WechatMiniprogram.Input) { this.setData({ scoreAInput: e.detail.value }) },
   onScoreBInput(e: WechatMiniprogram.Input) { this.setData({ scoreBInput: e.detail.value }) },
 
-  async clearLate(e: WechatMiniprogram.BaseEvent) {
-    const { uid, name } = e.currentTarget.dataset as { uid: string; name: string }
+  async clearGk(e: WechatMiniprogram.BaseEvent) {
+    const { uid, name, halves, reason } = e.currentTarget.dataset as
+      { uid: string; name: string; halves: string; reason: string }
+    // What the captain says was actually served — not what was claimed at
+    // signup, so a planned 全场 cut short still leaves the other half owed
+    const served = parseInt(halves, 10) === 2 ? 2 : 1
+    const isAbsent = reason === 'absent'
     const res = await wx.showModal({
-      title: `确认 ${name} 已当半场门将？`,
-      content: '确认后其迟到记录清零，本人和管理员都会收到通知',
+      title: isAbsent ? `${name} 守了${served === 2 ? '全场' : '半场'}？` : `确认 ${name} 已当半场门将？`,
+      content: isAbsent
+        ? `确认后从其旷赛欠账中扣除 ${served} 个半场，本人和管理员都会收到通知`
+        : '确认后其迟到记录清零，本人和管理员都会收到通知',
       confirmColor: '#00C9A7',
     })
     if (!res.confirm) return
@@ -1023,9 +1128,9 @@ Page({
     try {
       await wx.cloud.callFunction({
         name: 'updateMatchStatus',
-        data: { action: 'clearLatePenalty', matchId: this.data.matchId, uid },
+        data: { action: 'clearGkPenalty', matchId: this.data.matchId, uid, halves: served },
       })
-      wx.showToast({ title: '已清零', icon: 'success' })
+      wx.showToast({ title: isAbsent ? '已记录' : '已清零', icon: 'success' })
       this.loadMatch()
     } catch (err: unknown) {
       wx.showModal({ title: '操作失败', content: errText(err, '操作失败'), showCancel: false })

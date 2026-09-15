@@ -7,7 +7,7 @@ const VALID_MEMBERSHIPS = ['annual', 'per_session', 'none']
 
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
-  const { uid, role, membershipType, banGamesLeft } = event
+  const { uid, role, membershipType, banGamesLeft, gkHalvesOwed } = event
 
   const userSnap = await db.collection('users').where({ openid: OPENID }).limit(1).get()
   const caller = userSnap.data[0]
@@ -27,6 +27,12 @@ exports.main = async (event, context) => {
     const n = parseInt(banGamesLeft, 10)
     if (isNaN(n) || n < 0) throw new Error('invalid banGamesLeft')
     update.banGamesLeft = n
+  }
+  // Escape hatch for the 旷赛 GK debt: forgive it, or fix a miscount
+  if (gkHalvesOwed !== undefined) {
+    const n = parseInt(gkHalvesOwed, 10)
+    if (isNaN(n) || n < 0 || n > 20) throw new Error('invalid gkHalvesOwed')
+    update.gkHalvesOwed = n
   }
   if (Object.keys(update).length === 0) throw new Error('nothing to update')
 
