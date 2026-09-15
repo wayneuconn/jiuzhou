@@ -8,6 +8,13 @@ exports.main = async (event, context) => {
   const caller = userSnap.data[0]
   if (!caller || caller.role !== 'admin') throw new Error('admins only')
 
-  const res = await db.collection('users').orderBy('displayName', 'asc').limit(200).get()
-  return { members: res.data.map(u => ({ ...u, id: u._id })) }
+  const [res, cfgSnap] = await Promise.all([
+    db.collection('users').orderBy('displayName', 'asc').limit(200).get(),
+    db.collection('config').doc('app').get().catch(() => ({ data: null })),
+  ])
+  return {
+    members: res.data.map(u => ({ ...u, id: u._id })),
+    // Lets the page grey out an 年卡 granted for an earlier season
+    season: cfgSnap.data?.season ?? '',
+  }
 }

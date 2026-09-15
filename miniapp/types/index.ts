@@ -16,8 +16,16 @@ export interface User {
   phone: string
   avatar?: string
   preferredPositions: string[]
+  // 月-日 only, no year: enough for the team's purpose, and a much weaker
+  // identifier than a full date under 最小必要. Must stay declared in the
+  // mini program's 用户隐私保护指引.
+  birthday?: string
   role: UserRole
   membershipType: MembershipType
+  // Which season this 年卡 was granted for. Rollover downgrades any annual
+  // whose season no longer matches config.season — so an absent field means
+  // "granted before seasons were tracked" and rolls over like any other.
+  annualSeason?: string
   attendanceCount: number
   // Current tally — drives the GK rule and is zeroed once served
   lateCount: number
@@ -211,6 +219,55 @@ export interface MembershipApplication {
   decidedBy?: string | null
   decidedAt?: number | null
   rejectReason?: string | null
+}
+
+// ── 赛季年卡登记：年卡按赛季生效，换季时未登记的降为次卡 ──────────────────
+export type SeasonDriveStatus = 'open' | 'closed'
+
+export interface SeasonDrive {
+  season: string
+  status: SeasonDriveStatus
+  deadline: number | null
+  note: string
+  openedAt: number
+  closedAt?: number | null
+  rolledOverAt?: number | null
+}
+
+// What the player said, and whether an admin has confirmed it. Two-phase like
+// membership applications: the handshake happens outside the app.
+export type RenewalResponse = 'continue' | 'decline'
+export type RenewalStatus = 'pending' | 'confirmed' | 'rejected'
+
+export interface SeasonRenewal {
+  id: string
+  season: string
+  uid: string
+  displayName: string
+  response: RenewalResponse
+  // Collected on 确认继续 (MM-DD)
+  birthday?: string | null
+  note: string
+  status: RenewalStatus
+  respondedAt: number
+  decidedBy?: string | null
+  decidedAt?: number | null
+}
+
+// ── 邀请：一码一人，用掉即成次卡；年卡仍需另行申请审批 ────────────────────
+export type InviteStatus = 'open' | 'used' | 'revoked'
+
+export interface Invite {
+  code: string
+  note: string
+  createdBy: string
+  createdByName: string
+  createdAt: number
+  expiresAt: number | null
+  status: InviteStatus
+  usedBy?: string | null
+  usedByName?: string | null
+  usedAt?: number | null
 }
 
 export interface Announcement {

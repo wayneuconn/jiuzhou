@@ -1,4 +1,4 @@
-import type { User, MembershipApplication } from '../../types/index'
+import type { User, MembershipApplication, SeasonDrive, SeasonRenewal } from '../../types/index'
 import { getCardTier, getNextTierInfo, TIER_COLOR, DEFAULT_THRESHOLDS, TIER_LABEL } from '../../utils/format'
 import { ADMIN_CONTACT } from '../../utils/contact'
 
@@ -28,6 +28,14 @@ Page({
     needSetup: false,
     adminContact: ADMIN_CONTACT,
     saving: false,
+    // 赛季年卡登记
+    seasonDrive: null as Pick<SeasonDrive, 'season' | 'deadline' | 'note'> | null,
+    myRenewal: null as Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday'> | null,
+    renewalDeadlineStr: '',
+    showRenewalModal: false,
+    renewalBirthday: '',
+    renewalNote: '',
+    renewing: false,
     saved: false,
     isAdmin: false,
     pendingApplications: 0,
@@ -61,12 +69,27 @@ Page({
           openid: string | null
           myApplication: MembershipApplication | null
           pendingApplications: number
+          seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note'> | null
+          myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday'> | null
         }
         loginReady?: Promise<void>
         refreshUserProfile: () => Promise<User | null>
+        redeemPendingInvite?: () => Promise<string | null>
       }>()
       await (app.loginReady ?? Promise.resolve()).catch(() => {})
       const user = await app.refreshUserProfile()
+      // A code parked before onboarding can be spent now
+      if (user && app.redeemPendingInvite) {
+        const status = await app.redeemPendingInvite()
+        if (status === 'granted') {
+          wx.showModal({
+            title: '已加入球队',
+            content: '你已通过邀请成为次卡会员，现在可以自己报名了。想要年卡可以在本页提交申请。',
+            showCancel: false,
+          })
+          await app.refreshUserProfile()
+        }
+      }
       if (!user && app.globalData.openid) {
         // Logged in silently but never completed the profile — offer setup
         // (browsing stays free; this is the action point, not a wall)
@@ -77,11 +100,21 @@ Page({
         this._applyUser(user)
         const myApp = app.globalData.myApplication
         const TYPE_LABEL: Record<string, string> = { annual: '年卡', per_session: '次卡' }
+        const drive = app.globalData.seasonDrive
+        const renewal = app.globalData.myRenewal
         this.setData({
           pendingApplications: app.globalData.pendingApplications,
           myAppStatus: myApp?.status === 'pending' ? 'pending' : myApp?.status === 'rejected' ? 'rejected' : '',
           myAppTypeLabel: myApp ? (TYPE_LABEL[myApp.requestedType] ?? '') : '',
           myAppReason: myApp?.rejectReason ?? '',
+          // The card only concerns current 年卡 holders — nobody else has
+          // anything to continue
+          seasonDrive: user.membershipType === 'annual' ? drive : null,
+          myRenewal: renewal,
+          renewalDeadlineStr: drive?.deadline
+            ? `${new Date(drive.deadline).getMonth() + 1}月${new Date(drive.deadline).getDate()}日`
+            : '',
+          renewalBirthday: renewal?.birthday || user.birthday || '',
         })
       }
       // refreshUserProfile swallows network errors and returns null — treat
@@ -96,6 +129,69 @@ Page({
   },
 
   retryLoad() { this.loadProfile() },
+
+  // ── 赛季年卡登记 ─────────────────────────────────────────────────────────
+  openRenewalModal() {
+    this.setData({ showRenewalModal: true, renewalNote: '' })
+  },
+  closeRenewalModal() { this.setData({ showRenewalModal: false }) },
+  onRenewalBirthdayChange(e: WechatMiniprogram.PickerChange) {
+    // date picker gives YYYY-MM-DD; only 月-日 is kept and sent
+    const v = String(e.detail.value)
+    const parts = v.split('-')
+    this.setData({ renewalBirthday: parts.length === 3 ? `${parts[1]}-${parts[2]}` : v })
+  },
+  onRenewalNoteInput(e: WechatMiniprogram.Input) { this.setData({ renewalNote: e.detail.value }) },
+
+  async submitRenewal() {
+    if (!this.data.renewalBirthday) {
+      wx.showToast({ title: '请选择生日（月-日）', icon: 'none' })
+      return
+    }
+    this.setData({ renewing: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'respondSeasonRenewal',
+        data: { response: 'continue', birthday: this.data.renewalBirthday, note: this.data.renewalNote.trim() },
+      })
+      this.setData({ showRenewalModal: false })
+      wx.showModal({
+        title: '已提交',
+        content: '已记录你继续年卡的意愿，管理员确认后生效。',
+        showCancel: false,
+      })
+      this.loadProfile()
+    } catch (err) {
+      wx.showModal({
+        title: '提交失败',
+        content: (err as { errMsg?: string; message?: string })?.errMsg || (err as Error)?.message || '提交失败',
+        showCancel: false,
+      })
+    } finally {
+      this.setData({ renewing: false })
+    }
+  },
+
+  async declineRenewal() {
+    const ok = await wx.showModal({
+      title: '本赛季暂不继续？',
+      content: '换季后你会转为次卡：仍然可以报名，但失去 R1 优先和带朋友的名额。之后想改主意随时可以重新确认。',
+      confirmText: '暂不继续',
+      confirmColor: '#F0B429',
+    })
+    if (!ok.confirm) return
+    try {
+      await wx.cloud.callFunction({ name: 'respondSeasonRenewal', data: { response: 'decline' } })
+      wx.showToast({ title: '已记录', icon: 'success' })
+      this.loadProfile()
+    } catch (err) {
+      wx.showModal({
+        title: '操作失败',
+        content: (err as { errMsg?: string; message?: string })?.errMsg || (err as Error)?.message || '操作失败',
+        showCancel: false,
+      })
+    }
+  },
 
   goSetup() { wx.navigateTo({ url: '/pages/onboard/profile/index' }) },
 

@@ -50,6 +50,8 @@ Page({
     nextMatch: null as NextMatchVM | null,
     activeEvent: null as ActiveEventVM | null,
     season: '',
+    // 赛季年卡登记 nudge — only set when this caller still owes a response
+    seasonDrive: null as { season: string; deadline: number | null } | null,
     loading: true,
     showEgg: false,
     eggBoom: false,
@@ -75,12 +77,14 @@ Page({
           nextMatch: Match | null
           activeEvent: { id: string; title: string; status: string } | null
           season: string
+          seasonDrive: { season: string; deadline: number | null } | null
         }
       }
-      const { announcements, nextMatch, activeEvent, season } = res.result
+      const { announcements, nextMatch, activeEvent, season, seasonDrive } = res.result
       this.setData({
         announcements: announcements.map(a => ({ ...a, contentHtml: markdownToHtml(a.content) })),
         season,
+        seasonDrive: seasonDrive ?? null,
         activeEvent: activeEvent ? {
           id: activeEvent.id,
           title: activeEvent.title,
@@ -131,6 +135,10 @@ Page({
 
   goLeaderboard() {
     wx.navigateTo({ url: '/pages/leaderboard/index' })
+  },
+
+  goToProfile() {
+    wx.switchTab({ url: '/pages/profile/index' })
   },
 
   goToEvent() {

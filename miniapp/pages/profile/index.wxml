@@ -45,6 +45,41 @@
       <view wx:if="{{user.role === 'admin'}}" class="badge badge-gold">管理员</view>
     </view>
 
+    <!-- 赛季年卡登记 (current 年卡 holders only; no tallies shown) -->
+    <view wx:if="{{seasonDrive}}" class="card" style="border:1rpx solid rgba(0,201,167,0.4);margin-bottom:16rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#00C9A7;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:12rpx;">赛季年卡登记</view>
+      <view style="font-size:30rpx;font-weight:900;color:#e8f0eb;">{{seasonDrive.season}} 赛季</view>
+      <view wx:if="{{renewalDeadlineStr}}" class="text-muted" style="font-size:22rpx;margin-top:6rpx;">请在 {{renewalDeadlineStr}} 前确认</view>
+      <view wx:if="{{seasonDrive.note}}" class="text-muted" style="font-size:24rpx;margin-top:10rpx;line-height:1.6;">{{seasonDrive.note}}</view>
+
+      <!-- already responded -->
+      <block wx:if="{{myRenewal && myRenewal.response === 'continue' && myRenewal.status === 'pending'}}">
+        <view style="font-size:26rpx;color:#F0B429;font-weight:700;margin-top:16rpx;">已确认继续，等管理员登记</view>
+        <view class="text-muted" style="font-size:22rpx;margin-top:6rpx;">如需修改请联系管理员</view>
+      </block>
+      <block wx:elif="{{myRenewal && myRenewal.status === 'confirmed'}}">
+        <view style="font-size:26rpx;color:#00C9A7;font-weight:700;margin-top:16rpx;">✓ 已登记 {{myRenewal.season}} 赛季年卡</view>
+      </block>
+      <block wx:elif="{{myRenewal && myRenewal.response === 'decline'}}">
+        <view style="font-size:26rpx;color:#7A8FA6;font-weight:700;margin-top:16rpx;">你选择本赛季暂不继续</view>
+        <view class="text-muted" style="font-size:22rpx;margin-top:6rpx;line-height:1.6;">换季后转为次卡，仍可报名，但失去 R1 优先和带朋友名额。随时可以改主意。</view>
+        <button class="inline-btn" style="margin-top:16rpx;" bindtap="openRenewalModal">重新确认</button>
+      </block>
+      <block wx:elif="{{myRenewal && myRenewal.status === 'rejected'}}">
+        <view style="font-size:26rpx;color:#E53E3E;font-weight:700;margin-top:16rpx;">上次确认被驳回</view>
+        <button class="inline-btn" style="margin-top:16rpx;" bindtap="openRenewalModal">重新确认</button>
+      </block>
+
+      <!-- not responded yet -->
+      <block wx:else>
+        <view class="text-muted" style="font-size:24rpx;margin-top:12rpx;line-height:1.6;">你上赛季是年卡。确认继续可保留 R1 优先报名和带朋友的名额。</view>
+        <view class="flex-row" style="gap:12rpx;margin-top:20rpx;">
+          <button class="btn-primary" style="flex:1;" bindtap="openRenewalModal">确认继续</button>
+          <button class="btn-ghost" style="flex:1;" bindtap="declineRenewal">暂不继续</button>
+        </view>
+      </block>
+    </view>
+
     <!-- Membership application (members only — admins assign directly) -->
     <view wx:if="{{!isAdmin}}" class="card">
       <view wx:if="{{myAppStatus === 'pending'}}" class="flex-row" style="justify-content:space-between;align-items:center;">
@@ -178,4 +213,31 @@
       </view>
     </view>
   </view>
+
+  <!-- ── 赛季年卡登记 confirm sheet ─────────────────────────────────────── -->
+  <view wx:if="{{showRenewalModal}}" class="modal-mask" catchtap="closeRenewalModal">
+    <view class="modal-box" catchtap="noop">
+      <view style="font-size:32rpx;font-weight:700;color:#e8f0eb;margin-bottom:8rpx;">确认继续年卡</view>
+      <view class="text-muted" style="font-size:24rpx;margin-bottom:24rpx;">{{seasonDrive.season}} 赛季 · 提交后由管理员确认登记</view>
+
+      <view style="margin-bottom:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:10rpx;">生日（月-日，必填）</view>
+        <picker mode="date" fields="day" value="2000-{{renewalBirthday || '01-01'}}" bindchange="onRenewalBirthdayChange">
+          <view class="form-input">{{renewalBirthday || '选择月和日'}}</view>
+        </picker>
+        <view class="text-muted" style="font-size:20rpx;margin-top:8rpx;line-height:1.5;">只登记月和日，不记年份</view>
+      </view>
+
+      <view style="margin-bottom:24rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:10rpx;">留言（可留空）</view>
+        <input class="form-input" value="{{renewalNote}}" bindinput="onRenewalNoteInput" placeholder="想跟管理员说的话"/>
+      </view>
+
+      <view class="flex-row" style="gap:16rpx;">
+        <button class="btn-ghost" style="flex:1;" bindtap="closeRenewalModal">取消</button>
+        <button class="btn-primary" style="flex:1;" bindtap="submitRenewal" loading="{{renewing}}">提交</button>
+      </view>
+    </view>
+  </view>
+
 </view>

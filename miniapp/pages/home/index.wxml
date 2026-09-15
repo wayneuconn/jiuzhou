@@ -29,6 +29,17 @@
     </view>
 
     <!-- Active one-off event -->
+    <view wx:if="{{seasonDrive}}" class="card flex-row" style="justify-content:space-between;align-items:center;border:1rpx solid rgba(0,201,167,0.35);" bindtap="goToProfile">
+      <view class="flex-row" style="gap:12rpx;align-items:center;">
+        <view style="font-size:32rpx;">🎫</view>
+        <view>
+          <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;">{{seasonDrive.season}} 赛季年卡登记</view>
+          <view style="font-size:22rpx;color:#00C9A7;margin-top:2rpx;">确认是否继续 · 点击前往</view>
+        </view>
+      </view>
+      <view style="color:#7A8FA6;font-size:32rpx;">›</view>
+    </view>
+
     <view wx:if="{{activeEvent}}" class="card flex-row" style="justify-content:space-between;align-items:center;border:1rpx solid rgba(240,180,41,0.35);" bindtap="goToEvent">
       <view class="flex-row" style="gap:12rpx;align-items:center;min-width:0;">
         <view style="font-size:32rpx;">🎉</view>

@@ -1,0 +1,39 @@
+/* .card / .badge / .btn-* / .text-muted / .flex-row come from app.wxss.
+   These three are page-scoped elsewhere in the app, so they're repeated here
+   rather than promoted to global — same shape as match-detail / settings. */
+
+.player-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid #1E2D3D;
+}
+
+.player-row:last-child { border-bottom: none; }
+
+.settings-input {
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  color: #e8f0eb;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+input.settings-input { height: 88rpx; }
+
+.pick-tap {
+  font-size: 22rpx;
+  font-weight: 700;
+  border-radius: 8rpx;
+  padding: 8rpx 14rpx;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.pick-tap:active { opacity: 0.6; }
+.pick-tap-off { background: transparent; color: #7A8FA6; border: 1rpx solid #1E2D3D; }

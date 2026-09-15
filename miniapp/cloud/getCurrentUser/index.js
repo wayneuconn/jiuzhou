@@ -10,6 +10,30 @@ exports.main = async (event, context) => {
   ])
   const user = userSnap.data[0] ?? null
 
+  // 赛季年卡登记: the open drive and this caller's response to it
+  let seasonDrive = null
+  let myRenewal = null
+  try {
+    const driveSnap = await db.collection('seasonDrives')
+      .where({ status: 'open' }).orderBy('openedAt', 'desc').limit(1).get().catch(() => ({ data: [] }))
+    const drive = driveSnap.data[0]
+    if (drive && (!drive.deadline || drive.deadline > Date.now())) {
+      seasonDrive = { season: drive.season, deadline: drive.deadline ?? null, note: drive.note ?? '' }
+      if (user) {
+        const rSnap = await db.collection('seasonRenewals')
+          .doc(drive.season + '_' + user._id).get().catch(() => ({ data: null }))
+        if (rSnap.data) {
+          myRenewal = {
+            season: rSnap.data.season,
+            response: rSnap.data.response,
+            status: rSnap.data.status,
+            birthday: rSnap.data.birthday ?? null,
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
   // Caller's latest membership application (drives the 我的 page status card)
   let myApplication = null
   if (user) {
@@ -45,5 +69,8 @@ exports.main = async (event, context) => {
     cardThresholds: configSnap.data?.cardThresholds ?? null,
     myApplication,
     pendingApplications,
+    season: configSnap.data?.season ?? '',
+    seasonDrive,
+    myRenewal,
   }
 }
