@@ -29,8 +29,10 @@ miniapp/
 ## 开发
 
 1. 微信开发者工具打开 `miniapp/` 目录
-2. 类型检查：`cd miniapp && npm run tsc`
-3. 云函数部署：`tcb fn deploy <name> -e <envId> --force`（需 `tcb login`）
+2. 类型检查 + 单元测试：`cd miniapp && npm test`（离线跑，不需要登录）
+   - 只跑测试：`npm run test:unit`；云函数逻辑用内存版 wx-server-sdk 打桩（`test/stub-sdk.js`），断言真实业务规则
+   - 线上冒烟（需 `tcb login`）：`npm run smoke`
+3. 云函数部署：`./scripts/tcb.sh fn deploy <name> -e <envId> --force`（需 `./scripts/tcb.sh login`）
 4. 前端发布：开发者工具「上传」→ 体验版 / 提交审核
 
 ### Contributor 须知
