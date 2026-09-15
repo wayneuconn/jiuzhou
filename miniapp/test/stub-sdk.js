@@ -51,9 +51,12 @@ function collection(name) {
 
   const build = (cond, order, cap) => {
     const rows = () => {
+      // _id has to be visible to the filter, not just the result: CloudBase
+      // supports where({ _id: ... }), which is how single-use claims are made
+      // atomic (where + update reports how many rows it moved).
       let out = Object.entries(col)
-        .filter(([, d]) => satisfies(d, cond))
         .map(([_id, d]) => ({ _id, ...d }))
+        .filter(d => satisfies(d, cond))
       if (order) {
         const { field, dir } = order
         out.sort((a, b) => {

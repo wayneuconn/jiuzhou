@@ -20,7 +20,7 @@
         <view class="text-muted" style="font-size:22rpx;margin-top:4rpx;">{{item.phone ? item.phone + ' · ' : ''}}出勤{{item.attendanceCount}}场</view>
       </view>
       <view class="flex-row" style="gap:10rpx;flex-shrink:0;margin-left:12rpx;">
-        <view class="badge {{item.membershipBadge}}" bindtap="changeMembership" data-id="{{item.id}}" data-current="{{item.membershipType}}">{{item.membershipLabel}}</view>
+        <view class="badge {{item.seasonStale ? 'badge-grey' : item.membershipBadge}}" bindtap="changeMembership" data-id="{{item.id}}" data-current="{{item.membershipType}}">{{item.membershipLabel}}{{item.seasonLabel ? ' ' + item.seasonLabel : ''}}</view>
         <view class="badge badge-grey" bindtap="changeRole" data-id="{{item.id}}" data-current="{{item.role}}">{{item.roleLabel}}</view>
         <view class="badge {{item.owesGk ? 'badge-gold' : 'badge-grey'}}" bindtap="setGkDebt" data-id="{{item.id}}" data-current="{{item.gkHalvesOwed}}">
           {{item.owesGk ? '🧤 欠' + item.gkHalvesOwed : '🧤'}}

@@ -19,6 +19,25 @@ exports.main = async (event, context) => {
       : Promise.resolve({ data: [] }),
   ])
   const nextMatch = matchRes.data[0] ?? null
+
+  // 赛季年卡登记 prompt: shown only to someone who has something to do about
+  // it — an annual member who hasn't responded yet. No tallies anywhere.
+  let seasonDrive = null
+  try {
+    const me = userRes.data[0]
+    if (me && me.membershipType === 'annual') {
+      const driveSnap = await db.collection('seasonDrives')
+        .where({ status: 'open' }).orderBy('openedAt', 'desc').limit(1).get().catch(() => ({ data: [] }))
+      const drive = driveSnap.data[0]
+      if (drive && (!drive.deadline || drive.deadline > Date.now())) {
+        const rSnap = await db.collection('seasonRenewals')
+          .doc(drive.season + '_' + me._id).get().catch(() => ({ data: null }))
+        if (!rSnap.data) {
+          seasonDrive = { season: drive.season, deadline: drive.deadline ?? null }
+        }
+      }
+    }
+  } catch (_) {}
   // Visibility = scope: the home card only shows events the caller can join
   const caller = userRes.data[0]
   const activeEvent = eventRes.data.find(e => {
@@ -31,5 +50,6 @@ exports.main = async (event, context) => {
     nextMatch: nextMatch ? { ...nextMatch, id: nextMatch._id } : null,
     activeEvent: activeEvent ? { ...activeEvent, id: activeEvent._id } : null,
     season: configRes.data?.season ?? '',
+    seasonDrive,
   }
 }

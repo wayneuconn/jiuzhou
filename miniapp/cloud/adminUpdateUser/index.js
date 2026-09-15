@@ -22,6 +22,14 @@ exports.main = async (event, context) => {
   if (membershipType !== undefined) {
     if (!VALID_MEMBERSHIPS.includes(membershipType)) throw new Error('invalid membershipType')
     update.membershipType = membershipType
+    // Granting 年卡 by hand stamps the current season too, so rollover treats
+    // it like any other card rather than downgrading it immediately
+    if (membershipType === 'annual') {
+      const cfgSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
+      update.annualSeason = event.annualSeason !== undefined
+        ? (event.annualSeason || '').toString().trim()
+        : (cfgSnap.data?.season ?? '')
+    }
   }
   if (banGamesLeft !== undefined) {
     const n = parseInt(banGamesLeft, 10)

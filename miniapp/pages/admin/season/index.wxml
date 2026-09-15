@@ -1,0 +1,142 @@
+<view class="container">
+  <view style="font-size:48rpx;font-weight:900;margin-bottom:8rpx;">赛季管理</view>
+  <view class="text-muted" style="font-size:24rpx;margin-bottom:24rpx;">当前赛季：{{currentSeason || '未设置'}}</view>
+
+  <view wx:if="{{loading}}" class="text-muted" style="text-align:center;padding:60rpx 0;">加载中...</view>
+
+  <block wx:else>
+
+    <!-- ── Drive status / open a new one ──────────────────────────────── -->
+    <view class="card" style="margin-bottom:24rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">赛季年卡登记</view>
+
+      <block wx:if="{{driveOpen}}">
+        <view style="font-size:32rpx;font-weight:900;color:#e8f0eb;">{{drive.season}} 赛季</view>
+        <view class="flex-row" style="gap:12rpx;align-items:center;margin-top:8rpx;">
+          <view class="badge badge-teal">登记中</view>
+          <view wx:if="{{deadlineStr}}" class="text-muted" style="font-size:22rpx;">截止 {{deadlineStr}}</view>
+        </view>
+        <view wx:if="{{drive.note}}" class="text-muted" style="font-size:24rpx;margin-top:12rpx;">{{drive.note}}</view>
+        <button size="mini" class="btn-ghost" style="font-size:24rpx;margin-top:20rpx;" bindtap="closeDrive" disabled="{{busy}}">关闭登记</button>
+      </block>
+
+      <block wx:else>
+        <view wx:if="{{drive}}" class="text-muted" style="font-size:24rpx;margin-bottom:16rpx;">
+          上一次：{{drive.season}} 赛季（{{drive.rolledOverAt ? '已换季' : '已关闭'}}）
+        </view>
+        <view style="margin-bottom:16rpx;">
+          <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">新赛季名称</view>
+          <input class="settings-input" value="{{newSeason}}" bindinput="onSeasonInput" placeholder="例：2026-2027"/>
+        </view>
+        <view style="margin-bottom:16rpx;">
+          <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">登记截止（可留空）</view>
+          <picker mode="date" value="{{newDeadline}}" bindchange="onDeadlineChange">
+            <view class="settings-input">{{newDeadline || '选择日期'}}</view>
+          </picker>
+        </view>
+        <view style="margin-bottom:20rpx;">
+          <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">说明（球员可见，可留空）</view>
+          <input class="settings-input" value="{{newNote}}" bindinput="onNoteInput" placeholder="例：新赛季 9 月开踢，请尽快确认"/>
+        </view>
+        <button class="btn-primary" bindtap="openDrive" disabled="{{busy}}">开启登记</button>
+      </block>
+    </view>
+
+    <block wx:if="{{drive}}">
+
+      <!-- ── Waiting on the admin ─────────────────────────────────────── -->
+      <view wx:if="{{toConfirm.length > 0}}" style="margin-bottom:24rpx;">
+        <view style="font-size:22rpx;font-weight:900;color:#F0B429;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">待你确认登记</view>
+        <view wx:for="{{toConfirm}}" wx:key="id" class="card" style="margin-bottom:16rpx;">
+          <view class="flex-row" style="justify-content:space-between;align-items:flex-start;">
+            <view style="flex:1;min-width:0;">
+              <view style="font-size:30rpx;font-weight:700;color:#e8f0eb;">{{item.displayName}}</view>
+              <view class="text-muted" style="font-size:22rpx;margin-top:6rpx;">
+                {{item.dateStr}} 确认继续<text wx:if="{{item.birthday}}"> · 生日 {{item.birthday}}</text>
+              </view>
+              <view wx:if="{{item.note}}" class="text-muted" style="font-size:24rpx;margin-top:8rpx;">留言：{{item.note}}</view>
+            </view>
+            <view class="badge {{item.statusBadge}}" style="flex-shrink:0;margin-left:12rpx;">{{item.statusLabel}}</view>
+          </view>
+          <view class="flex-row" style="gap:12rpx;justify-content:flex-end;margin-top:16rpx;">
+            <button size="mini" class="btn-ghost btn-danger" style="font-size:24rpx;" bindtap="rejectRenewal"
+              data-id="{{item.id}}" data-name="{{item.displayName}}" disabled="{{busy}}">驳回</button>
+            <button size="mini" class="btn-primary" style="font-size:24rpx;" bindtap="confirmRenewal"
+              data-id="{{item.id}}" data-name="{{item.displayName}}" disabled="{{busy}}">确认登记</button>
+          </view>
+        </view>
+      </view>
+
+      <!-- ── Not yet responded ────────────────────────────────────────── -->
+      <view wx:if="{{awaiting.length > 0}}" style="margin-bottom:24rpx;">
+        <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">待球员回复</view>
+        <view class="card" style="padding-bottom:8rpx;">
+          <view wx:for="{{awaiting}}" wx:key="uid" class="player-row">
+            <view style="flex:1;font-size:28rpx;color:#e8f0eb;">{{item.displayName}}</view>
+            <view class="text-muted" style="font-size:22rpx;">出勤 {{item.attendanceCount}}</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ── Said no, and already settled ─────────────────────────────── -->
+      <view wx:if="{{declined.length > 0}}" style="margin-bottom:24rpx;">
+        <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">暂不继续</view>
+        <view class="card" style="padding-bottom:8rpx;">
+          <view wx:for="{{declined}}" wx:key="id" class="player-row">
+            <view style="flex:1;font-size:28rpx;color:#e8f0eb;">{{item.displayName}}</view>
+            <view class="text-muted" style="font-size:22rpx;">{{item.dateStr}}</view>
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{settled.length > 0}}" style="margin-bottom:24rpx;">
+        <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">已处理</view>
+        <view class="card" style="padding-bottom:8rpx;">
+          <view wx:for="{{settled}}" wx:key="id" class="player-row">
+            <view style="flex:1;font-size:28rpx;color:#e8f0eb;">{{item.displayName}}</view>
+            <view class="badge {{item.statusBadge}}">{{item.statusLabel}}</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ── Rollover ─────────────────────────────────────────────────── -->
+      <view class="card" style="margin-bottom:24rpx;border:1rpx solid rgba(229,62,62,0.4);">
+        <view style="font-size:22rpx;font-weight:900;color:#E53E3E;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:12rpx;">换季</view>
+        <view class="text-muted" style="font-size:24rpx;line-height:1.6;margin-bottom:16rpx;">
+          把当前赛季切到 {{drive.season}}。未登记的年卡会转为次卡 —— 仍可报名，但失去 R1 优先和带朋友的名额。
+          <text wx:if="{{wouldDowngrade.length > 0}}" style="color:#FF8A8A;">现在换季会影响 {{wouldDowngrade.length}} 人。</text>
+          <text wx:else style="color:#00C9A7;">目前没有人会被降级。</text>
+        </view>
+        <button class="btn-ghost btn-danger" bindtap="rollover" disabled="{{busy}}">换季到 {{drive.season}}</button>
+      </view>
+
+    </block>
+
+    <!-- ── Invites ──────────────────────────────────────────────────────── -->
+    <view style="margin-bottom:24rpx;">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:8rpx;">邀请</view>
+      <view class="text-muted" style="font-size:22rpx;line-height:1.6;margin-bottom:16rpx;">
+        一码一人，用掉即失效。对方打开后即成为次卡，可以自己报名；年卡仍需他在「我的」页提交申请、由你批准。
+      </view>
+
+      <view wx:if="{{invites.length > 0}}" class="card" style="padding-bottom:8rpx;margin-bottom:16rpx;">
+        <view wx:for="{{invites}}" wx:key="id" class="player-row">
+          <view style="flex:1;min-width:0;">
+            <view style="font-size:28rpx;color:#e8f0eb;">{{item.note}}</view>
+            <view class="text-muted" style="font-size:20rpx;margin-top:4rpx;">{{item.code}} · {{item.dateStr}}</view>
+          </view>
+          <view class="flex-row" style="gap:8rpx;align-items:center;flex-shrink:0;">
+            <view class="badge {{item.stateBadge}}">{{item.stateLabel}}</view>
+            <button wx:if="{{item.status === 'open' && !item.expired}}" size="mini" class="btn-primary"
+              style="font-size:22rpx;" open-type="share" data-code="{{item.code}}">分享</button>
+            <view wx:if="{{item.status === 'open'}}" class="pick-tap pick-tap-off"
+              bindtap="revokeInvite" data-code="{{item.code}}">撤回</view>
+          </view>
+        </view>
+      </view>
+
+      <button class="btn-primary" bindtap="createInvite" disabled="{{busy}}">+ 生成邀请</button>
+    </view>
+
+  </block>
+</view>

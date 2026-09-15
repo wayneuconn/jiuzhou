@@ -4,7 +4,7 @@ const MEMBERSHIP_LABEL: Record<string, string> = { annual: '年卡', per_session
 const MEMBERSHIP_BADGE: Record<string, string> = { annual: 'badge-teal', per_session: 'badge-gold', none: 'badge-grey' }
 const ROLE_LABEL: Record<string, string> = { admin: '管理员', member: '会员', guest: '访客' }
 
-type MemberVM = User & { id: string; membershipLabel: string; membershipBadge: string; roleLabel: string; isBanned: boolean; owesGk: boolean }
+type MemberVM = User & { id: string; membershipLabel: string; membershipBadge: string; roleLabel: string; isBanned: boolean; owesGk: boolean; seasonLabel: string; seasonStale: boolean }
 
 const FILTERS = [
   { key: 'nonAnnual', label: '非年卡' },
@@ -37,7 +37,8 @@ Page({
   async loadMembers() {
     this.setData({ loading: true })
     try {
-      const res = await wx.cloud.callFunction({ name: 'adminGetMembers' }) as unknown as { result: { members: (User & { id: string })[] } }
+      const res = await wx.cloud.callFunction({ name: 'adminGetMembers' }) as unknown as { result: { members: (User & { id: string })[]; season?: string } }
+      const currentSeason = res.result.season ?? ''
       const members: MemberVM[] = res.result.members
         .map(u => ({
           ...u,
@@ -47,6 +48,9 @@ Page({
           isBanned: (u.banGamesLeft ?? 0) > 0,
           gkHalvesOwed: u.gkHalvesOwed ?? 0,
           owesGk: (u.gkHalvesOwed ?? 0) > 0,
+          // An annual card from an earlier season is the one to chase
+          seasonLabel: u.membershipType === 'annual' && u.annualSeason ? u.annualSeason : '',
+          seasonStale: u.membershipType === 'annual' && (u.annualSeason ?? '') !== currentSeason,
         }))
         .sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt))
       this.setData({ members }, () => this.applyFilter())

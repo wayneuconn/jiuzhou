@@ -1,4 +1,4 @@
-import type { User, MembershipApplication } from './types/index'
+import type { User, MembershipApplication, SeasonDrive, SeasonRenewal } from './types/index'
 
 interface CardThresholds { bronze: number; silver: number; gold: number; blue: number }
 
@@ -10,11 +10,18 @@ interface JiuzhouAppOption {
     pendingRoute: string | null
     myApplication: MembershipApplication | null
     pendingApplications: number
+    seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note'> | null
+    myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday'> | null
   }
   loginReady: Promise<void>
   autoLogin: () => Promise<void>
   refreshUserProfile: () => Promise<User | null>
+  redeemPendingInvite: () => Promise<string | null>
 }
+
+// An invite arrives as a launch param but can't be spent until the person has
+// a profile, which may be several screens later — so it's parked in storage.
+const INVITE_KEY = 'pendingInvite'
 
 App<JiuzhouAppOption>({
   globalData: {
@@ -24,6 +31,8 @@ App<JiuzhouAppOption>({
     pendingRoute: null,
     myApplication: null,
     pendingApplications: 0,
+    seasonDrive: null,
+    myRenewal: null,
   },
 
   // Resolves once autoLogin has finished (success or failure). Pages must
@@ -31,7 +40,11 @@ App<JiuzhouAppOption>({
   // page's onLoad/onShow fires before the login round-trip completes.
   loginReady: Promise.resolve(),
 
-  onLaunch() {
+  onLaunch(options?: WechatMiniprogram.App.LaunchShowOption) {
+    const code = (options?.query as { invite?: string } | undefined)?.invite
+    if (code) {
+      try { wx.setStorageSync(INVITE_KEY, code) } catch (_) {}
+    }
     if (!wx.cloud) {
       console.error('请使用 2.2.3 或以上的基础库以使用云能力')
       return
@@ -61,6 +74,27 @@ App<JiuzhouAppOption>({
     }
   },
 
+  // Spend a parked invite code. Safe to call repeatedly: the cloud side is
+  // idempotent per person and reports back which case applied.
+  async redeemPendingInvite(): Promise<string | null> {
+    let code = ''
+    try { code = wx.getStorageSync(INVITE_KEY) || '' } catch (_) { return null }
+    if (!code) return null
+    try {
+      const res = await wx.cloud.callFunction({ name: 'redeemInvite', data: { code } })
+      const status = (res.result as { status: string } | undefined)?.status ?? ''
+      // Keep it parked only while it still might work (no profile yet)
+      if (status !== 'needProfile') {
+        try { wx.removeStorageSync(INVITE_KEY) } catch (_) {}
+      }
+      if (status === 'granted') await this.refreshUserProfile()
+      return status
+    } catch (err) {
+      console.error('redeemInvite failed', err)
+      return null
+    }
+  },
+
   async refreshUserProfile() {
     try {
       const res = await wx.cloud.callFunction({ name: 'getCurrentUser' })
@@ -69,12 +103,16 @@ App<JiuzhouAppOption>({
         cardThresholds: CardThresholds | null
         myApplication: MembershipApplication | null
         pendingApplications: number
+        seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note'> | null
+        myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday'> | null
       } | undefined
       const user = result?.user ?? null
       this.globalData.userProfile = user
       if (result?.cardThresholds) this.globalData.cardThresholds = result.cardThresholds
       this.globalData.myApplication = result?.myApplication ?? null
       this.globalData.pendingApplications = result?.pendingApplications ?? 0
+      this.globalData.seasonDrive = result?.seasonDrive ?? null
+      this.globalData.myRenewal = result?.myRenewal ?? null
       return user
     } catch (err) {
       console.error('refreshUserProfile failed', err)

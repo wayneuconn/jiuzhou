@@ -31,9 +31,15 @@ exports.main = async (event, context) => {
   // Approval is the only thing that actually changes membership — a 次卡
   // player applying for 年卡 stays 次卡 until an admin explicitly approves.
   if (decision === 'approved') {
-    await db.collection('users').doc(application.uid).update({
-      data: { membershipType: application.requestedType },
-    })
+    const update = { membershipType: application.requestedType }
+    // Stamp which season the card belongs to — rollover downgrades any annual
+    // whose season doesn't match. A mid-season joiner gets the current season
+    // and renews at the next rollover like everyone else.
+    if (application.requestedType === 'annual') {
+      const cfgSnap = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
+      update.annualSeason = cfgSnap.data?.season ?? ''
+    }
+    await db.collection('users').doc(application.uid).update({ data: update })
   }
 
   return { success: true }
