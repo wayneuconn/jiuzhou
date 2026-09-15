@@ -403,7 +403,7 @@
         <view wx:for="{{gkList}}" wx:key="uid" class="player-row draft-row">
           <view class="draft-player-name" style="flex:1;">
             {{item.displayName}}
-            <text style="font-size:20rpx;color:#7A8FA6;"> {{item.gkReason === 'absent' ? '旷赛·认领' : '迟到·'}}{{item.gkHalves >= 2 ? '全场' : '半场'}}</text>
+            <text style="font-size:20rpx;color:#7A8FA6;"> {{item.gkReason === 'absent' ? (item.gkAuto ? '旷赛·补记' : '旷赛·认领') : '迟到·'}}{{item.gkHalves >= 2 ? '全场' : '半场'}}</text>
           </view>
           <view wx:if="{{item.gkReason === 'absent'}}" class="draft-actions">
             <view class="pick-tap pick-tap-off" bindtap="clearGk"

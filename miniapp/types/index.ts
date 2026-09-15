@@ -126,6 +126,10 @@ export interface Registration {
   gkHalves?: number
   // Which tally the duty answers to
   gkReason?: 'late' | 'absent'
+  // Attached by a retroactive tag rather than claimed at signup — the player
+  // never got to pick 全场, so the UI says 安排 rather than 认领, and undoing
+  // the tag takes back only duties carrying this flag
+  gkAuto?: boolean
   // Halves a captain/admin confirmed were actually served
   gkHalvesServed?: number
   // Waitlist priority: 1 = annual self, 2 = friend brought by annual, 3 = per_session/other

@@ -18,6 +18,11 @@ function registrationCutoffTs(matchDate) {
 }
 
 const VALID_STATUSES = ['draft', 'registration_r1', 'registration_r2', 'drafting', 'ready', 'completed', 'cancelled']
+// Matches that haven't been played yet — a retroactive GK duty can still land here
+const PENDING_STATUSES = ['registration_r1', 'registration_r2', 'drafting', 'ready']
+// Penalty-GK halves one match can absorb (mirrors registerForMatch): one keeper
+// per team, so two players at a half each or one taking the whole match.
+const GK_HALVES_PER_MATCH = 2
 
 // Minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
 function etOffsetMinutes(date) {
@@ -157,6 +162,105 @@ async function notifyMatchOpen(matchId, match, membershipType, text) {
           },
         },
       }).catch(() => {})))
+  } catch (_) {}
+}
+
+// A behaviour tag is added AFTER the match it refers to, so by then the player
+// may already be signed up for the next one. Without this, the duty would sit
+// idle until their next fresh signup — possibly weeks away. Attach it to the
+// matches they already hold a spot in: the spot itself is never touched, only
+// the GK duty is added, and only where the match still has room for it.
+async function attachGkDutyToPendingMatches(uid, reason) {
+  const regsSnap = await db.collection('registrations')
+    .where({ uid, status: _.in(['confirmed', 'promoted', 'waitlist']) })
+    .limit(50)
+    .get().catch(() => ({ data: [] }))
+
+  const attached = []
+  for (const reg of regsSnap.data) {
+    if (reg.gkPenalty) continue // already carrying a duty in this match
+    const mSnap = await db.collection('matches').doc(reg.matchId).get().catch(() => ({ data: null }))
+    const match = mSnap.data
+    if (!match || !PENDING_STATUSES.includes(match.status)) continue
+
+    const othersSnap = await db.collection('registrations')
+      .where({
+        matchId: reg.matchId,
+        gkPenalty: true,
+        uid: _.neq(uid),
+        status: _.in(['confirmed', 'promoted', 'waitlist']),
+      })
+      .get().catch(() => ({ data: [] }))
+    const taken = othersSnap.data.reduce((n, r) => n + (r.gkHalves ?? 1), 0)
+    if (GK_HALVES_PER_MATCH - taken < 1) continue // full; the duty waits
+
+    // Half a match, the smallest unit: the player never got to choose 全场
+    // here. They still can — the captain's sign-off credits what was served.
+    // gkAuto marks it as assigned rather than claimed, for the UI wording and
+    // so untagging can take back exactly what tagging handed out.
+    await db.collection('registrations').doc(reg._id).update({
+      data: { gkPenalty: true, gkHalves: 1, gkReason: reason, gkAuto: true },
+    }).catch(() => {})
+    attached.push({ matchId: reg.matchId, match })
+  }
+  return attached
+}
+
+// Undoing the tag takes back only what the tag itself handed out (gkAuto),
+// never a duty the player claimed at signup.
+async function detachAutoGkDuty(uid, reason) {
+  const regsSnap = await db.collection('registrations')
+    .where({ uid, gkPenalty: true, gkAuto: true, gkReason: reason, status: _.in(['confirmed', 'promoted', 'waitlist']) })
+    .limit(50)
+    .get().catch(() => ({ data: [] }))
+  for (const reg of regsSnap.data) {
+    const mSnap = await db.collection('matches').doc(reg.matchId).get().catch(() => ({ data: null }))
+    if (!mSnap.data || !PENDING_STATUSES.includes(mSnap.data.status)) continue
+    await db.collection('registrations').doc(reg._id).update({
+      data: { gkPenalty: false, gkHalves: 0, gkReason: null, gkAuto: false },
+    }).catch(() => {})
+  }
+}
+
+// Tell the player, this match's captains, and the admins that a duty just
+// landed on a roster they'd already joined — captains need it for the draft.
+async function notifyGkAttached(uid, userDoc, matchId, match, reason) {
+  try {
+    const label = reason === 'absent' ? '旷赛' : '迟到'
+    const name = userDoc.displayName || '球员'
+    const d = new Date(match.date)
+    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    const send = (openid, title, body) => cloud.callFunction({
+      name: 'sendSubscribeMsg',
+      data: {
+        type: 'matchOpen',
+        toOpenid: openid,
+        data: {
+          page: `/pages/match-detail/index?id=${matchId}`,
+          templateData: {
+            thing4: { value: title.slice(0, 20) },
+            thing2: { value: body.slice(0, 20) },
+            date5: { value: timeStr },
+          },
+        },
+      },
+    }).catch(() => {})
+
+    if (userDoc.openid) {
+      await send(userDoc.openid, `${label}补记：本场需守半场门将`, '报名保留,赛后请队长记录')
+    }
+    // Captains first — they're the ones who have to slot the keeper in
+    const recipients = new Set()
+    for (const cap of [match.captainA, match.captainB]) {
+      if (!cap || cap === uid) continue
+      const cSnap = await db.collection('users').doc(cap).get().catch(() => ({ data: null }))
+      if (cSnap.data?.openid) recipients.add(cSnap.data.openid)
+    }
+    const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] }))
+    for (const admin of adminsSnap.data) if (admin.openid) recipients.add(admin.openid)
+    for (const openid of recipients) {
+      await send(openid, `${name} 本场需守半场门将`, `因${label}补记,请安排`)
+    }
   } catch (_) {}
 }
 
@@ -549,13 +653,25 @@ exports.main = async (event) => {
       await db.collection('users').doc(uid).update({
         data: { lateCount: _.inc(hasLate ? 1 : -1), lateCountTotal: _.inc(hasLate ? 1 : -1) },
       })
-      if (hasLate) {
-        // Crossing the threshold means GK duty next match — flag it to admins
-        const cfg = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
-        const th = cfg.data?.lateThreshold ?? 0
-        const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
+      const cfgLate = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
+      const thLate = cfgLate.data?.lateThreshold ?? 0
+      const uLate = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
+      const overThreshold = thLate > 0 && (uLate.data?.lateCount ?? 0) >= thLate
+      if (!hasLate && !overThreshold) {
+        // Tally dropped back under the threshold — take the duty back
+        await detachAutoGkDuty(uid, 'late')
+      }
+      if (hasLate && overThreshold) {
+        const uSnap = uLate
         const n = uSnap.data?.lateCount ?? 0
-        if (th > 0 && n >= th) {
+        // Already signed up somewhere? The duty lands on those rosters, and
+        // notifyGkAttached tells the player, the captains and the admins where.
+        const hits = await attachGkDutyToPendingMatches(uid, 'late')
+        for (const hit of hits) {
+          await notifyGkAttached(uid, uSnap.data ?? {}, hit.matchId, hit.match, 'late')
+        }
+        // Not on any roster yet → the standing "next match" alert to admins
+        if (hits.length === 0) {
           const mSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
           const nm = uSnap.data?.displayName || '球员'
           const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] }))
@@ -597,7 +713,16 @@ exports.main = async (event) => {
         await db.collection('users').doc(uid).update({
           data: { gkHalvesOwed: newOwed, absentCount: newAbsentCount },
         })
-        if (hasAbsent && penalty > 0) await notifyAbsentPenalty(matchId, uid, uSnap.data, newOwed)
+        if (hasAbsent && penalty > 0) {
+          // Lands on rosters they've already joined; only when there are none
+          // does the generic "pick how to pay it off next time" notice apply.
+          const hits = await attachGkDutyToPendingMatches(uid, 'absent')
+          for (const hit of hits) {
+            await notifyGkAttached(uid, uSnap.data, hit.matchId, hit.match, 'absent')
+          }
+          if (hits.length === 0) await notifyAbsentPenalty(matchId, uid, uSnap.data, newOwed)
+        }
+        if (!hasAbsent && newOwed === 0) await detachAutoGkDuty(uid, 'absent')
       }
     }
     return { success: true }

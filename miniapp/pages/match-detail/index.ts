@@ -139,7 +139,7 @@ Page({
     banLeft: 0,
     lateWarning: '',
     gkWarning: '',
-    gkList: [] as Array<{ uid: string; displayName: string; gkHalves: number; gkReason: string }>,
+    gkList: [] as Array<{ uid: string; displayName: string; gkHalves: number; gkReason: string; gkAuto: boolean }>,
     lateOver: false,
     myLate: 0,
     lateThreshold: 0,
@@ -381,7 +381,9 @@ Page({
         if (myReg?.gkPenalty && myReg?.gkReason === 'absent') {
           const claimed = myReg.gkHalves ?? 1
           const rest = Math.max(0, myGkOwed - claimed)
-          gkWarning = `因旷赛你欠 ${myGkOwed} 个半场门将，本场已认领${claimed >= 2 ? '全场' : '半场'}`
+          // 安排 when a retroactive tag put it here, 认领 when they chose it
+          gkWarning = `因旷赛你欠 ${myGkOwed} 个半场门将，本场${myReg.gkAuto ? '已安排' : '已认领'}${claimed >= 2 ? '全场' : '半场'}`
+            + (myReg.gkAuto ? '（赛后补记的处罚，报名保留）' : '')
             + (rest > 0 ? `，还剩 ${rest} 个半场留到以后` : '，守完即还清')
             + '。赛后请提醒队长或管理员记录'
         } else if (holdsSpot) {
@@ -502,6 +504,7 @@ Page({
             displayName: r.displayName,
             gkHalves: r.gkHalves ?? 1,
             gkReason: r.gkReason ?? 'late',
+            gkAuto: !!r.gkAuto,
           }))
         : []
 
