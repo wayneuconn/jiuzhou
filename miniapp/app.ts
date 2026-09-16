@@ -10,8 +10,8 @@ interface JiuzhouAppOption {
     pendingRoute: string | null
     myApplication: MembershipApplication | null
     pendingApplications: number
-    seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note'> | null
-    myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday'> | null
+    seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note' | 'questions'> | null
+    myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday' | 'answers'> | null
   }
   loginReady: Promise<void>
   autoLogin: () => Promise<void>
@@ -103,8 +103,8 @@ App<JiuzhouAppOption>({
         cardThresholds: CardThresholds | null
         myApplication: MembershipApplication | null
         pendingApplications: number
-        seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note'> | null
-        myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday'> | null
+        seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note' | 'questions'> | null
+        myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday' | 'answers'> | null
       } | undefined
       const user = result?.user ?? null
       this.globalData.userProfile = user

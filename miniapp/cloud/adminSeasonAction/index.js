@@ -21,6 +21,19 @@ function toMs(v) {
 
 const SEASON_RE = /^[0-9A-Za-z一-龥-]{1,20}$/
 
+// Same shape and limits as the event system's questions (adminSaveEvent), so
+// the admin builder and the player pickers are literally the same UI.
+function cleanQuestions(list) {
+  if (!Array.isArray(list)) return []
+  return list.slice(0, 10).map((q, i) => ({
+    id: (q.id || `q${i}_${Math.random().toString(36).slice(2, 6)}`).toString().slice(0, 20),
+    title: (q.title || '').toString().trim().slice(0, 50),
+    type: ['single', 'multi', 'text'].includes(q.type) ? q.type : 'single',
+    options: q.type === 'text' ? [] : (Array.isArray(q.options) ? q.options.map(o => o.toString().trim().slice(0, 30)).filter(Boolean).slice(0, 12) : []),
+    required: q.required !== false,
+  })).filter(q => q.title && (q.type === 'text' || q.options.length >= 2))
+}
+
 // Best-effort nudge to the players a drive concerns (活动开始通知 template).
 async function notifyDriveOpen(season, drive, uids) {
   const deadlineStr = drive.deadline
@@ -91,7 +104,13 @@ exports.main = async (event = {}) => {
 
     return {
       currentSeason,
-      drive: drive ? { ...drive, openedAt: toMs(drive.openedAt), closedAt: toMs(drive.closedAt), rolledOverAt: toMs(drive.rolledOverAt) } : null,
+      drive: drive ? {
+        ...drive,
+        questions: drive.questions ?? [],
+        openedAt: toMs(drive.openedAt),
+        closedAt: toMs(drive.closedAt),
+        rolledOverAt: toMs(drive.rolledOverAt),
+      } : null,
       renewals,
       awaiting,
       wouldDowngrade,
@@ -117,6 +136,7 @@ exports.main = async (event = {}) => {
         status: 'open',
         deadline,
         note,
+        questions: cleanQuestions(event.questions),
         openedAt: existing.data?.openedAt ?? db.serverDate(),
         closedAt: null,
         rolledOverAt: existing.data?.rolledOverAt ?? null,
@@ -128,6 +148,21 @@ exports.main = async (event = {}) => {
     await notifyDriveOpen(season, { deadline }, annualSnap.data.map(u => u._id))
 
     return { success: true, season, notified: annualSnap.data.length }
+  }
+
+  // ── retune the questions while the drive is open ─────────────────────────
+  // Already-submitted answers are left alone: dropping a question just stops
+  // it being asked, and a new one is answered by whoever responds next.
+  if (action === 'editQuestions') {
+    const season = (event.season || '').toString().trim()
+    if (!season) throw new Error('season required')
+    const snap = await db.collection('seasonDrives').doc(season).get().catch(() => ({ data: null }))
+    if (!snap.data) throw new Error('该赛季登记不存在')
+    if (snap.data.rolledOverAt) throw new Error('该赛季已换季，不能再改问题')
+    await db.collection('seasonDrives').doc(season).update({
+      data: { questions: cleanQuestions(event.questions) },
+    })
+    return { success: true }
   }
 
   // ── close it (no more responses) ──────────────────────────────────────────

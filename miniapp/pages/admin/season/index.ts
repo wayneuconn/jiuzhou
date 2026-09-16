@@ -1,9 +1,47 @@
-import type { SeasonDrive, SeasonRenewal, Invite } from '../../../types/index'
+import type { SeasonDrive, SeasonRenewal, Invite, EventQuestion } from '../../../types/index'
+
+// Question types and the flat form shape match pages/admin/events — same
+// builder, so an admin who has set up an event already knows this one.
+const Q_TYPES = [
+  { key: 'single', label: '单选' },
+  { key: 'multi', label: '多选' },
+  { key: 'text', label: '填空' },
+]
+
+interface QForm {
+  id: string
+  title: string
+  typeIndex: number
+  options: string
+  required: boolean
+}
+
+function toQForm(q: EventQuestion): QForm {
+  return {
+    id: q.id,
+    title: q.title,
+    typeIndex: Math.max(0, Q_TYPES.findIndex(t => t.key === q.type)),
+    options: (q.options || []).join('/'),
+    required: q.required !== false,
+  }
+}
+
+function fromQForm(q: QForm) {
+  return {
+    id: q.id,
+    title: q.title.trim(),
+    type: Q_TYPES[q.typeIndex]?.key ?? 'single',
+    options: q.options.split('/').map(s => s.trim()).filter(Boolean),
+    required: q.required,
+  }
+}
 
 interface RenewalVM extends SeasonRenewal {
   dateStr: string
   statusLabel: string
   statusBadge: string
+  // Flattened for the template: wxml can't walk an id-keyed answer map
+  answerLines: Array<{ title: string; value: string }>
 }
 
 interface InviteVM extends Invite {
@@ -51,6 +89,10 @@ Page({
     newSeason: '',
     newDeadline: '',
     newNote: '',
+    // Question builder
+    qTypes: Q_TYPES,
+    questions: [] as QForm[],
+    savingQuestions: false,
   },
 
   onShow() { this.load() },
@@ -68,11 +110,19 @@ Page({
       ]
 
       const { currentSeason, drive, renewals, awaiting, wouldDowngrade } = boardRes.result
+      const questions = drive?.questions ?? []
       const toVM = (r: SeasonRenewal): RenewalVM => ({
         ...r,
         dateStr: fmt(r.respondedAt),
         statusLabel: RENEWAL_STATUS_LABEL[r.status] ?? r.status,
         statusBadge: RENEWAL_STATUS_BADGE[r.status] ?? 'badge-grey',
+        answerLines: questions
+          .map(q => {
+            const a = (r.answers ?? {})[q.id]
+            const value = Array.isArray(a) ? a.join('、') : (a ?? '')
+            return value ? { title: q.title, value } : null
+          })
+          .filter((x): x is { title: string; value: string } => x !== null),
       })
       const all = renewals.map(toVM)
 
@@ -96,6 +146,8 @@ Page({
             : i.status === 'revoked' || i.expired ? 'badge-grey' : 'badge-gold',
         })),
         newSeason: this.data.newSeason || drive?.season || '',
+        // Don't clobber edits in progress on a refresh
+        questions: this.data.savingQuestions ? this.data.questions : questions.map(toQForm),
       })
     } catch (err) {
       wx.showModal({ title: '加载失败', content: errText(err, '加载失败'), showCancel: false })
@@ -123,6 +175,52 @@ Page({
     }
   },
 
+  // ── question builder ─────────────────────────────────────────────────────
+  addQ() {
+    const list = [...this.data.questions]
+    if (list.length >= 10) { wx.showToast({ title: '最多 10 个问题', icon: 'none' }); return }
+    list.push({ id: `q_${Date.now().toString(36)}_${list.length}`, title: '', typeIndex: 0, options: '', required: true })
+    this.setData({ questions: list })
+  },
+  delQ(e: WechatMiniprogram.BaseEvent) {
+    const { index } = e.currentTarget.dataset as { index: number }
+    const list = [...this.data.questions]
+    list.splice(index, 1)
+    this.setData({ questions: list })
+  },
+  onQField(e: WechatMiniprogram.Input) {
+    const { index, field } = e.currentTarget.dataset as { index: number; field: string }
+    this.setData({ [`questions[${index}].${field}`]: e.detail.value })
+  },
+  onQType(e: WechatMiniprogram.PickerChange) {
+    const { index } = e.currentTarget.dataset as { index: number }
+    this.setData({ [`questions[${index}].typeIndex`]: Number(e.detail.value) })
+  },
+  onQRequired(e: WechatMiniprogram.SwitchChange) {
+    const { index } = e.currentTarget.dataset as { index: number }
+    this.setData({ [`questions[${index}].required`]: e.detail.value })
+  },
+
+  // Saving questions on a drive that's already open — answers already given
+  // are kept; a dropped question just stops being asked.
+  async saveQuestions() {
+    const season = this.data.drive?.season
+    if (!season) return
+    this.setData({ savingQuestions: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'adminSeasonAction',
+        data: { action: 'editQuestions', season, questions: this.data.questions.map(fromQForm) },
+      })
+      wx.showToast({ title: '已保存', icon: 'success' })
+      this.setData({ savingQuestions: false })
+      this.load()
+    } catch (err) {
+      this.setData({ savingQuestions: false })
+      wx.showModal({ title: '保存失败', content: errText(err, '保存失败'), showCancel: false })
+    }
+  },
+
   async openDrive() {
     const season = this.data.newSeason.trim()
     if (!season) { wx.showToast({ title: '请填写赛季名称', icon: 'none' }); return }
@@ -135,7 +233,13 @@ Page({
       confirmColor: '#00C9A7',
     })
     if (!ok.confirm) return
-    await this._call({ action: 'openDrive', season, deadline, note: this.data.newNote.trim() }, '已开启')
+    await this._call({
+      action: 'openDrive',
+      season,
+      deadline,
+      note: this.data.newNote.trim(),
+      questions: this.data.questions.map(fromQForm),
+    }, '已开启')
   },
 
   async closeDrive() {

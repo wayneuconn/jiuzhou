@@ -1,4 +1,4 @@
-import type { User, MembershipApplication, SeasonDrive, SeasonRenewal } from '../../types/index'
+import type { User, MembershipApplication, SeasonDrive, SeasonRenewal, EventQuestion } from '../../types/index'
 import { getCardTier, getNextTierInfo, TIER_COLOR, DEFAULT_THRESHOLDS, TIER_LABEL } from '../../utils/format'
 import { ADMIN_CONTACT } from '../../utils/contact'
 
@@ -8,6 +8,37 @@ const MEMBERSHIP_LABEL: Record<string, string> = { annual: '年卡', per_session
 const MEMBERSHIP_BADGE: Record<string, string> = { annual: 'badge-teal', per_session: 'badge-gold', none: 'badge-grey' }
 
 interface PriorityPosition { pos: string; priorityLabel: string }
+
+interface RenewalQVM {
+  id: string
+  title: string
+  type: string
+  required: boolean
+  opts: Array<{ label: string; selected: boolean }>
+  textValue: string
+}
+
+// Same approach as pages/event-detail: the picker mutates a plain selection
+// map, and the view model is rebuilt from it after every tap.
+function buildQVM(
+  questions: EventQuestion[],
+  sel: Record<string, string | string[]>,
+): RenewalQVM[] {
+  return (questions || []).map(q => {
+    const picked = sel[q.id]
+    return {
+      id: q.id,
+      title: q.title,
+      type: q.type,
+      required: q.required !== false,
+      opts: (q.options || []).map(label => ({
+        label,
+        selected: Array.isArray(picked) ? picked.includes(label) : picked === label,
+      })),
+      textValue: typeof picked === 'string' ? picked : '',
+    }
+  })
+}
 
 Page({
   data: {
@@ -29,12 +60,13 @@ Page({
     adminContact: ADMIN_CONTACT,
     saving: false,
     // 赛季年卡登记
-    seasonDrive: null as Pick<SeasonDrive, 'season' | 'deadline' | 'note'> | null,
-    myRenewal: null as Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday'> | null,
+    seasonDrive: null as Pick<SeasonDrive, 'season' | 'deadline' | 'note' | 'questions'> | null,
+    myRenewal: null as Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday' | 'answers'> | null,
     renewalDeadlineStr: '',
     showRenewalModal: false,
     renewalBirthday: '',
     renewalNote: '',
+    renewalQs: [] as RenewalQVM[],
     renewing: false,
     saved: false,
     isAdmin: false,
@@ -69,8 +101,8 @@ Page({
           openid: string | null
           myApplication: MembershipApplication | null
           pendingApplications: number
-          seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note'> | null
-          myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday'> | null
+          seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note' | 'questions'> | null
+          myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday' | 'answers'> | null
         }
         loginReady?: Promise<void>
         refreshUserProfile: () => Promise<User | null>
@@ -116,6 +148,8 @@ Page({
             : '',
           renewalBirthday: renewal?.birthday || user.birthday || '',
         })
+        this._renewalSel = { ...(renewal?.answers ?? {}) }
+        this.setData({ renewalQs: buildQVM(drive?.questions ?? [], this._renewalSel) })
       }
       // refreshUserProfile swallows network errors and returns null — treat
       // "no user and nothing cached" as a load failure, not a blank page.
@@ -131,6 +165,28 @@ Page({
   retryLoad() { this.loadProfile() },
 
   // ── 赛季年卡登记 ─────────────────────────────────────────────────────────
+  _renewalSel: {} as Record<string, string | string[]>,
+
+  pickRenewalOption(e: WechatMiniprogram.BaseEvent) {
+    const { qid, opt, qtype } = e.currentTarget.dataset as { qid: string; opt: string; qtype: string }
+    if (qtype === 'multi') {
+      const cur = Array.isArray(this._renewalSel[qid]) ? [...(this._renewalSel[qid] as string[])] : []
+      const i = cur.indexOf(opt)
+      if (i >= 0) cur.splice(i, 1)
+      else cur.push(opt)
+      this._renewalSel[qid] = cur
+    } else {
+      // Tapping the chosen option again clears it
+      this._renewalSel[qid] = this._renewalSel[qid] === opt ? '' : opt
+    }
+    this.setData({ renewalQs: buildQVM(this.data.seasonDrive?.questions ?? [], this._renewalSel) })
+  },
+
+  onRenewalAnswerText(e: WechatMiniprogram.Input) {
+    const { qid } = e.currentTarget.dataset as { qid: string }
+    this._renewalSel[qid] = e.detail.value
+  },
+
   openRenewalModal() {
     this.setData({ showRenewalModal: true, renewalNote: '' })
   },
@@ -152,7 +208,12 @@ Page({
     try {
       await wx.cloud.callFunction({
         name: 'respondSeasonRenewal',
-        data: { response: 'continue', birthday: this.data.renewalBirthday, note: this.data.renewalNote.trim() },
+        data: {
+          response: 'continue',
+          birthday: this.data.renewalBirthday,
+          note: this.data.renewalNote.trim(),
+          answers: this._renewalSel,
+        },
       })
       this.setData({ showRenewalModal: false })
       wx.showModal({

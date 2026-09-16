@@ -117,3 +117,20 @@
   font-weight: 700;
   flex-shrink: 0;
 }
+
+/* Answer chips in the 赛季年卡登记 sheet */
+.rn-opt {
+  font-size: 24rpx;
+  color: #7A8FA6;
+  background: #1A2535;
+  border: 1rpx solid #1E2D3D;
+  border-radius: 10rpx;
+  padding: 12rpx 20rpx;
+}
+
+.rn-opt.active {
+  color: #00C9A7;
+  background: rgba(0,201,167,0.12);
+  border-color: rgba(0,201,167,0.45);
+  font-weight: 700;
+}

@@ -18,7 +18,12 @@ exports.main = async (event, context) => {
       .where({ status: 'open' }).orderBy('openedAt', 'desc').limit(1).get().catch(() => ({ data: [] }))
     const drive = driveSnap.data[0]
     if (drive && (!drive.deadline || drive.deadline > Date.now())) {
-      seasonDrive = { season: drive.season, deadline: drive.deadline ?? null, note: drive.note ?? '' }
+      seasonDrive = {
+        season: drive.season,
+        deadline: drive.deadline ?? null,
+        note: drive.note ?? '',
+        questions: drive.questions ?? [],
+      }
       if (user) {
         const rSnap = await db.collection('seasonRenewals')
           .doc(drive.season + '_' + user._id).get().catch(() => ({ data: null }))
@@ -28,6 +33,7 @@ exports.main = async (event, context) => {
             response: rSnap.data.response,
             status: rSnap.data.status,
             birthday: rSnap.data.birthday ?? null,
+            answers: rSnap.data.answers ?? {},
           }
         }
       }

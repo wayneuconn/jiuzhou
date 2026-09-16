@@ -22,6 +22,29 @@ function normalizeBirthday(raw) {
   return `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
+// Mirrors joinEvent's answer sanitizer: unknown options are dropped, and a
+// required question left with nothing usable is reported by its own title.
+function cleanAnswers(questions, raw) {
+  const out = {}
+  for (const q of questions || []) {
+    const a = (raw || {})[q.id]
+    if (q.type === 'text') {
+      if (typeof a === 'string' && a.trim()) out[q.id] = a.trim().slice(0, 200)
+    } else if (q.type === 'multi') {
+      if (Array.isArray(a)) {
+        const picked = a.filter(x => q.options.includes(x))
+        if (picked.length) out[q.id] = picked
+      }
+    } else if (q.options.includes(a)) {
+      out[q.id] = a
+    }
+    if (q.required && out[q.id] === undefined) {
+      throw new Error(`请完成「${q.title}」`)
+    }
+  }
+  return out
+}
+
 exports.main = async (event = {}) => {
   const { OPENID } = cloud.getWXContext()
   const userSnap = await db.collection('users').where({ openid: OPENID }).limit(1).get()
@@ -46,6 +69,11 @@ exports.main = async (event = {}) => {
 
   const note = (event.note || '').toString().trim().slice(0, 100)
 
+  // Questions only apply to someone continuing
+  const answers = response === 'continue'
+    ? cleanAnswers(drive.questions, event.answers)
+    : (existing.data?.answers ?? {})
+
   let birthday = existing.data?.birthday ?? null
   if (response === 'continue') {
     // Required on continue — declining doesn't need it
@@ -65,6 +93,7 @@ exports.main = async (event = {}) => {
       displayName: user.displayName,
       response,
       birthday,
+      answers,
       note,
       // A fresh response always goes back to pending review
       status: 'pending',

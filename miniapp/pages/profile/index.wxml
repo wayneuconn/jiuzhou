@@ -228,6 +228,20 @@
         <view class="text-muted" style="font-size:20rpx;margin-top:8rpx;line-height:1.5;">只登记月和日，不记年份</view>
       </view>
 
+      <view wx:for="{{renewalQs}}" wx:key="id" wx:for-item="q" style="margin-bottom:24rpx;">
+        <view style="font-size:26rpx;font-weight:700;color:#e8f0eb;margin-bottom:10rpx;">
+          {{q.title}}<text wx:if="{{q.required}}" style="color:#E53E3E;"> *</text>
+          <text wx:if="{{q.type === 'multi'}}" class="text-muted" style="font-size:22rpx;font-weight:400;">（可多选）</text>
+        </view>
+        <input wx:if="{{q.type === 'text'}}" class="form-input" value="{{q.textValue}}" placeholder="填写..."
+          bindinput="onRenewalAnswerText" data-qid="{{q.id}}" adjust-position="{{false}}"/>
+        <view wx:else style="display:flex;flex-direction:row;flex-wrap:wrap;gap:12rpx;">
+          <view wx:for="{{q.opts}}" wx:key="label" wx:for-item="o"
+            class="rn-opt {{o.selected ? 'active' : ''}}"
+            bindtap="pickRenewalOption" data-qid="{{q.id}}" data-opt="{{o.label}}" data-qtype="{{q.type}}">{{o.label}}</view>
+        </view>
+      </view>
+
       <view style="margin-bottom:24rpx;">
         <view class="text-muted" style="font-size:22rpx;margin-bottom:10rpx;">留言（可留空）</view>
         <input class="form-input" value="{{renewalNote}}" bindinput="onRenewalNoteInput" placeholder="想跟管理员说的话"/>
