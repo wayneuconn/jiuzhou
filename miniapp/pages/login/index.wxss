@@ -26,3 +26,11 @@
 .login-btn {
   width: 100%;
 }
+
+.login-hint {
+  font-size: 22rpx;
+  color: #7A8FA6;
+  text-align: center;
+  margin-top: 20rpx;
+  line-height: 1.6;
+}

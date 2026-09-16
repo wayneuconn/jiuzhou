@@ -7,6 +7,10 @@ Page({
     loading: false,
   },
 
+  skipLogin() {
+    wx.switchTab({ url: '/pages/home/index' })
+  },
+
   async onLogin() {
     this.setData({ loading: true })
     try {

@@ -5,4 +5,8 @@
   <button class="btn-primary login-btn" bindtap="onLogin" loading="{{loading}}" disabled="{{loading}}">
     微信一键登录
   </button>
+
+  <!-- Review requirement:登录不是进门的前提 -->
+  <button class="btn-ghost login-btn" style="margin-top:20rpx;" bindtap="skipLogin">暂不登录，先看看</button>
+  <view class="login-hint">浏览比赛、公告和榜单无需登录</view>
 </view>
