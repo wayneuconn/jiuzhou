@@ -6,8 +6,9 @@
   <view wx:elif="{{needSetup}}" style="text-align:center;padding:100rpx 40rpx;">
     <view style="font-size:80rpx;">⚽</view>
     <view style="font-size:32rpx;font-weight:900;color:#e8f0eb;margin-top:24rpx;">欢迎来到九州</view>
-    <view class="text-muted" style="font-size:26rpx;margin-top:12rpx;line-height:1.7;">完善昵称和擅长位置后，即可报名比赛、查看个人数据</view>
+    <view class="text-muted" style="font-size:26rpx;margin-top:12rpx;line-height:1.7;">这一页是你的个人数据。想报名比赛或查看自己的出勤，可以填个昵称和擅长位置 —— 不填也能继续浏览</view>
     <button class="btn-primary" style="margin-top:40rpx;" bindtap="goSetup">完善资料</button>
+    <button class="btn-ghost" style="margin-top:20rpx;" bindtap="goBrowse">先逛逛</button>
   </view>
 
   <view wx:elif="{{loadError}}" style="text-align:center;padding:80rpx 0;">

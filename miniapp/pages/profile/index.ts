@@ -256,6 +256,9 @@ Page({
 
   goSetup() { wx.navigateTo({ url: '/pages/onboard/profile/index' }) },
 
+  // 我的 must not be a dead end for a visitor with no profile
+  goBrowse() { wx.switchTab({ url: '/pages/home/index' }) },
+
 
   _applyUser(user: User) {
     const app = getApp<{ globalData: { cardThresholds: typeof DEFAULT_THRESHOLDS | null } }>()

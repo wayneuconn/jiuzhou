@@ -672,7 +672,9 @@ Page({
   goOnboard() {
     const app = getApp<{ globalData: { pendingRoute: string | null } }>()
     app.globalData.pendingRoute = `/pages/match-detail/index?id=${this.data.matchId}`
-    wx.redirectTo({ url: '/pages/onboard/profile/index' })
+    // navigateTo, not redirectTo: this keeps the match underneath so the
+    // native back arrow works as a second way out alongside 「以后再说」
+    wx.navigateTo({ url: '/pages/onboard/profile/index' })
   },
 
   goApplyMembership() {

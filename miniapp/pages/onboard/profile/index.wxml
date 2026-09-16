@@ -37,4 +37,11 @@
     disabled="{{loading || !displayName}}">
     完成，进入球队
   </button>
+
+  <!-- Review requirement: a prominent way out. This page can be reached with
+       an empty navigation stack, so a native back arrow isn't guaranteed. -->
+  <button class="btn-ghost" style="margin-top:20rpx;" bindtap="skipSetup">以后再说，先逛逛</button>
+  <view class="text-muted" style="font-size:22rpx;text-align:center;margin-top:16rpx;line-height:1.6;">
+    不填也能浏览比赛、公告和榜单；报名时再填就行
+  </view>
 </view>

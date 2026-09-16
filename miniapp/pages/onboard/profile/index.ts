@@ -8,6 +8,14 @@ Page({
     loading: false,
   },
 
+  // Leaving without a profile is always allowed: browsing the team's matches,
+  // announcements and leaderboards needs no identity at all.
+  skipSetup() {
+    const app = getApp<{ globalData: { pendingRoute: string | null } }>()
+    app.globalData.pendingRoute = null
+    wx.switchTab({ url: '/pages/home/index' })
+  },
+
   onNameInput(e: WechatMiniprogram.Input) {
     this.setData({ displayName: e.detail.value })
   },
