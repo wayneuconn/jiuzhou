@@ -229,6 +229,9 @@ export interface SeasonDrive {
   status: SeasonDriveStatus
   deadline: number | null
   note: string
+  // Admin-authored questions players answer on 确认继续. Same shape as the
+  // event system's questions, so the builder and pickers are the same UI.
+  questions?: EventQuestion[]
   openedAt: number
   closedAt?: number | null
   rolledOverAt?: number | null
@@ -247,6 +250,8 @@ export interface SeasonRenewal {
   response: RenewalResponse
   // Collected on 确认继续 (MM-DD)
   birthday?: string | null
+  // Answers to the drive's questions, keyed by question id
+  answers?: Record<string, string | string[]>
   note: string
   status: RenewalStatus
   respondedAt: number

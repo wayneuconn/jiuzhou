@@ -18,6 +18,35 @@
         </view>
         <view wx:if="{{drive.note}}" class="text-muted" style="font-size:24rpx;margin-top:12rpx;">{{drive.note}}</view>
         <button size="mini" class="btn-ghost" style="font-size:24rpx;margin-top:20rpx;" bindtap="closeDrive" disabled="{{busy}}">关闭登记</button>
+
+      <!-- Question builder — shared shape with the event builder -->
+      <view style="border-top:1rpx solid #1E2D3D;margin-top:20rpx;padding-top:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;font-weight:900;letter-spacing:2rpx;margin-bottom:8rpx;">登记时要问的问题（可为空）</view>
+        <view class="text-muted" style="font-size:22rpx;line-height:1.6;margin-bottom:16rpx;">
+          球员点「确认继续」时要回答。比如「这赛季大概能来几场？」「主踢什么位置？」。填空题的回答只有管理员看得到。
+        </view>
+        <view wx:for="{{questions}}" wx:key="id" wx:for-item="q" wx:for-index="qi" class="sn-qcard">
+          <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
+            <picker range="{{qTypes}}" range-key="label" value="{{q.typeIndex}}" bindchange="onQType" data-index="{{qi}}">
+              <view class="sn-qtype">{{qTypes[q.typeIndex].label}} ▾</view>
+            </picker>
+            <view class="flex-row" style="align-items:center;gap:12rpx;">
+              <view class="text-muted" style="font-size:22rpx;">必答</view>
+              <switch checked="{{q.required}}" bindchange="onQRequired" data-index="{{qi}}" color="#00C9A7" style="transform:scale(0.7);"/>
+              <view class="sn-del" bindtap="delQ" data-index="{{qi}}">删除</view>
+            </view>
+          </view>
+          <input class="settings-input" style="margin-bottom:12rpx;" value="{{q.title}}" placeholder="问题，例：这赛季大概能来几场？"
+            bindinput="onQField" data-index="{{qi}}" data-field="title" adjust-position="{{false}}"/>
+          <input wx:if="{{qTypes[q.typeIndex].key !== 'text'}}" class="settings-input" value="{{q.options}}"
+            placeholder="选项用 / 分隔，例：大部分都来/一半左右/看情况"
+            bindinput="onQField" data-index="{{qi}}" data-field="options" adjust-position="{{false}}"/>
+        </view>
+        <view class="flex-row" style="gap:12rpx;margin-top:8rpx;">
+          <button size="mini" class="btn-ghost" style="font-size:24rpx;" bindtap="addQ">+ 添加问题</button>
+          <button wx:if="{{driveOpen}}" size="mini" class="btn-primary" style="font-size:24rpx;" bindtap="saveQuestions" disabled="{{busy}}">保存问题</button>
+        </view>
+      </view>
       </block>
 
       <block wx:else>
@@ -38,7 +67,36 @@
           <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">说明（球员可见，可留空）</view>
           <input class="settings-input" value="{{newNote}}" bindinput="onNoteInput" placeholder="例：新赛季 9 月开踢，请尽快确认"/>
         </view>
-        <button class="btn-primary" bindtap="openDrive" disabled="{{busy}}">开启登记</button>
+
+      <!-- Question builder — shared shape with the event builder -->
+      <view style="border-top:1rpx solid #1E2D3D;margin-top:20rpx;padding-top:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;font-weight:900;letter-spacing:2rpx;margin-bottom:8rpx;">登记时要问的问题（可为空）</view>
+        <view class="text-muted" style="font-size:22rpx;line-height:1.6;margin-bottom:16rpx;">
+          球员点「确认继续」时要回答。比如「这赛季大概能来几场？」「主踢什么位置？」。填空题的回答只有管理员看得到。
+        </view>
+        <view wx:for="{{questions}}" wx:key="id" wx:for-item="q" wx:for-index="qi" class="sn-qcard">
+          <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
+            <picker range="{{qTypes}}" range-key="label" value="{{q.typeIndex}}" bindchange="onQType" data-index="{{qi}}">
+              <view class="sn-qtype">{{qTypes[q.typeIndex].label}} ▾</view>
+            </picker>
+            <view class="flex-row" style="align-items:center;gap:12rpx;">
+              <view class="text-muted" style="font-size:22rpx;">必答</view>
+              <switch checked="{{q.required}}" bindchange="onQRequired" data-index="{{qi}}" color="#00C9A7" style="transform:scale(0.7);"/>
+              <view class="sn-del" bindtap="delQ" data-index="{{qi}}">删除</view>
+            </view>
+          </view>
+          <input class="settings-input" style="margin-bottom:12rpx;" value="{{q.title}}" placeholder="问题，例：这赛季大概能来几场？"
+            bindinput="onQField" data-index="{{qi}}" data-field="title" adjust-position="{{false}}"/>
+          <input wx:if="{{qTypes[q.typeIndex].key !== 'text'}}" class="settings-input" value="{{q.options}}"
+            placeholder="选项用 / 分隔，例：大部分都来/一半左右/看情况"
+            bindinput="onQField" data-index="{{qi}}" data-field="options" adjust-position="{{false}}"/>
+        </view>
+        <view class="flex-row" style="gap:12rpx;margin-top:8rpx;">
+          <button size="mini" class="btn-ghost" style="font-size:24rpx;" bindtap="addQ">+ 添加问题</button>
+          <button wx:if="{{driveOpen}}" size="mini" class="btn-primary" style="font-size:24rpx;" bindtap="saveQuestions" disabled="{{busy}}">保存问题</button>
+        </view>
+      </view>
+        <button class="btn-primary" style="margin-top:20rpx;" bindtap="openDrive" disabled="{{busy}}">开启登记</button>
       </block>
     </view>
 
@@ -53,6 +111,10 @@
               <view style="font-size:30rpx;font-weight:700;color:#e8f0eb;">{{item.displayName}}</view>
               <view class="text-muted" style="font-size:22rpx;margin-top:6rpx;">
                 {{item.dateStr}} 确认继续<text wx:if="{{item.birthday}}"> · 生日 {{item.birthday}}</text>
+              </view>
+              <view wx:for="{{item.answerLines}}" wx:key="title" wx:for-item="a"
+                class="text-muted" style="font-size:23rpx;margin-top:6rpx;line-height:1.5;">
+                {{a.title}}：<text style="color:#e8f0eb;">{{a.value}}</text>
               </view>
               <view wx:if="{{item.note}}" class="text-muted" style="font-size:24rpx;margin-top:8rpx;">留言：{{item.note}}</view>
             </view>
@@ -93,8 +155,12 @@
         <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:16rpx;">已处理</view>
         <view class="card" style="padding-bottom:8rpx;">
           <view wx:for="{{settled}}" wx:key="id" class="player-row">
-            <view style="flex:1;font-size:28rpx;color:#e8f0eb;">{{item.displayName}}</view>
-            <view class="badge {{item.statusBadge}}">{{item.statusLabel}}</view>
+            <view style="flex:1;min-width:0;">
+              <view style="font-size:28rpx;color:#e8f0eb;">{{item.displayName}}</view>
+              <view wx:for="{{item.answerLines}}" wx:key="title" wx:for-item="a"
+                class="text-muted" style="font-size:21rpx;margin-top:4rpx;">{{a.title}}：{{a.value}}</view>
+            </view>
+            <view class="badge {{item.statusBadge}}" style="flex-shrink:0;margin-left:12rpx;">{{item.statusLabel}}</view>
           </view>
         </view>
       </view>
