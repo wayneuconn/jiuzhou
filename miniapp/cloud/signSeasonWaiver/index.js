@@ -58,6 +58,8 @@ exports.main = async (event = {}) => {
       version: waiver.version,
       effectiveDate: waiver.effectiveDate || '',
       bodyHash: hashBody(waiver.body || ''),
+      // Which original was in force at the moment of confirmation
+      pdfFileId: waiver.pdfFileId || '',
       signatureFileId,
       // Named in clause 10 as the evidence of acceptance
       signedAt: db.serverDate(),

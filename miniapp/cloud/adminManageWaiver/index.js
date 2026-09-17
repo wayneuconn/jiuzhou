@@ -63,6 +63,13 @@ exports.main = async (event = {}) => {
     const title = (event.title || '').toString().trim().slice(0, 50)
     // Clause 10 (Updates): the current version is kept with its effective date
     const effectiveDate = (event.effectiveDate || '').toString().trim().slice(0, 20)
+    // The original PDF. `body` is a readable transcription for the phone; this
+    // is the artifact the archive actually points at. Same cloud:// guard as
+    // signatures — an外链 here would undermine the whole record.
+    const pdfFileId = (event.pdfFileId || '').toString().trim()
+    if (pdfFileId && !/^cloud:\/\/[\w.\-\/]+$/.test(pdfFileId)) {
+      throw new Error('原件地址无效')
+    }
     const body = (event.body || '').toString().trim()
     if (!title) throw new Error('请填写标题')
     if (!body) throw new Error('请填写正文')
@@ -79,6 +86,7 @@ exports.main = async (event = {}) => {
         season,
         title,
         body,
+        pdfFileId,
         effectiveDate,
         version,
         required: event.required !== false,

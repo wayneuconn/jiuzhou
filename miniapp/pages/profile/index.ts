@@ -246,6 +246,31 @@ Page({
     if (!this.data.waiverHasInk) this.setData({ waiverHasInk: true })
   },
 
+  // The transcription is what's comfortable to read on a phone; this opens
+  // the document it was transcribed from.
+  async openWaiverOriginal() {
+    const fileID = this.data.seasonWaiver?.pdfFileId
+    if (!fileID) return
+    wx.showLoading({ title: '打开中' })
+    try {
+      const { fileList } = await wx.cloud.getTempFileURL({ fileList: [fileID] })
+      const url = fileList?.[0]?.tempFileURL
+      if (!url) throw new Error('原件暂时打不开')
+      // Typings declare the sync DownloadTask return; awaited it resolves to
+      // the success result, so the cast is describing what actually arrives
+      const dl = await (wx.downloadFile({ url }) as unknown as Promise<{ tempFilePath: string }>)
+      await wx.openDocument({ filePath: dl.tempFilePath, fileType: 'pdf', showMenu: true })
+    } catch (err) {
+      wx.showModal({
+        title: '打不开原件',
+        content: (err as { errMsg?: string; message?: string })?.errMsg || (err as Error)?.message || '请稍后再试',
+        showCancel: false,
+      })
+    } finally {
+      wx.hideLoading()
+    }
+  },
+
   clearSignature() {
     const canvas = this._sigCanvas
     const ctx = this._sigCtx

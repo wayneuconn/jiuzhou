@@ -292,3 +292,43 @@ test('the requirement flips without touching the text or the archive', async () 
   await sign({ realName: '李四光', agreed: true })
   assert.equal(store.waiverSignatures[SEASON + '_p2'].signatureFileId, '')
 })
+
+// The readable transcription and the original PDF travel together: `body` is
+// what people read on a phone, `pdfFileId` is what the archive points at.
+test('the original in force is recorded on each confirmation', async () => {
+  seedClub()
+  await publish({ pdfFileId: 'cloud://env.abc/waivers/2025-2026.pdf' })
+  as('p1@x')
+  await sign({ realName: '张三丰', agreed: true })
+  assert.equal(store.waiverSignatures[SEASON + '_p1'].pdfFileId, 'cloud://env.abc/waivers/2025-2026.pdf')
+})
+
+test('swapping the original does not rewrite past confirmations', async () => {
+  seedClub()
+  await publish({ pdfFileId: 'cloud://env.abc/v1.pdf' })
+  as('p1@x')
+  await sign({ realName: '张三丰', agreed: true })
+
+  as('admin@x')
+  await publish({ pdfFileId: 'cloud://env.abc/v2.pdf' })
+  assert.equal(
+    store.waiverSignatures[SEASON + '_p1'].pdfFileId, 'cloud://env.abc/v1.pdf',
+    'still points at the document that was actually shown',
+  )
+})
+
+test('an external link is refused as the original', async () => {
+  seedClub()
+  await assert.rejects(
+    () => publish({ pdfFileId: 'https://evil.example/fake.pdf' }),
+    /原件地址无效/,
+  )
+})
+
+test('the original is optional', async () => {
+  seedClub()
+  await publish()
+  as('p1@x')
+  await sign({ realName: '张三丰', agreed: true })
+  assert.equal(store.waiverSignatures[SEASON + '_p1'].pdfFileId, '')
+})

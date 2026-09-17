@@ -267,6 +267,8 @@ export interface SeasonWaiver {
   season: string
   title: string
   body: string
+  // cloud:// id of the original PDF; `body` is the readable transcription
+  pdfFileId: string
   // Ask for a drawn signature on top of the checkbox. A switch rather than a
   // build-time choice, so it can be turned off without a release.
   handwriting: boolean
@@ -292,6 +294,8 @@ export interface WaiverSignature {
   bodyHash: string
   // cloud:// id of the drawn signature, when handwriting is switched on
   signatureFileId: string
+  // The original in force when this confirmation was given
+  pdfFileId: string
   effectiveDate: string
   signedAt: number
   // Clause 10 names timestamps and IP addresses as the retained evidence.
