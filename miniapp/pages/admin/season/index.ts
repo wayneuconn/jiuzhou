@@ -94,7 +94,7 @@ Page({
     questions: [] as QForm[],
     savingQuestions: false,
     // 赛季确认书
-    waiver: null as { season: string; title: string; body: string; effectiveDate: string; version: number; required: boolean; handwriting: boolean; updatedAt: number } | null,
+    waiver: null as { season: string; title: string; body: string; pdfFileId: string; effectiveDate: string; version: number; required: boolean; handwriting: boolean; updatedAt: number } | null,
     waiverTitle: '',
     waiverBody: '',
     waiverEffectiveDate: '',
@@ -121,7 +121,7 @@ Page({
         { result: { currentSeason: string; drive: SeasonDrive | null; renewals: SeasonRenewal[]; awaiting: Array<{ uid: string; displayName: string; attendanceCount: number }>; wouldDowngrade: Array<{ uid: string; displayName: string }> } },
         { result: { invites: Array<Invite & { id: string; expired: boolean }> } },
         { result: {
-          waiver: { season: string; title: string; body: string; effectiveDate: string; version: number; required: boolean; handwriting: boolean; updatedAt: number } | null
+          waiver: { season: string; title: string; body: string; pdfFileId: string; effectiveDate: string; version: number; required: boolean; handwriting: boolean; updatedAt: number } | null
           signatures: Array<{ id: string; displayName: string; realName: string; version: number; signedAt: number; clientIp: string; signatureFileId: string }>
           pending: Array<{ uid: string; displayName: string; membershipType: string }>
         } } | null,
@@ -242,6 +242,8 @@ Page({
           title: this.data.waiverTitle.trim(),
           body: this.data.waiverBody,
           effectiveDate: this.data.waiverEffectiveDate.trim(),
+          // Round-trip the attached original; the editor has no input for it
+          pdfFileId: this.data.waiver?.pdfFileId ?? '',
           required: this.data.waiverRequired,
           handwriting: this.data.waiverHandwriting,
           requireResign: this.data.waiverRequireResign,

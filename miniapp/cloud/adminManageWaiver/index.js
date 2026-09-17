@@ -66,6 +66,7 @@ exports.main = async (event = {}) => {
     // The original PDF. `body` is a readable transcription for the phone; this
     // is the artifact the archive actually points at. Same cloud:// guard as
     // signatures — an外链 here would undermine the whole record.
+    const pdfSupplied = event.pdfFileId !== undefined
     const pdfFileId = (event.pdfFileId || '').toString().trim()
     if (pdfFileId && !/^cloud:\/\/[\w.\-\/]+$/.test(pdfFileId)) {
       throw new Error('原件地址无效')
@@ -81,12 +82,19 @@ exports.main = async (event = {}) => {
     const bumped = event.requireResign === true
     const version = (existing.data?.version ?? 0) + (existing.data ? (bumped ? 1 : 0) : 1)
 
+    // Merge rather than replace. doc().set() overwrites the whole document, so
+    // any field the caller doesn't send is destroyed — that's how a save from
+    // the admin editor (which has no PDF input) wiped an attached original.
+    // Spreading the existing document keeps unsent fields, and only what was
+    // actually supplied is overlaid.
     await db.collection('waivers').doc(season).set({
       data: {
+        ...(existing.data || {}),
         season,
         title,
         body,
-        pdfFileId,
+        // Only touched when the caller says something about it
+        ...(pdfSupplied ? { pdfFileId } : {}),
         effectiveDate,
         version,
         required: event.required !== false,

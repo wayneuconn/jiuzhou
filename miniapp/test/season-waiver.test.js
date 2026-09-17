@@ -386,3 +386,41 @@ test('a new version puts a confirmed member back in the queue', async () => {
   as('p1@x')
   assert.equal((await getAnnouncements({})).waiverPending, true)
 })
+
+// Regression: saving from the admin editor once wiped the attached original,
+// because doc().set() replaces the whole document and the editor has no PDF
+// input to send back.
+test('saving without mentioning the original keeps it', async () => {
+  seedClub()
+  await publish({ pdfFileId: 'cloud://env.abc/waivers/2025-2026.pdf' })
+
+  // Exactly what the editor sends when the admin only flips a switch
+  await adminWaiver({
+    action: 'save',
+    title: '参与须知',
+    body: BODY,
+    effectiveDate: 'Oct 25, 2026',
+    required: true,
+    handwriting: true,
+  })
+  assert.equal(
+    store.waivers[SEASON].pdfFileId, 'cloud://env.abc/waivers/2025-2026.pdf',
+    'the original survives a save that never mentions it',
+  )
+})
+
+test('an empty original can still be set deliberately', async () => {
+  seedClub()
+  await publish({ pdfFileId: 'cloud://env.abc/a.pdf' })
+  await publish({ pdfFileId: '' })
+  assert.equal(store.waivers[SEASON].pdfFileId, '', 'explicitly clearing works')
+})
+
+test('unrelated fields added later are not destroyed by a save', async () => {
+  seedClub()
+  await publish()
+  // Stand-in for any field a future version might add
+  store.waivers[SEASON].someLaterField = 'keep me'
+  await publish()
+  assert.equal(store.waivers[SEASON].someLaterField, 'keep me')
+})
