@@ -27,6 +27,7 @@ exports.main = async (event, context) => {
           season,
           title: wSnap.data.title,
           body: wSnap.data.body,
+          pdfFileId: wSnap.data.pdfFileId || '',
           version: wSnap.data.version,
           required: wSnap.data.required !== false,
           handwriting: wSnap.data.handwriting === true,

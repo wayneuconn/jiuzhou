@@ -5,6 +5,7 @@ export interface SeasonWaiverVM {
   season: string
   title: string
   body: string
+  pdfFileId: string
   version: number
   required: boolean
   handwriting: boolean
