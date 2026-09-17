@@ -27,6 +27,7 @@ exports.main = async (event, context) => {
           season,
           title: wSnap.data.title,
           body: wSnap.data.body,
+          summary: wSnap.data.summary || '',
           version: wSnap.data.version,
           required: wSnap.data.required !== false,
           signed,

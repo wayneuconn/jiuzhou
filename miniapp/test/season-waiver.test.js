@@ -226,3 +226,23 @@ test('the body hash pins what was actually on screen', async () => {
     'someone signing after the edit is recorded against the new text',
   )
 })
+
+test('the Chinese gloss rides along but never replaces the body', async () => {
+  seedClub()
+  await publish({ summary: '参加活动有受伤风险，自愿承担并不追究组织方责任。' })
+  assert.equal(store.waivers[SEASON].summary, '参加活动有受伤风险，自愿承担并不追究组织方责任。')
+  assert.equal(store.waivers[SEASON].body, BODY, 'body untouched')
+
+  as('p1@x')
+  await sign({ realName: '张三丰', agreed: true })
+  // What gets archived is the body, not the gloss — the gloss is a reading aid
+  const sig = store.waiverSignatures[SEASON + '_p1']
+  assert.ok(sig.bodyHash)
+  assert.equal(sig.summary, undefined, 'the gloss is not what was accepted')
+})
+
+test('the gloss is optional', async () => {
+  seedClub()
+  await publish()
+  assert.equal(store.waivers[SEASON].summary, '')
+})

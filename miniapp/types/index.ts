@@ -267,6 +267,8 @@ export interface SeasonWaiver {
   season: string
   title: string
   body: string
+  // Optional plain-language Chinese gloss; `body` stays authoritative
+  summary: string
   // Clause 10 (Updates): the current text is kept with its effective date
   effectiveDate: string
   // Bumped only when an admin asks for everyone to confirm again; a typo fix
