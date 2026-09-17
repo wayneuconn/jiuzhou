@@ -1,4 +1,5 @@
 import type { User, MembershipApplication, SeasonDrive, SeasonRenewal, EventQuestion } from '../../types/index'
+import type { SeasonWaiverVM } from '../../app'
 import { getCardTier, getNextTierInfo, TIER_COLOR, DEFAULT_THRESHOLDS, TIER_LABEL } from '../../utils/format'
 import { ADMIN_CONTACT } from '../../utils/contact'
 
@@ -68,6 +69,12 @@ Page({
     renewalNote: '',
     renewalQs: [] as RenewalQVM[],
     renewing: false,
+    // 赛季确认书
+    seasonWaiver: null as SeasonWaiverVM | null,
+    showWaiverModal: false,
+    waiverRealName: '',
+    waiverAgreed: false,
+    waiverSigning: false,
     saved: false,
     isAdmin: false,
     pendingApplications: 0,
@@ -103,6 +110,7 @@ Page({
           pendingApplications: number
           seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note' | 'questions'> | null
           myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday' | 'answers'> | null
+          seasonWaiver: SeasonWaiverVM | null
         }
         loginReady?: Promise<void>
         refreshUserProfile: () => Promise<User | null>
@@ -148,6 +156,7 @@ Page({
             : '',
           renewalBirthday: renewal?.birthday || user.birthday || '',
         })
+        this.setData({ seasonWaiver: app.globalData.seasonWaiver })
         this._renewalSel = { ...(renewal?.answers ?? {}) }
         this.setData({ renewalQs: buildQVM(drive?.questions ?? [], this._renewalSel) })
       }
@@ -163,6 +172,38 @@ Page({
   },
 
   retryLoad() { this.loadProfile() },
+
+  // ── 赛季确认书 ───────────────────────────────────────────────────────────
+  openWaiverModal() {
+    this.setData({ showWaiverModal: true, waiverAgreed: false })
+  },
+  closeWaiverModal() { this.setData({ showWaiverModal: false }) },
+  onWaiverName(e: WechatMiniprogram.Input) { this.setData({ waiverRealName: e.detail.value }) },
+  onWaiverAgree(e: WechatMiniprogram.SwitchChange) { this.setData({ waiverAgreed: e.detail.value }) },
+
+  async submitWaiver() {
+    const name = this.data.waiverRealName.trim()
+    if (!name) { wx.showToast({ title: '请填写真实姓名', icon: 'none' }); return }
+    if (!this.data.waiverAgreed) { wx.showToast({ title: '请先勾选已阅读', icon: 'none' }); return }
+    this.setData({ waiverSigning: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'signSeasonWaiver',
+        data: { realName: name, agreed: true },
+      })
+      this.setData({ showWaiverModal: false })
+      wx.showToast({ title: '已确认', icon: 'success' })
+      this.loadProfile()
+    } catch (err) {
+      wx.showModal({
+        title: '提交失败',
+        content: (err as { errMsg?: string; message?: string })?.errMsg || (err as Error)?.message || '提交失败',
+        showCancel: false,
+      })
+    } finally {
+      this.setData({ waiverSigning: false })
+    }
+  },
 
   // ── 赛季年卡登记 ─────────────────────────────────────────────────────────
   _renewalSel: {} as Record<string, string | string[]>,

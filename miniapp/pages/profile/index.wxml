@@ -80,6 +80,25 @@
       <view wx:if="{{user.role === 'admin'}}" class="badge badge-gold">管理员</view>
     </view>
 
+    <!-- 赛季确认书：未确认会拦住报名，所以放在最前面 -->
+    <view wx:if="{{seasonWaiver}}" class="card" style="margin-bottom:16rpx;border:1rpx solid {{seasonWaiver.signed ? 'rgba(0,201,167,0.35)' : 'rgba(229,62,62,0.45)'}};">
+      <view style="font-size:22rpx;font-weight:900;color:#7A8FA6;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:12rpx;">{{seasonWaiver.season}} 赛季确认</view>
+      <view style="font-size:30rpx;font-weight:900;color:#e8f0eb;">{{seasonWaiver.title}}</view>
+
+      <block wx:if="{{seasonWaiver.signed}}">
+        <view style="font-size:26rpx;color:#00C9A7;font-weight:700;margin-top:16rpx;">✓ 本赛季已确认</view>
+        <view class="text-muted" style="font-size:22rpx;margin-top:6rpx;">每赛季确认一次；文件更新时会再提醒你</view>
+        <button class="inline-btn" style="margin-top:16rpx;" bindtap="openWaiverModal">再看一遍</button>
+      </block>
+
+      <block wx:else>
+        <view class="text-muted" style="font-size:24rpx;margin-top:12rpx;line-height:1.6;">
+          <text wx:if="{{seasonWaiver.required}}" style="color:#FF8A8A;">未确认前无法报名比赛。</text>请阅读全文后填写真实姓名确认。
+        </view>
+        <button class="btn-primary" style="margin-top:20rpx;" bindtap="openWaiverModal">阅读并确认</button>
+      </block>
+    </view>
+
     <!-- 赛季年卡登记 (current 年卡 holders only; no tallies shown) -->
     <view wx:if="{{seasonDrive}}" class="card" style="border:1rpx solid rgba(0,201,167,0.4);margin-bottom:16rpx;">
       <view style="font-size:22rpx;font-weight:900;color:#00C9A7;letter-spacing:4rpx;text-transform:uppercase;margin-bottom:12rpx;">赛季年卡登记</view>
@@ -286,6 +305,39 @@
         <button class="btn-ghost" style="flex:1;" bindtap="closeRenewalModal">取消</button>
         <button class="btn-primary" style="flex:1;" bindtap="submitRenewal" loading="{{renewing}}">提交</button>
       </view>
+    </view>
+  </view>
+
+
+  <!-- ── 赛季确认书 ─────────────────────────────────────────────────────── -->
+  <view wx:if="{{showWaiverModal}}" class="modal-mask" catchtap="closeWaiverModal">
+    <view class="modal-box" catchtap="noop">
+      <view style="font-size:32rpx;font-weight:700;color:#e8f0eb;margin-bottom:6rpx;">{{seasonWaiver.title}}</view>
+      <view class="text-muted" style="font-size:22rpx;margin-bottom:20rpx;">{{seasonWaiver.season}} 赛季 · 每赛季确认一次</view>
+
+      <scroll-view scroll-y class="waiver-body">
+        <text>{{seasonWaiver.body}}</text>
+      </scroll-view>
+
+      <block wx:if="{{!seasonWaiver.signed}}">
+        <view style="margin:24rpx 0 20rpx;">
+          <view class="text-muted" style="font-size:22rpx;margin-bottom:10rpx;">真实姓名</view>
+          <input class="form-input" value="{{waiverRealName}}" bindinput="onWaiverName"
+            placeholder="请填写与证件一致的姓名" adjust-position="{{false}}"/>
+        </view>
+
+        <view class="flex-row" style="align-items:center;gap:16rpx;margin-bottom:24rpx;">
+          <switch checked="{{waiverAgreed}}" bindchange="onWaiverAgree" color="#00C9A7" style="transform:scale(0.8);"/>
+          <view style="font-size:24rpx;color:#e8f0eb;flex:1;line-height:1.5;">我已完整阅读上述内容并知悉全部条款</view>
+        </view>
+
+        <view class="flex-row" style="gap:16rpx;">
+          <button class="btn-ghost" style="flex:1;" bindtap="closeWaiverModal">取消</button>
+          <button class="btn-primary" style="flex:1;" bindtap="submitWaiver" loading="{{waiverSigning}}">确认</button>
+        </view>
+      </block>
+
+      <button wx:else class="btn-ghost" style="margin-top:24rpx;" bindtap="closeWaiverModal">关闭</button>
     </view>
   </view>
 

@@ -10,6 +10,31 @@ exports.main = async (event, context) => {
   ])
   const user = userSnap.data[0] ?? null
 
+  // 赛季确认书: the current season's document and whether this caller is clear
+  let seasonWaiver = null
+  try {
+    const season = configSnap.data?.season ?? ''
+    if (season) {
+      const wSnap = await db.collection('waivers').doc(season).get().catch(() => ({ data: null }))
+      if (wSnap.data) {
+        let signed = false
+        if (user) {
+          const sig = await db.collection('waiverSignatures')
+            .doc(season + '_' + user._id).get().catch(() => ({ data: null }))
+          signed = !!sig.data && sig.data.version === wSnap.data.version
+        }
+        seasonWaiver = {
+          season,
+          title: wSnap.data.title,
+          body: wSnap.data.body,
+          version: wSnap.data.version,
+          required: wSnap.data.required !== false,
+          signed,
+        }
+      }
+    }
+  } catch (_) {}
+
   // 赛季年卡登记: the open drive and this caller's response to it
   let seasonDrive = null
   let myRenewal = null
@@ -78,5 +103,6 @@ exports.main = async (event, context) => {
     season: configSnap.data?.season ?? '',
     seasonDrive,
     myRenewal,
+    seasonWaiver,
   }
 }

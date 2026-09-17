@@ -93,6 +93,17 @@ Page({
     qTypes: Q_TYPES,
     questions: [] as QForm[],
     savingQuestions: false,
+    // 赛季确认书
+    waiver: null as { season: string; title: string; body: string; effectiveDate: string; version: number; required: boolean; updatedAt: number } | null,
+    waiverTitle: '',
+    waiverBody: '',
+    waiverEffectiveDate: '',
+    waiverRequired: true,
+    waiverRequireResign: false,
+    waiverSignatures: [] as Array<{ id: string; displayName: string; realName: string; version: number; signedAt: number; dateStr: string; clientIp: string }>,
+    waiverPending: [] as Array<{ uid: string; displayName: string; membershipType: string }>,
+    savingWaiver: false,
+    showWaiverEditor: false,
   },
 
   onShow() { this.load() },
@@ -101,12 +112,18 @@ Page({
   async load() {
     this.setData({ loading: true })
     try {
-      const [boardRes, inviteRes] = await Promise.all([
+      const [boardRes, inviteRes, waiverRes] = await Promise.all([
         wx.cloud.callFunction({ name: 'adminSeasonAction', data: { action: 'board' } }),
         wx.cloud.callFunction({ name: 'adminManageInvite', data: { action: 'list' } }),
+        wx.cloud.callFunction({ name: 'adminManageWaiver', data: { action: 'board' } }).catch(() => null),
       ]) as unknown as [
         { result: { currentSeason: string; drive: SeasonDrive | null; renewals: SeasonRenewal[]; awaiting: Array<{ uid: string; displayName: string; attendanceCount: number }>; wouldDowngrade: Array<{ uid: string; displayName: string }> } },
         { result: { invites: Array<Invite & { id: string; expired: boolean }> } },
+        { result: {
+          waiver: { season: string; title: string; body: string; effectiveDate: string; version: number; required: boolean; updatedAt: number } | null
+          signatures: Array<{ id: string; displayName: string; realName: string; version: number; signedAt: number; clientIp: string }>
+          pending: Array<{ uid: string; displayName: string; membershipType: string }>
+        } } | null,
       ]
 
       const { currentSeason, drive, renewals, awaiting, wouldDowngrade } = boardRes.result
@@ -149,6 +166,20 @@ Page({
         // Don't clobber edits in progress on a refresh
         questions: this.data.savingQuestions ? this.data.questions : questions.map(toQForm),
       })
+
+      const w = waiverRes?.result
+      if (w) {
+        this.setData({
+          waiver: w.waiver,
+          waiverSignatures: w.signatures.map(s => ({ ...s, dateStr: fmt(s.signedAt) })),
+          waiverPending: w.pending,
+          // Same rule as the question builder: never stomp an open editor
+          waiverTitle: this.data.showWaiverEditor ? this.data.waiverTitle : (w.waiver?.title ?? ''),
+          waiverBody: this.data.showWaiverEditor ? this.data.waiverBody : (w.waiver?.body ?? ''),
+          waiverEffectiveDate: this.data.showWaiverEditor ? this.data.waiverEffectiveDate : (w.waiver?.effectiveDate ?? ''),
+          waiverRequired: this.data.showWaiverEditor ? this.data.waiverRequired : (w.waiver?.required !== false),
+        })
+      }
     } catch (err) {
       wx.showModal({ title: '加载失败', content: errText(err, '加载失败'), showCancel: false })
     } finally {
@@ -172,6 +203,48 @@ Page({
       return null
     } finally {
       this.setData({ busy: false })
+    }
+  },
+
+  // ── 赛季确认书 ───────────────────────────────────────────────────────────
+  toggleWaiverEditor() { this.setData({ showWaiverEditor: !this.data.showWaiverEditor }) },
+  onWaiverTitle(e: WechatMiniprogram.Input) { this.setData({ waiverTitle: e.detail.value }) },
+  onWaiverBody(e: WechatMiniprogram.Input) { this.setData({ waiverBody: e.detail.value }) },
+  onWaiverEffective(e: WechatMiniprogram.Input) { this.setData({ waiverEffectiveDate: e.detail.value }) },
+  onWaiverRequired(e: WechatMiniprogram.SwitchChange) { this.setData({ waiverRequired: e.detail.value }) },
+  onWaiverResign(e: WechatMiniprogram.SwitchChange) { this.setData({ waiverRequireResign: e.detail.value }) },
+
+  async saveWaiver() {
+    if (!this.data.waiverTitle.trim()) { wx.showToast({ title: '请填写标题', icon: 'none' }); return }
+    if (!this.data.waiverBody.trim()) { wx.showToast({ title: '请填写正文', icon: 'none' }); return }
+    if (this.data.waiverRequireResign) {
+      const ok = await wx.showModal({
+        title: '要求所有人重新确认？',
+        content: '已确认过的人会全部回到未确认状态，并且在重新确认前无法报名。只有文件内容实质变化时才需要这样做。',
+        confirmText: '确认',
+        confirmColor: '#E53E3E',
+      })
+      if (!ok.confirm) return
+    }
+    this.setData({ savingWaiver: true })
+    try {
+      await wx.cloud.callFunction({
+        name: 'adminManageWaiver',
+        data: {
+          action: 'save',
+          title: this.data.waiverTitle.trim(),
+          body: this.data.waiverBody,
+          effectiveDate: this.data.waiverEffectiveDate.trim(),
+          required: this.data.waiverRequired,
+          requireResign: this.data.waiverRequireResign,
+        },
+      })
+      wx.showToast({ title: '已保存', icon: 'success' })
+      this.setData({ showWaiverEditor: false, waiverRequireResign: false, savingWaiver: false })
+      this.load()
+    } catch (err) {
+      this.setData({ savingWaiver: false })
+      wx.showModal({ title: '保存失败', content: errText(err, '保存失败'), showCancel: false })
     }
   },
 

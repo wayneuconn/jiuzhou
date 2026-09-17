@@ -259,6 +259,41 @@ export interface SeasonRenewal {
   decidedAt?: number | null
 }
 
+// ── 赛季确认书：每赛季确认一次，未确认不能报名 ──────────────────────────
+// Under the waiver's own clause 10 (New Jersey law, ESIGN / NJ UETA), a
+// checkbox acknowledgment is "equivalent to a hand-written signature", and the
+// evidence to retain is the registration log: timestamp and IP address.
+export interface SeasonWaiver {
+  season: string
+  title: string
+  body: string
+  // Clause 10 (Updates): the current text is kept with its effective date
+  effectiveDate: string
+  // Bumped only when an admin asks for everyone to confirm again; a typo fix
+  // leaves it alone so nobody is forced back through the flow
+  version: number
+  required: boolean
+  updatedAt: number
+  updatedBy: string
+}
+
+export interface WaiverSignature {
+  id: string
+  season: string
+  uid: string
+  displayName: string
+  // Typed by the person at confirmation time — the actual archive value
+  realName: string
+  version: number
+  // Fingerprint of the exact text agreed to, so the archive survives edits
+  bodyHash: string
+  effectiveDate: string
+  signedAt: number
+  // Clause 10 names timestamps and IP addresses as the retained evidence.
+  // Supplied by the platform, so the caller can't forge it.
+  clientIp: string
+}
+
 // ── 邀请：一码一人，用掉即成次卡；年卡仍需另行申请审批 ────────────────────
 export type InviteStatus = 'open' | 'used' | 'revoked'
 
