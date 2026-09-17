@@ -62,3 +62,8 @@ input.settings-input { height: 88rpx; }
   color: #E53E3E;
   padding: 6rpx 10rpx;
 }
+
+.waiver-textarea {
+  min-height: 280rpx;
+  line-height: 1.7;
+}

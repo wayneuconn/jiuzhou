@@ -3,7 +3,7 @@
 // Covers the slice of the CloudBase API the functions actually use; anything
 // beyond that should be added here rather than worked around in a test.
 const store = {}
-let ctx = { OPENID: null }
+let ctx = { OPENID: null, CLIENTIP: '203.0.113.7' }
 const calls = []
 
 const OPS = {
@@ -124,11 +124,11 @@ module.exports = {
   __stub: {
     store,
     calls,
-    as: openid => { ctx = { OPENID: openid } },
+    as: (openid, clientIp) => { ctx = { OPENID: openid, CLIENTIP: clientIp ?? '203.0.113.7' } },
     reset: () => {
       for (const k of Object.keys(store)) delete store[k]
       calls.length = 0
-      ctx = { OPENID: null }
+      ctx = { OPENID: null, CLIENTIP: '203.0.113.7' }
     },
   },
 }

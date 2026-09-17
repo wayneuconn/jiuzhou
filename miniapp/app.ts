@@ -1,5 +1,15 @@
 import type { User, MembershipApplication, SeasonDrive, SeasonRenewal } from './types/index'
 
+// The waiver as the player sees it: the text plus whether they're clear
+export interface SeasonWaiverVM {
+  season: string
+  title: string
+  body: string
+  version: number
+  required: boolean
+  signed: boolean
+}
+
 interface CardThresholds { bronze: number; silver: number; gold: number; blue: number }
 
 interface JiuzhouAppOption {
@@ -12,6 +22,7 @@ interface JiuzhouAppOption {
     pendingApplications: number
     seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note' | 'questions'> | null
     myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday' | 'answers'> | null
+    seasonWaiver: SeasonWaiverVM | null
   }
   loginReady: Promise<void>
   autoLogin: () => Promise<void>
@@ -33,6 +44,7 @@ App<JiuzhouAppOption>({
     pendingApplications: 0,
     seasonDrive: null,
     myRenewal: null,
+    seasonWaiver: null,
   },
 
   // Resolves once autoLogin has finished (success or failure). Pages must
@@ -105,6 +117,7 @@ App<JiuzhouAppOption>({
         pendingApplications: number
         seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note' | 'questions'> | null
         myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday' | 'answers'> | null
+        seasonWaiver: SeasonWaiverVM | null
       } | undefined
       const user = result?.user ?? null
       this.globalData.userProfile = user
@@ -113,6 +126,7 @@ App<JiuzhouAppOption>({
       this.globalData.pendingApplications = result?.pendingApplications ?? 0
       this.globalData.seasonDrive = result?.seasonDrive ?? null
       this.globalData.myRenewal = result?.myRenewal ?? null
+      this.globalData.seasonWaiver = result?.seasonWaiver ?? null
       return user
     } catch (err) {
       console.error('refreshUserProfile failed', err)

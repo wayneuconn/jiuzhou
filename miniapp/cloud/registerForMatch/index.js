@@ -286,6 +286,21 @@ exports.main = async (event, context) => {
     throw new Error(`该账号已被禁赛，还剩 ${target.banGamesLeft} 场`)
   }
 
+  // 赛季确认书: no confirmation for the current season, no spot. Checked
+  // against the version too, so re-issuing the document re-gates everyone.
+  const waiverCfg = await db.collection('config').doc('app').get().catch(() => ({ data: null }))
+  const waiverSeason = waiverCfg.data?.season ?? ''
+  if (waiverSeason) {
+    const wSnap = await db.collection('waivers').doc(waiverSeason).get().catch(() => ({ data: null }))
+    if (wSnap.data?.required) {
+      const sigSnap = await db.collection('waiverSignatures')
+        .doc(waiverSeason + '_' + target._id).get().catch(() => ({ data: null }))
+      if (!sigSnap.data || sigSnap.data.version !== wSnap.data.version) {
+        throw new Error(`需先在「我的」页完成本赛季「${wSnap.data.title}」的确认才能报名`)
+      }
+    }
+  }
+
   // This registration may carry a GK duty, from either of two tallies. 旷赛
   // debt outranks the 迟到 threshold: it's the heavier penalty, and the 迟到
   // duty simply waits for a later match.
