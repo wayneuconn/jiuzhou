@@ -312,16 +312,17 @@
   <!-- ── 赛季确认书 ─────────────────────────────────────────────────────── -->
   <view wx:if="{{showWaiverModal}}" class="modal-mask" catchtap="closeWaiverModal">
     <view class="modal-box" catchtap="noop">
-      <view style="font-size:32rpx;font-weight:700;color:#e8f0eb;margin-bottom:6rpx;">{{seasonWaiver.title}}</view>
+      <view class="flex-row" style="justify-content:space-between;align-items:flex-start;margin-bottom:6rpx;">
+        <view style="font-size:32rpx;font-weight:700;color:#e8f0eb;flex:1;">{{seasonWaiver.title}}</view>
+        <view wx:if="{{seasonWaiver.pdfFileId}}" class="pick-tap pick-tap-off" style="flex-shrink:0;margin-left:16rpx;"
+          bindtap="openWaiverOriginal">📄 原件</view>
+      </view>
       <view class="text-muted" style="font-size:22rpx;margin-bottom:20rpx;">{{seasonWaiver.season}} 赛季 · 每赛季确认一次</view>
 
-      <scroll-view scroll-y class="waiver-body" bindscrolltolower="onWaiverScrolledToEnd" lower-threshold="40">
+      <scroll-view scroll-y class="waiver-body {{waiverRead ? 'waiver-body-short' : ''}}"
+        bindscrolltolower="onWaiverScrolledToEnd" lower-threshold="40">
         <text>{{seasonWaiver.body}}</text>
       </scroll-view>
-
-      <view wx:if="{{seasonWaiver.pdfFileId}}" class="flex-row" style="justify-content:center;margin-top:12rpx;">
-        <view class="pick-tap pick-tap-off" bindtap="openWaiverOriginal">📄 查看原件</view>
-      </view>
 
       <view wx:if="{{!seasonWaiver.signed && !waiverRead}}" class="waiver-locked">
         ↓ 请滑动到底部读完全文，之后才能确认
