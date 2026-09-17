@@ -209,17 +209,24 @@ Page({
           const box = res?.[0] as { height?: number; scrollHeight?: number } | undefined
           if (box && box.scrollHeight !== undefined && box.height !== undefined
               && box.scrollHeight <= box.height + 4) {
-            this.setData({ waiverRead: true })
+            this._unlockWaiver()
           }
         })
+    })
+  },
+
+  onWaiverScrolledToEnd() { this._unlockWaiver() },
+
+  // Reveal the form and only THEN wire up the canvas: it doesn't exist in the
+  // tree until waiverRead flips, so the setData callback is the earliest point
+  // at which the node can be found.
+  _unlockWaiver() {
+    if (this.data.waiverRead) return
+    this.setData({ waiverRead: true }, () => {
       if (this.data.seasonWaiver?.handwriting && !this.data.seasonWaiver?.signed) {
         this._initSignaturePad()
       }
     })
-  },
-
-  onWaiverScrolledToEnd() {
-    if (!this.data.waiverRead) this.setData({ waiverRead: true })
   },
   closeWaiverModal() { this.setData({ showWaiverModal: false }) },
 

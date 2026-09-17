@@ -178,3 +178,9 @@
   border: 1rpx solid rgba(240,180,41,0.3);
   border-radius: 12rpx;
 }
+
+/* Once read, the text yields room to the form so the sheet stops needing a
+   second, nested scroll to reach the buttons */
+.waiver-body-short {
+  max-height: 300rpx;
+}
