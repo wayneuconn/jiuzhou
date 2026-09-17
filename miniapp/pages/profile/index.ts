@@ -10,6 +10,25 @@ const MEMBERSHIP_BADGE: Record<string, string> = { annual: 'badge-teal', per_ses
 
 interface PriorityPosition { pos: string; priorityLabel: string }
 
+// The 2d context returned by canvas.getContext('2d') — only what's used here.
+// miniprogram-api-typings has no declaration for it.
+interface SigCtx {
+  lineWidth: number
+  lineCap: string
+  lineJoin: string
+  strokeStyle: string
+  scale(x: number, y: number): void
+  beginPath(): void
+  moveTo(x: number, y: number): void
+  lineTo(x: number, y: number): void
+  stroke(): void
+  clearRect(x: number, y: number, w: number, h: number): void
+}
+
+// Touches on a canvas carry x/y relative to the canvas, which the shipped
+// TouchDetail type doesn't describe
+type CanvasTouch = { x: number; y: number }
+
 interface RenewalQVM {
   id: string
   title: string
@@ -75,6 +94,7 @@ Page({
     waiverRealName: '',
     waiverAgreed: false,
     waiverSigning: false,
+    waiverHasInk: false,
     saved: false,
     isAdmin: false,
     pendingApplications: 0,
@@ -175,9 +195,78 @@ Page({
 
   // ── 赛季确认书 ───────────────────────────────────────────────────────────
   openWaiverModal() {
-    this.setData({ showWaiverModal: true, waiverAgreed: false })
+    this.setData({ showWaiverModal: true, waiverAgreed: false, waiverHasInk: false })
+    if (this.data.seasonWaiver?.handwriting && !this.data.seasonWaiver?.signed) {
+      // The node only exists once the sheet has rendered
+      wx.nextTick(() => this._initSignaturePad())
+    }
   },
   closeWaiverModal() { this.setData({ showWaiverModal: false }) },
+
+  // ── signature pad (canvas 2d) ────────────────────────────────────────────
+  _sigCanvas: null as WechatMiniprogram.Canvas | null,
+  _sigCtx: null as SigCtx | null,
+
+  _initSignaturePad() {
+    wx.createSelectorQuery().in(this)
+      .select('#sigCanvas')
+      .fields({ node: true, size: true })
+      .exec((res) => {
+        const node = res?.[0]?.node as WechatMiniprogram.Canvas | undefined
+        if (!node) return
+        const { pixelRatio: dpr } = wx.getWindowInfo()
+        const ctx = node.getContext('2d') as unknown as SigCtx
+        node.width = res[0].width * dpr
+        node.height = res[0].height * dpr
+        ctx.scale(dpr, dpr)
+        ctx.lineWidth = 2.5
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+        ctx.strokeStyle = '#e8f0eb'
+        this._sigCanvas = node
+        this._sigCtx = ctx
+        this.setData({ waiverHasInk: false })
+      })
+  },
+
+  onSigStart(e: WechatMiniprogram.TouchEvent) {
+    const ctx = this._sigCtx
+    if (!ctx) return
+    const t = e.touches[0] as unknown as CanvasTouch
+    ctx.beginPath()
+    ctx.moveTo(t.x, t.y)
+  },
+
+  onSigMove(e: WechatMiniprogram.TouchEvent) {
+    const ctx = this._sigCtx
+    if (!ctx) return
+    const t = e.touches[0] as unknown as CanvasTouch
+    ctx.lineTo(t.x, t.y)
+    ctx.stroke()
+    if (!this.data.waiverHasInk) this.setData({ waiverHasInk: true })
+  },
+
+  clearSignature() {
+    const canvas = this._sigCanvas
+    const ctx = this._sigCtx
+    if (!canvas || !ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    this.setData({ waiverHasInk: false })
+  },
+
+  // Canvas → temp file → 云存储, returning the cloud:// id to archive
+  async _uploadSignature(): Promise<string> {
+    const canvas = this._sigCanvas
+    if (!canvas) throw new Error('签名区未就绪，请重新打开本页')
+    const { tempFilePath } = await wx.canvasToTempFilePath({ canvas } as never, this)
+    const uid = getApp<{ globalData: { userProfile: { _id: string } | null } }>().globalData.userProfile?._id ?? 'unknown'
+    const season = this.data.seasonWaiver?.season ?? 'season'
+    const res = await wx.cloud.uploadFile({
+      cloudPath: `waiver-signatures/${season}_${uid}_${Date.now()}.png`,
+      filePath: tempFilePath,
+    })
+    return res.fileID
+  },
   onWaiverName(e: WechatMiniprogram.Input) { this.setData({ waiverRealName: e.detail.value }) },
   onWaiverAgree(e: WechatMiniprogram.SwitchChange) { this.setData({ waiverAgreed: e.detail.value }) },
 
@@ -185,11 +274,17 @@ Page({
     const name = this.data.waiverRealName.trim()
     if (!name) { wx.showToast({ title: '请填写真实姓名', icon: 'none' }); return }
     if (!this.data.waiverAgreed) { wx.showToast({ title: '请先勾选已阅读', icon: 'none' }); return }
+    const needsInk = !!this.data.seasonWaiver?.handwriting
+    if (needsInk && !this.data.waiverHasInk) {
+      wx.showToast({ title: '请在方框内签写姓名', icon: 'none' })
+      return
+    }
     this.setData({ waiverSigning: true })
     try {
+      const signatureFileId = needsInk ? await this._uploadSignature() : ''
       await wx.cloud.callFunction({
         name: 'signSeasonWaiver',
-        data: { realName: name, agreed: true },
+        data: { realName: name, agreed: true, signatureFileId },
       })
       this.setData({ showWaiverModal: false })
       wx.showToast({ title: '已确认', icon: 'success' })

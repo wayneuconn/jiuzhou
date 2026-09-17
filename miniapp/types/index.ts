@@ -267,8 +267,9 @@ export interface SeasonWaiver {
   season: string
   title: string
   body: string
-  // Optional plain-language Chinese gloss; `body` stays authoritative
-  summary: string
+  // Ask for a drawn signature on top of the checkbox. A switch rather than a
+  // build-time choice, so it can be turned off without a release.
+  handwriting: boolean
   // Clause 10 (Updates): the current text is kept with its effective date
   effectiveDate: string
   // Bumped only when an admin asks for everyone to confirm again; a typo fix
@@ -289,6 +290,8 @@ export interface WaiverSignature {
   version: number
   // Fingerprint of the exact text agreed to, so the archive survives edits
   bodyHash: string
+  // cloud:// id of the drawn signature, when handwriting is switched on
+  signatureFileId: string
   effectiveDate: string
   signedAt: number
   // Clause 10 names timestamps and IP addresses as the retained evidence.

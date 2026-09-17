@@ -207,11 +207,6 @@
           <input class="settings-input" value="{{waiverEffectiveDate}}" bindinput="onWaiverEffective" placeholder="例：Oct 25, 2026"/>
         </view>
         <view style="margin-bottom:16rpx;">
-          <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">中文参考（可留空，仅供理解，以正文为准）</view>
-          <textarea class="settings-input waiver-textarea" style="min-height:160rpx;" value="{{waiverSummary}}" bindinput="onWaiverSummary"
-            placeholder="用中文把要点说清楚，方便队里看懂" maxlength="-1" auto-height/>
-        </view>
-        <view style="margin-bottom:16rpx;">
           <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">正文（直接粘贴纯文本）</view>
           <textarea class="settings-input waiver-textarea" value="{{waiverBody}}" bindinput="onWaiverBody"
             placeholder="把文件内容粘贴到这里" maxlength="-1" auto-height/>
@@ -219,6 +214,13 @@
         <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
           <view style="font-size:24rpx;color:#e8f0eb;">未确认不能报名</view>
           <switch checked="{{waiverRequired}}" bindchange="onWaiverRequired" color="#00C9A7" style="transform:scale(0.8);"/>
+        </view>
+        <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
+          <view style="flex:1;">
+            <view style="font-size:24rpx;color:#e8f0eb;">要求手写姓名</view>
+            <view class="text-muted" style="font-size:20rpx;margin-top:4rpx;line-height:1.5;">勾选确认之外再签一次；关掉也不影响已有记录</view>
+          </view>
+          <switch checked="{{waiverHandwriting}}" bindchange="onWaiverHandwriting" color="#00C9A7" style="transform:scale(0.8);"/>
         </view>
         <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:8rpx;">
           <view style="flex:1;">
@@ -251,6 +253,8 @@
             </view>
             <view class="text-muted" style="font-size:20rpx;margin-top:4rpx;">{{item.dateStr}} · 第 {{item.version}} 版<text wx:if="{{item.clientIp}}"> · {{item.clientIp}}</text></view>
           </view>
+          <image wx:if="{{item.signatureFileId}}" class="sig-thumb" src="{{item.signatureFileId}}"
+            mode="aspectFit" bindtap="previewSignature" data-src="{{item.signatureFileId}}"/>
         </view>
       </view>
     </view>
