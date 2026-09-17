@@ -94,14 +94,14 @@ Page({
     questions: [] as QForm[],
     savingQuestions: false,
     // 赛季确认书
-    waiver: null as { season: string; title: string; body: string; summary: string; effectiveDate: string; version: number; required: boolean; updatedAt: number } | null,
+    waiver: null as { season: string; title: string; body: string; effectiveDate: string; version: number; required: boolean; handwriting: boolean; updatedAt: number } | null,
     waiverTitle: '',
     waiverBody: '',
-    waiverSummary: '',
     waiverEffectiveDate: '',
     waiverRequired: true,
+    waiverHandwriting: true,
     waiverRequireResign: false,
-    waiverSignatures: [] as Array<{ id: string; displayName: string; realName: string; version: number; signedAt: number; dateStr: string; clientIp: string }>,
+    waiverSignatures: [] as Array<{ id: string; displayName: string; realName: string; version: number; signedAt: number; dateStr: string; clientIp: string; signatureFileId: string }>,
     waiverPending: [] as Array<{ uid: string; displayName: string; membershipType: string }>,
     savingWaiver: false,
     showWaiverEditor: false,
@@ -121,8 +121,8 @@ Page({
         { result: { currentSeason: string; drive: SeasonDrive | null; renewals: SeasonRenewal[]; awaiting: Array<{ uid: string; displayName: string; attendanceCount: number }>; wouldDowngrade: Array<{ uid: string; displayName: string }> } },
         { result: { invites: Array<Invite & { id: string; expired: boolean }> } },
         { result: {
-          waiver: { season: string; title: string; body: string; summary: string; effectiveDate: string; version: number; required: boolean; updatedAt: number } | null
-          signatures: Array<{ id: string; displayName: string; realName: string; version: number; signedAt: number; clientIp: string }>
+          waiver: { season: string; title: string; body: string; effectiveDate: string; version: number; required: boolean; handwriting: boolean; updatedAt: number } | null
+          signatures: Array<{ id: string; displayName: string; realName: string; version: number; signedAt: number; clientIp: string; signatureFileId: string }>
           pending: Array<{ uid: string; displayName: string; membershipType: string }>
         } } | null,
       ]
@@ -178,8 +178,8 @@ Page({
           waiverTitle: this.data.showWaiverEditor ? this.data.waiverTitle : (w.waiver?.title ?? ''),
           waiverBody: this.data.showWaiverEditor ? this.data.waiverBody : (w.waiver?.body ?? ''),
           waiverEffectiveDate: this.data.showWaiverEditor ? this.data.waiverEffectiveDate : (w.waiver?.effectiveDate ?? ''),
-          waiverSummary: this.data.showWaiverEditor ? this.data.waiverSummary : (w.waiver?.summary ?? ''),
           waiverRequired: this.data.showWaiverEditor ? this.data.waiverRequired : (w.waiver?.required !== false),
+          waiverHandwriting: this.data.showWaiverEditor ? this.data.waiverHandwriting : (w.waiver?.handwriting === true),
         })
       }
     } catch (err) {
@@ -213,8 +213,12 @@ Page({
   onWaiverTitle(e: WechatMiniprogram.Input) { this.setData({ waiverTitle: e.detail.value }) },
   onWaiverBody(e: WechatMiniprogram.Input) { this.setData({ waiverBody: e.detail.value }) },
   onWaiverEffective(e: WechatMiniprogram.Input) { this.setData({ waiverEffectiveDate: e.detail.value }) },
-  onWaiverSummary(e: WechatMiniprogram.Input) { this.setData({ waiverSummary: e.detail.value }) },
   onWaiverRequired(e: WechatMiniprogram.SwitchChange) { this.setData({ waiverRequired: e.detail.value }) },
+  onWaiverHandwriting(e: WechatMiniprogram.SwitchChange) { this.setData({ waiverHandwriting: e.detail.value }) },
+  previewSignature(e: WechatMiniprogram.BaseEvent) {
+    const src = (e.currentTarget.dataset as { src: string }).src
+    if (src) wx.previewImage({ urls: [src] })
+  },
   onWaiverResign(e: WechatMiniprogram.SwitchChange) { this.setData({ waiverRequireResign: e.detail.value }) },
 
   async saveWaiver() {
@@ -238,8 +242,8 @@ Page({
           title: this.data.waiverTitle.trim(),
           body: this.data.waiverBody,
           effectiveDate: this.data.waiverEffectiveDate.trim(),
-          summary: this.data.waiverSummary,
           required: this.data.waiverRequired,
+          handwriting: this.data.waiverHandwriting,
           requireResign: this.data.waiverRequireResign,
         },
       })

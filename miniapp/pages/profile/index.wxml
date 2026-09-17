@@ -315,11 +315,6 @@
       <view style="font-size:32rpx;font-weight:700;color:#e8f0eb;margin-bottom:6rpx;">{{seasonWaiver.title}}</view>
       <view class="text-muted" style="font-size:22rpx;margin-bottom:20rpx;">{{seasonWaiver.season}} 赛季 · 每赛季确认一次</view>
 
-      <view wx:if="{{seasonWaiver.summary}}" class="waiver-summary">
-        <view style="font-size:22rpx;font-weight:700;color:#00C9A7;margin-bottom:8rpx;">中文参考（以下方英文原文为准）</view>
-        <text>{{seasonWaiver.summary}}</text>
-      </view>
-
       <scroll-view scroll-y class="waiver-body">
         <text>{{seasonWaiver.body}}</text>
       </scroll-view>
@@ -329,6 +324,15 @@
           <view class="text-muted" style="font-size:22rpx;margin-bottom:10rpx;">真实姓名</view>
           <input class="form-input" value="{{waiverRealName}}" bindinput="onWaiverName"
             placeholder="请填写与证件一致的姓名" adjust-position="{{false}}"/>
+        </view>
+
+        <view wx:if="{{seasonWaiver.handwriting}}" style="margin-bottom:20rpx;">
+          <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:10rpx;">
+            <view class="text-muted" style="font-size:22rpx;">在下方方框内签写姓名</view>
+            <view class="pick-tap pick-tap-off" bindtap="clearSignature">重写</view>
+          </view>
+          <canvas type="2d" id="sigCanvas" class="sig-pad"
+            bindtouchstart="onSigStart" bindtouchmove="onSigMove" disable-scroll="{{true}}"/>
         </view>
 
         <view class="flex-row" style="align-items:center;gap:16rpx;margin-bottom:24rpx;">

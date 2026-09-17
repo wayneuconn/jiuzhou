@@ -227,22 +227,68 @@ test('the body hash pins what was actually on screen', async () => {
   )
 })
 
-test('the Chinese gloss rides along but never replaces the body', async () => {
-  seedClub()
-  await publish({ summary: '参加活动有受伤风险，自愿承担并不追究组织方责任。' })
-  assert.equal(store.waivers[SEASON].summary, '参加活动有受伤风险，自愿承担并不追究组织方责任。')
-  assert.equal(store.waivers[SEASON].body, BODY, 'body untouched')
-
-  as('p1@x')
-  await sign({ realName: '张三丰', agreed: true })
-  // What gets archived is the body, not the gloss — the gloss is a reading aid
-  const sig = store.waiverSignatures[SEASON + '_p1']
-  assert.ok(sig.bodyHash)
-  assert.equal(sig.summary, undefined, 'the gloss is not what was accepted')
-})
-
-test('the gloss is optional', async () => {
+// The signature pad is an extra on top of the checkbox, switchable by config
+// so that review feedback never requires a code change.
+test('handwriting off: a drawn signature is not demanded', async () => {
   seedClub()
   await publish()
-  assert.equal(store.waivers[SEASON].summary, '')
+  as('p1@x')
+  await sign({ realName: '张三丰', agreed: true })
+  assert.equal(store.waiverSignatures[SEASON + '_p1'].signatureFileId, '')
+})
+
+test('handwriting on: confirming without ink is refused', async () => {
+  seedClub()
+  await publish({ handwriting: true })
+  as('p1@x')
+  await assert.rejects(() => sign({ realName: '张三丰', agreed: true }), /签写姓名/)
+  // Nothing was written at all, so the collection may not even exist yet
+  assert.equal(store.waiverSignatures?.[SEASON + '_p1'], undefined)
+})
+
+test('handwriting on: the drawn image is archived with the rest', async () => {
+  seedClub()
+  await publish({ handwriting: true })
+  as('p1@x', '198.51.100.9')
+  await sign({
+    realName: '张三丰',
+    agreed: true,
+    signatureFileId: 'cloud://env.abc/waiver-signatures/2025-2026_p1_1.png',
+  })
+  const sig = store.waiverSignatures[SEASON + '_p1']
+  assert.equal(sig.signatureFileId, 'cloud://env.abc/waiver-signatures/2025-2026_p1_1.png')
+  assert.equal(sig.clientIp, '198.51.100.9')
+  assert.equal(sig.realName, '张三丰')
+})
+
+test('only a cloud:// id is accepted as a signature', async () => {
+  seedClub()
+  await publish({ handwriting: true })
+  as('p1@x')
+  await assert.rejects(
+    () => sign({ realName: '张三丰', agreed: true, signatureFileId: 'https://evil.example/x.png' }),
+    /签名图片无效/,
+  )
+  await assert.rejects(
+    () => sign({ realName: '张三丰', agreed: true, signatureFileId: 'javascript:alert(1)' }),
+    /签名图片无效/,
+  )
+})
+
+test('the requirement flips without touching the text or the archive', async () => {
+  seedClub()
+  await publish({ handwriting: true })
+  as('p1@x')
+  await sign({ realName: '张三丰', agreed: true, signatureFileId: 'cloud://env.abc/a.png' })
+
+  as('admin@x')
+  await adminWaiver({ action: 'setHandwriting', handwriting: false })
+  assert.equal(store.waivers[SEASON].handwriting, false)
+  assert.equal(store.waivers[SEASON].version, 1, 'no re-confirmation forced')
+  assert.equal(store.waiverSignatures[SEASON + '_p1'].signatureFileId, 'cloud://env.abc/a.png', 'archive kept')
+
+  // And the next person can confirm without drawing
+  as('p2@x')
+  await sign({ realName: '李四光', agreed: true })
+  assert.equal(store.waiverSignatures[SEASON + '_p2'].signatureFileId, '')
 })

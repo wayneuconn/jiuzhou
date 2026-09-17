@@ -63,10 +63,6 @@ exports.main = async (event = {}) => {
     const title = (event.title || '').toString().trim().slice(0, 50)
     // Clause 10 (Updates): the current version is kept with its effective date
     const effectiveDate = (event.effectiveDate || '').toString().trim().slice(0, 20)
-    // Optional plain-language Chinese gloss. The body remains authoritative —
-    // a notice nobody can read isn't much of a notice, but a translation must
-    // not become a second, conflicting version.
-    const summary = (event.summary || '').toString().trim().slice(0, 5000)
     const body = (event.body || '').toString().trim()
     if (!title) throw new Error('请填写标题')
     if (!body) throw new Error('请填写正文')
@@ -83,15 +79,26 @@ exports.main = async (event = {}) => {
         season,
         title,
         body,
-        summary,
         effectiveDate,
         version,
         required: event.required !== false,
+        // Handwriting is an extra on top of the checkbox, never the mechanism.
+        // If a reviewer ever objects to the signature pad, this flips off and
+        // confirmation still works — no redeploy.
+        handwriting: event.handwriting === true,
         updatedAt: db.serverDate(),
         updatedBy: caller._id,
       },
     })
     return { success: true, season, version, requiredResign: bumped }
+  }
+
+  // ── flip the handwriting requirement without touching the text ───────────
+  if (action === 'setHandwriting') {
+    const existing = await db.collection('waivers').doc(season).get().catch(() => ({ data: null }))
+    if (!existing.data) throw new Error('本赛季还没有参与须知')
+    await db.collection('waivers').doc(season).update({ data: { handwriting: event.handwriting === true } })
+    return { success: true }
   }
 
   // ── stop gating registration without deleting the archive ────────────────

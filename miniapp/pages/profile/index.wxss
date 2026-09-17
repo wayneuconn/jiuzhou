@@ -159,3 +159,11 @@
   color: #A8BCCF;
   white-space: pre-wrap;
 }
+
+.sig-pad {
+  width: 100%;
+  height: 240rpx;
+  background: #0F1620;
+  border: 1rpx dashed #2A3E52;
+  border-radius: 12rpx;
+}

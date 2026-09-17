@@ -34,6 +34,16 @@ exports.main = async (event = {}) => {
   const waiver = waiverSnap.data
   if (!waiver) throw new Error('本赛季暂无需要确认的文件')
 
+  // A cloud:// fileID uploaded by this same caller; anything else is refused
+  // rather than stored, so the archive can't be pointed at arbitrary URLs.
+  const signatureFileId = (event.signatureFileId || '').toString().trim()
+  if (signatureFileId && !/^cloud:\/\/[\w.\-\/]+$/.test(signatureFileId)) {
+    throw new Error('签名图片无效，请重新签写')
+  }
+  if (waiver.handwriting === true && !signatureFileId) {
+    throw new Error('请先在方框内签写姓名')
+  }
+
   const realName = (event.realName || '').toString().trim()
   if (!realName || realName.length > 20) throw new Error('请填写真实姓名（20 字以内）')
   if (event.agreed !== true) throw new Error('请先勾选已阅读')
@@ -48,6 +58,7 @@ exports.main = async (event = {}) => {
       version: waiver.version,
       effectiveDate: waiver.effectiveDate || '',
       bodyHash: hashBody(waiver.body || ''),
+      signatureFileId,
       // Named in clause 10 as the evidence of acceptance
       signedAt: db.serverDate(),
       clientIp: CLIENTIP || CLIENTIPV6 || ''
