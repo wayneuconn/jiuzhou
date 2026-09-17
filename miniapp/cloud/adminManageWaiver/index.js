@@ -63,6 +63,10 @@ exports.main = async (event = {}) => {
     const title = (event.title || '').toString().trim().slice(0, 50)
     // Clause 10 (Updates): the current version is kept with its effective date
     const effectiveDate = (event.effectiveDate || '').toString().trim().slice(0, 20)
+    // Optional plain-language Chinese gloss. The body remains authoritative —
+    // a notice nobody can read isn't much of a notice, but a translation must
+    // not become a second, conflicting version.
+    const summary = (event.summary || '').toString().trim().slice(0, 5000)
     const body = (event.body || '').toString().trim()
     if (!title) throw new Error('请填写标题')
     if (!body) throw new Error('请填写正文')
@@ -79,6 +83,7 @@ exports.main = async (event = {}) => {
         season,
         title,
         body,
+        summary,
         effectiveDate,
         version,
         required: event.required !== false,
