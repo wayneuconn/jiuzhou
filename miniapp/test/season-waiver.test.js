@@ -332,3 +332,57 @@ test('the original is optional', async () => {
   await sign({ realName: '张三丰', agreed: true })
   assert.equal(store.waiverSignatures[SEASON + '_p1'].pdfFileId, '')
 })
+
+// Who gets nagged. The prompt on launch and the signup block both hang off
+// this, and it must never fire for a browsing visitor or a review account.
+const getAnnouncements = load('getAnnouncements')
+
+test('a member with an outstanding waiver is flagged', async () => {
+  seedClub()
+  await publish()
+  as('p1@x')
+  const res = await getAnnouncements({})
+  assert.equal(res.waiverPending, true)
+  assert.equal(res.waiverTitle, '参与须知')
+})
+
+test('confirming clears the flag', async () => {
+  seedClub()
+  await publish()
+  as('p1@x')
+  await sign({ realName: '张三丰', agreed: true })
+  assert.equal((await getAnnouncements({})).waiverPending, false)
+})
+
+test('a non-member is never nagged', async () => {
+  seedClub()
+  store.users.visitor = { openid: 'visitor@x', role: 'guest', displayName: '路人', membershipType: 'none' }
+  await publish()
+  as('visitor@x')
+  assert.equal((await getAnnouncements({})).waiverPending, false, 'a review account stays clear')
+})
+
+test('someone with no profile at all is never nagged', async () => {
+  seedClub()
+  await publish()
+  as('nobody@x')
+  assert.equal((await getAnnouncements({})).waiverPending, false)
+})
+
+test('no nagging while the gate is switched off', async () => {
+  seedClub()
+  await publish({ required: false })
+  as('p1@x')
+  assert.equal((await getAnnouncements({})).waiverPending, false)
+})
+
+test('a new version puts a confirmed member back in the queue', async () => {
+  seedClub()
+  await publish()
+  as('p1@x')
+  await sign({ realName: '张三丰', agreed: true })
+  as('admin@x')
+  await publish({ body: '新条款', requireResign: true })
+  as('p1@x')
+  assert.equal((await getAnnouncements({})).waiverPending, true)
+})

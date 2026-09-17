@@ -2,6 +2,20 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
+
+// True only when the waiver actually gates registration AND this caller is a
+// member who hasn't confirmed. Visitors and 未激活 accounts are never nagged —
+// which also keeps a review account clear of it.
+async function waiverPendingFor(db, season, user) {
+  if (!season || !user) return false
+  if (!['annual', 'per_session'].includes(user.membershipType)) return false
+  const wSnap = await db.collection('waivers').doc(season).get().catch(() => ({ data: null }))
+  if (!wSnap.data || wSnap.data.required === false) return false
+  const sig = await db.collection('waiverSignatures')
+    .doc(season + '_' + user._id).get().catch(() => ({ data: null }))
+  return !sig.data || sig.data.version !== wSnap.data.version
+}
+
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
   const { matchId } = event
@@ -50,6 +64,10 @@ exports.main = async (event, context) => {
     }
   }
 
+  const waiverTitleForCaller = await db.collection('waivers')
+    .doc(configSnap.data?.season ?? '_none').get()
+    .then(r => r.data?.title ?? '').catch(() => '')
+
   // Active popup announcement (newest one still within its window)
   let popupAnn = null
   try {
@@ -87,6 +105,9 @@ exports.main = async (event, context) => {
       lateCount: caller.lateCount ?? 0,
       gkHalvesOwed: caller.gkHalvesOwed ?? 0,
       absentCount: caller.absentCount ?? 0,
+      // Lets the signup button stop someone before the server has to
+      waiverPending: await waiverPendingFor(db, configSnap.data?.season ?? '', caller),
+      waiverTitle: waiverTitleForCaller,
     } : null,
   }
 }

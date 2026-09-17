@@ -3,6 +3,20 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+
+// True only when the waiver actually gates registration AND this caller is a
+// member who hasn't confirmed. Visitors and 未激活 accounts are never nagged —
+// which also keeps a review account clear of it.
+async function waiverPendingFor(db, season, user) {
+  if (!season || !user) return false
+  if (!['annual', 'per_session'].includes(user.membershipType)) return false
+  const wSnap = await db.collection('waivers').doc(season).get().catch(() => ({ data: null }))
+  if (!wSnap.data || wSnap.data.required === false) return false
+  const sig = await db.collection('waiverSignatures')
+    .doc(season + '_' + user._id).get().catch(() => ({ data: null }))
+  return !sig.data || sig.data.version !== wSnap.data.version
+}
+
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
   const [annRes, matchRes, configRes, eventRes, userRes] = await Promise.all([
@@ -19,6 +33,9 @@ exports.main = async (event, context) => {
       : Promise.resolve({ data: [] }),
   ])
   const nextMatch = matchRes.data[0] ?? null
+  const waiverTitle = await db.collection('waivers')
+    .doc(configRes.data?.season ?? '_none').get()
+    .then(r => r.data?.title ?? '').catch(() => '')
 
   // 赛季年卡登记 prompt: shown only to someone who has something to do about
   // it — an annual member who hasn't responded yet. No tallies anywhere.
@@ -51,5 +68,7 @@ exports.main = async (event, context) => {
     activeEvent: activeEvent ? { ...activeEvent, id: activeEvent._id } : null,
     season: configRes.data?.season ?? '',
     seasonDrive,
+    waiverPending: await waiverPendingFor(db, configRes.data?.season ?? '', caller),
+    waiverTitle: waiverTitle,
   }
 }

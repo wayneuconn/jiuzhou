@@ -78,9 +78,12 @@ Page({
           activeEvent: { id: string; title: string; status: string } | null
           season: string
           seasonDrive: { season: string; deadline: number | null } | null
+          waiverPending: boolean
+          waiverTitle: string
         }
       }
-      const { announcements, nextMatch, activeEvent, season, seasonDrive } = res.result
+      const { announcements, nextMatch, activeEvent, season, seasonDrive, waiverPending, waiverTitle } = res.result
+      if (waiverPending) this._promptWaiver(waiverTitle)
       this.setData({
         announcements: announcements.map(a => ({ ...a, contentHtml: markdownToHtml(a.content) })),
         season,
@@ -139,6 +142,22 @@ Page({
 
   goToProfile() {
     wx.switchTab({ url: '/pages/profile/index' })
+  },
+
+  // Nag once per app launch, always dismissible. Only members with an
+  // outstanding gating waiver reach here — the cloud side filters the rest.
+  async _promptWaiver(title: string) {
+    const app = getApp<{ globalData: { waiverPromptShown: boolean } }>()
+    if (app.globalData.waiverPromptShown) return
+    app.globalData.waiverPromptShown = true
+    const res = await wx.showModal({
+      title: title || '本赛季参与须知',
+      content: '你还没有完成本赛季参与须知的确认。未完成前无法报名比赛。',
+      confirmText: '现在确认',
+      cancelText: '稍后再确认',
+      confirmColor: '#00C9A7',
+    })
+    if (res.confirm) this.goToProfile()
   },
 
   goToEvent() {

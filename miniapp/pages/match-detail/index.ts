@@ -148,6 +148,9 @@ Page({
     myGkOwed: 0,
     gkRoomLeft: 0,
     gkFullAvailable: false,
+    // 参与须知 not confirmed — signup is stopped here before it reaches the server
+    waiverPending: false,
+    waiverTitle: '',
     loadError: false,
     canBringFriend: false,
     canStartDraft: false,
@@ -248,6 +251,8 @@ Page({
             lateCount: number
             gkHalvesOwed: number
             absentCount: number
+            waiverPending: boolean
+            waiverTitle: string
           } | null
         }
       }
@@ -590,6 +595,8 @@ Page({
         myGkOwed,
         gkRoomLeft: gkRoom,
         gkFullAvailable,
+        waiverPending: callerInfo?.waiverPending ?? false,
+        waiverTitle: callerInfo?.waiverTitle ?? '',
         showDraft,
         showBehaviorTags,
         showAdminCaptain,
@@ -676,6 +683,8 @@ Page({
     // native back arrow works as a second way out alongside 「以后再说」
     wx.navigateTo({ url: '/pages/onboard/profile/index' })
   },
+
+  goProfileForWaiver() { wx.switchTab({ url: '/pages/profile/index' }) },
 
   goApplyMembership() {
     wx.switchTab({ url: '/pages/profile/index' })
@@ -877,8 +886,24 @@ Page({
     }
   },
 
+  // Stop here rather than letting registerForMatch throw: a modal that offers
+  // to take them straight to the form beats an error toast.
+  async _waiverBlocks(): Promise<boolean> {
+    if (!this.data.waiverPending) return false
+    const res = await wx.showModal({
+      title: '还未完成' + (this.data.waiverTitle || '参与须知'),
+      content: '报名前需要先阅读并确认本赛季参与须知，完成后即可报名。',
+      confirmText: '去确认',
+      cancelText: '稍后',
+      confirmColor: '#00C9A7',
+    })
+    if (res.confirm) wx.switchTab({ url: '/pages/profile/index' })
+    return true
+  },
+
   async register() {
     this.setData({ showAgreementModal: false })
+    if (await this._waiverBlocks()) return
     // 旷赛 debt outranks the 迟到 duty (matching registerForMatch), so only one
     // of the two prompts ever shows
     let gkHalves = 0
@@ -937,6 +962,7 @@ Page({
   },
 
   async registerWaitlist() {
+    if (await this._waiverBlocks()) return
     this.setData({ showWaitlistModal: false, busy: true })
     try {
       try {
