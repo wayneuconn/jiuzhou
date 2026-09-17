@@ -25,6 +25,7 @@ interface JiuzhouAppOption {
     seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note' | 'questions'> | null
     myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday' | 'answers'> | null
     seasonWaiver: SeasonWaiverVM | null
+    waiverPromptShown: boolean
   }
   loginReady: Promise<void>
   autoLogin: () => Promise<void>
@@ -47,6 +48,9 @@ App<JiuzhouAppOption>({
     seasonDrive: null,
     myRenewal: null,
     seasonWaiver: null,
+    // Reset every cold start, so the waiver prompt shows once per launch
+    // rather than on every visit to 首页
+    waiverPromptShown: false,
   },
 
   // Resolves once autoLogin has finished (success or failure). Pages must

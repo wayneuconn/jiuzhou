@@ -95,6 +95,9 @@ Page({
     waiverAgreed: false,
     waiverSigning: false,
     waiverHasInk: false,
+    // The signature and agree sections stay hidden until the text has been
+    // scrolled through — reasonable notice is what makes a clickwrap stick
+    waiverRead: false,
     saved: false,
     isAdmin: false,
     pendingApplications: 0,
@@ -195,11 +198,28 @@ Page({
 
   // ── 赛季确认书 ───────────────────────────────────────────────────────────
   openWaiverModal() {
-    this.setData({ showWaiverModal: true, waiverAgreed: false, waiverHasInk: false })
-    if (this.data.seasonWaiver?.handwriting && !this.data.seasonWaiver?.signed) {
-      // The node only exists once the sheet has rendered
-      wx.nextTick(() => this._initSignaturePad())
-    }
+    this.setData({ showWaiverModal: true, waiverAgreed: false, waiverHasInk: false, waiverRead: false })
+    wx.nextTick(() => {
+      // Text short enough not to scroll counts as read — otherwise the gate
+      // would never open
+      wx.createSelectorQuery().in(this)
+        .select('.waiver-body')
+        .fields({ size: true, scrollOffset: true })
+        .exec((res) => {
+          const box = res?.[0] as { height?: number; scrollHeight?: number } | undefined
+          if (box && box.scrollHeight !== undefined && box.height !== undefined
+              && box.scrollHeight <= box.height + 4) {
+            this.setData({ waiverRead: true })
+          }
+        })
+      if (this.data.seasonWaiver?.handwriting && !this.data.seasonWaiver?.signed) {
+        this._initSignaturePad()
+      }
+    })
+  },
+
+  onWaiverScrolledToEnd() {
+    if (!this.data.waiverRead) this.setData({ waiverRead: true })
   },
   closeWaiverModal() { this.setData({ showWaiverModal: false }) },
 

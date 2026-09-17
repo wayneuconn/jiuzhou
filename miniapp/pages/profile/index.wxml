@@ -315,7 +315,7 @@
       <view style="font-size:32rpx;font-weight:700;color:#e8f0eb;margin-bottom:6rpx;">{{seasonWaiver.title}}</view>
       <view class="text-muted" style="font-size:22rpx;margin-bottom:20rpx;">{{seasonWaiver.season}} 赛季 · 每赛季确认一次</view>
 
-      <scroll-view scroll-y class="waiver-body">
+      <scroll-view scroll-y class="waiver-body" bindscrolltolower="onWaiverScrolledToEnd" lower-threshold="40">
         <text>{{seasonWaiver.body}}</text>
       </scroll-view>
 
@@ -323,7 +323,11 @@
         <view class="pick-tap pick-tap-off" bindtap="openWaiverOriginal">📄 查看原件</view>
       </view>
 
-      <block wx:if="{{!seasonWaiver.signed}}">
+      <view wx:if="{{!seasonWaiver.signed && !waiverRead}}" class="waiver-locked">
+        ↓ 请滑动到底部读完全文，之后才能确认
+      </view>
+
+      <block wx:if="{{!seasonWaiver.signed && waiverRead}}">
         <view style="margin:24rpx 0 20rpx;">
           <view class="text-muted" style="font-size:22rpx;margin-bottom:10rpx;">真实姓名</view>
           <input class="form-input" value="{{waiverRealName}}" bindinput="onWaiverName"
