@@ -62,18 +62,3 @@ input.settings-input { height: 88rpx; }
   color: #E53E3E;
   padding: 6rpx 10rpx;
 }
-
-.waiver-textarea {
-  min-height: 280rpx;
-  line-height: 1.7;
-}
-
-.sig-thumb {
-  width: 140rpx;
-  height: 70rpx;
-  background: #0F1620;
-  border: 1rpx solid #1E2D3D;
-  border-radius: 8rpx;
-  flex-shrink: 0;
-  margin-left: 12rpx;
-}
