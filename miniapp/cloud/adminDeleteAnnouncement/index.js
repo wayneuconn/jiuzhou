@@ -12,5 +12,6 @@ exports.main = async (event) => {
   if (!id) throw new Error('id required')
 
   await db.collection('announcements').doc(id).remove()
+  await db.collection('announcementAcks').where({ annId: id }).remove().catch(() => {})
   return { success: true }
 }

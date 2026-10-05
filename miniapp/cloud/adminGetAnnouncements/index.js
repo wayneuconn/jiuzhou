@@ -1,6 +1,7 @@
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
+const _ = db.command
 
 exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext()
@@ -15,5 +16,16 @@ exports.main = async (event) => {
     .get()
     .catch(() => ({ data: [] }))
 
-  return { announcements: res.data.map(a => ({ ...a, id: a._id })) }
+  // Who has confirmed each 需确认 announcement
+  const ackIds = res.data.filter(a => a.requireAck).map(a => a._id)
+  const acks = ackIds.length
+    ? await db.collection('announcementAcks').where({ annId: _.in(ackIds) })
+        .orderBy('ackedAt', 'asc').limit(1000).get().catch(() => ({ data: [] }))
+    : { data: [] }
+  const byAnn = {}
+  for (const r of acks.data) (byAnn[r.annId] = byAnn[r.annId] || []).push(r.displayName || '?')
+
+  return {
+    announcements: res.data.map(a => ({ ...a, id: a._id, ackNames: byAnn[a._id] || [] })),
+  }
 }

@@ -13,8 +13,15 @@
           <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;">{{item.title}}</view>
           <view wx:if="{{item.pinned}}" class="badge badge-teal">置顶</view>
           <view wx:if="{{item.popup}}" class="badge badge-gold">弹窗</view>
+          <view wx:if="{{item.requireAck}}" class="badge badge-gold">需确认</view>
         </view>
         <view class="text-muted" style="font-size:24rpx;line-height:1.5;">{{item.content}}</view>
+        <view wx:if="{{item.requireAck}}" style="margin-top:12rpx;" catchtap="toggleAcks" data-id="{{item.id}}">
+          <view style="font-size:24rpx;color:#00C9A7;">已确认 {{item.ackNames.length}} 人 {{ackOpenId === item.id ? '▲' : '▼'}}</view>
+          <view wx:if="{{ackOpenId === item.id}}" class="text-muted" style="font-size:22rpx;line-height:1.6;margin-top:6rpx;">
+            {{item.ackNames.length ? item.ackNames : '还没有人确认'}}
+          </view>
+        </view>
       </view>
     </view>
     <view class="flex-row" style="gap:12rpx;justify-content:flex-end;">
@@ -40,6 +47,7 @@
         <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">内容</view>
         <textarea class="ann-textarea" value="{{form.content}}" bindinput="onContent" placeholder="公告内容..." auto-height adjust-position="{{false}}" maxlength="-1"/>
         <view class="text-muted" style="font-size:20rpx;margin-top:8rpx;">支持 Markdown：**粗体**、- 列表、### 标题、--- 分割线</view>
+        <view class="text-muted" style="font-size:20rpx;margin-top:4rpx;">链接：直接贴网址，或写 [显示文字](网址)，大家可一键复制</view>
       </view>
       <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:20rpx;">
         <view style="font-size:28rpx;color:#e8f0eb;">置顶</view>
@@ -60,6 +68,13 @@
             <view class="ann-input">{{form.popupUntil || '一直显示'}}</view>
           </picker>
           <view wx:if="{{form.popupUntil}}" class="text-muted" style="font-size:24rpx;padding:0 12rpx;" bindtap="clearPopupUntil">清除</view>
+        </view>
+        <view class="flex-row" style="justify-content:space-between;align-items:center;margin-top:20rpx;">
+          <view style="flex:1;min-width:0;padding-right:16rpx;">
+            <view style="font-size:28rpx;color:#e8f0eb;">需要确认</view>
+            <view class="text-muted" style="font-size:20rpx;margin-top:4rpx;">点「确认」后不再弹出；不确认会退回首页，下次进比赛页再弹</view>
+          </view>
+          <switch checked="{{form.requireAck}}" bindchange="onRequireAck" color="#F0B429"/>
         </view>
       </view>
 

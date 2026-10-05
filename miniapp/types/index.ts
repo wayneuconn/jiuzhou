@@ -327,6 +327,8 @@ export interface Announcement {
   // Pops up on the match page when opened; popupUntil null = no expiry
   popup?: boolean
   popupUntil?: number | null
+  // Popup must be confirmed; once confirmed it never pops for that user again
+  requireAck?: boolean
   createdAt: number
   updatedAt: number
 }

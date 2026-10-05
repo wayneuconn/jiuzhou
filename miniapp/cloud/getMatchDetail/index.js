@@ -1,7 +1,7 @@
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
-
+const _ = db.command
 
 // True only when the waiver actually gates registration AND this caller is a
 // member who hasn't confirmed. Visitors and 未激活 accounts are never nagged —
@@ -78,8 +78,23 @@ exports.main = async (event, context) => {
       .limit(5)
       .get()
       .catch(() => ({ data: [] }))
-    const live = annSnap.data.find(a => !a.popupUntil || a.popupUntil > now)
-    if (live) popupAnn = { id: live._id, title: live.title, content: live.content }
+    const live = annSnap.data.filter(a => !a.popupUntil || a.popupUntil > now)
+    // 需确认 popups stop once this caller has confirmed them; visitors can't
+    // confirm, so they just see it like any other popup.
+    const ackIds = live.filter(a => a.requireAck).map(a => a._id + '_' + callerUid)
+    const acked = new Set()
+    if (callerUid && ackIds.length) {
+      const ackSnap = await db.collection('announcementAcks')
+        .where({ _id: _.in(ackIds) }).get().catch(() => ({ data: [] }))
+      ackSnap.data.forEach(r => acked.add(r.annId))
+    }
+    const pick = live.find(a => !a.requireAck || !acked.has(a._id))
+    if (pick) {
+      popupAnn = {
+        id: pick._id, title: pick.title, content: pick.content,
+        requireAck: !!pick.requireAck && !!callerUid,
+      }
+    }
   } catch (_) {}
 
   return {

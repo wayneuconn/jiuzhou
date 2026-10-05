@@ -165,3 +165,34 @@ page {
   padding: 8rpx 20rpx;
   flex-shrink: 0;
 }
+
+/* Copyable link row under an announcement (mini programs can't open URLs) */
+.ann-link {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  background: #1A2535;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  margin-top: 12rpx;
+}
+
+.ann-link-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 24rpx;
+  color: #00C9A7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ann-link-btn {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #0D1117;
+  background: #00C9A7;
+  border-radius: 10rpx;
+  padding: 8rpx 20rpx;
+  flex-shrink: 0;
+}

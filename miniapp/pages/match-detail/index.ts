@@ -1,5 +1,6 @@
 import type { Match, Registration, MatchTag } from '../../types/index'
-import { formatDate, STATUS_LABEL, STATUS_BADGE, REG_STATUS_LABEL, markdownToHtml } from '../../utils/format'
+import { formatDate, STATUS_LABEL, STATUS_BADGE, REG_STATUS_LABEL, markdownToHtml, extractLinks } from '../../utils/format'
+import type { AnnLink } from '../../utils/format'
 import { bankAdminSubscribe } from '../../utils/subscribe'
 import { ADMIN_CONTACT } from '../../utils/contact'
 
@@ -172,6 +173,10 @@ Page({
     showPopupAnn: false,
     popupAnnTitle: '',
     popupAnnHtml: '',
+    popupAnnId: '',
+    popupAnnLinks: [] as AnnLink[],
+    popupAnnRequireAck: false,
+    ackingPopupAnn: false,
     statsDirty: false,
     adminContact: ADMIN_CONTACT,
     captainPickerTeam: '' as 'A' | 'B' | '',
@@ -243,7 +248,7 @@ Page({
           agreementText: string
           lateThreshold: number
           gkHalvesTaken: number
-          popupAnn: { id: string; title: string; content: string } | null
+          popupAnn: { id: string; title: string; content: string; requireAck?: boolean } | null
           callerInfo: {
             membershipType: string
             role: string
@@ -285,6 +290,9 @@ Page({
         this.setData({
           popupAnnTitle: popupAnn.title,
           popupAnnHtml: markdownToHtml(popupAnn.content || ''),
+          popupAnnId: popupAnn.id,
+          popupAnnLinks: extractLinks(popupAnn.content || ''),
+          popupAnnRequireAck: !!popupAnn.requireAck,
           showPopupAnn: true,
         })
       }
@@ -694,7 +702,33 @@ Page({
   closeAgreementModal() { this.setData({ showAgreementModal: false }) },
   openWaitlistModal()   { this.setData({ showWaitlistModal: true }) },
   closeWaitlistModal()  { this.setData({ showWaitlistModal: false }) },
-  closePopupAnn()       { this.setData({ showPopupAnn: false }) },
+  closePopupAnn() {
+    // 需确认 popups can only be left via 确认 or 暂不确认
+    if (this.data.popupAnnRequireAck) return
+    this.setData({ showPopupAnn: false })
+  },
+  copyAnnLink(e: WechatMiniprogram.BaseEvent) {
+    const { url } = e.currentTarget.dataset as { url: string }
+    wx.setClipboardData({ data: url, success: () => wx.showToast({ title: '链接已复制', icon: 'success' }) })
+  },
+  // Not confirming = not entering the match page; it pops again next visit
+  declinePopupAnn() {
+    this.setData({ showPopupAnn: false })
+    wx.switchTab({ url: '/pages/home/index' })
+  },
+  async ackPopupAnn() {
+    if (this.data.ackingPopupAnn) return
+    this.setData({ ackingPopupAnn: true })
+    try {
+      await wx.cloud.callFunction({ name: 'ackAnnouncement', data: { id: this.data.popupAnnId } })
+      this.setData({ showPopupAnn: false })
+    } catch (err: unknown) {
+      const msg = (err as { errMsg?: string; message?: string })?.errMsg || (err as Error)?.message || '请重试'
+      wx.showModal({ title: '确认失败', content: msg, showCancel: false })
+    } finally {
+      this.setData({ ackingPopupAnn: false })
+    }
+  },
   openRulesModal()      { this.setData({ showRulesModal: true }) },
   closeRulesModal()     { this.setData({ showRulesModal: false }) },
   openFriendModal()     { this.setData({ showFriendModal: true, friendName: '', friendPosMap: {} }) },

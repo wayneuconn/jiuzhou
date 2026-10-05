@@ -566,10 +566,18 @@
         <view style="font-size:32rpx;">📢</view>
         <view style="font-size:34rpx;font-weight:900;color:#e8f0eb;">{{popupAnnTitle}}</view>
       </view>
-      <scroll-view scroll-y style="max-height:600rpx;margin-bottom:32rpx;">
+      <scroll-view scroll-y style="max-height:600rpx;margin-bottom:24rpx;">
         <rich-text nodes="{{popupAnnHtml}}" style="display:block;font-size:26rpx;line-height:1.8;"/>
       </scroll-view>
-      <button class="modal-btn-teal" bindtap="closePopupAnn">知道了</button>
+      <view wx:for="{{popupAnnLinks}}" wx:key="url" class="ann-link" bindtap="copyAnnLink" data-url="{{item.url}}">
+        <view class="ann-link-label">🔗 {{item.label}}</view>
+        <view class="ann-link-btn">复制</view>
+      </view>
+      <block wx:if="{{popupAnnRequireAck}}">
+        <button class="modal-btn-teal" style="margin-top:16rpx;" bindtap="ackPopupAnn" loading="{{ackingPopupAnn}}">我已阅读并确认</button>
+        <button class="modal-btn-ghost" style="margin-top:16rpx;" bindtap="declinePopupAnn">暂不确认，返回首页</button>
+      </block>
+      <button wx:else class="modal-btn-teal" style="margin-top:16rpx;" bindtap="closePopupAnn">知道了</button>
     </view>
   </view>
 
