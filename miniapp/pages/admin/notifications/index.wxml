@@ -1,0 +1,89 @@
+<view class="container">
+  <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
+    <view style="font-size:48rpx;font-weight:900;">通知规则</view>
+    <button class="btn-primary" style="padding:12rpx 28rpx;font-size:26rpx;" bindtap="openNew">+ 新建</button>
+  </view>
+  <view class="text-muted" style="font-size:22rpx;line-height:1.6;margin-bottom:24rpx;">
+    每条规则对每场比赛只发一次。微信订阅消息需要对方事先授权（报名、候补时会顺带授权一次），没授权的人收不到。
+  </view>
+
+  <view wx:if="{{loading}}" class="text-muted" style="text-align:center;padding:60rpx 0;">加载中...</view>
+
+  <view wx:for="{{rules}}" wx:key="id" class="card" style="margin-bottom:16rpx;{{item.enabled ? '' : 'opacity:0.5;'}}">
+    <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
+      <view style="font-size:28rpx;font-weight:700;color:#e8f0eb;flex:1;min-width:0;">{{item.name}}</view>
+      <switch checked="{{item.enabled}}" bindchange="toggle" data-id="{{item.id}}" color="#00C9A7"/>
+    </view>
+    <view class="text-muted" style="font-size:24rpx;line-height:1.7;">
+      <view>⏰ {{item.whenLabel}}</view>
+      <view>👥 {{item.audienceLabel}}</view>
+      <view>💬 {{item.text}}</view>
+      <view style="font-size:22rpx;margin-top:4rpx;">{{item.lastLabel}}</view>
+    </view>
+    <view class="flex-row" style="gap:12rpx;justify-content:flex-end;margin-top:12rpx;">
+      <button size="mini" class="btn-ghost" style="font-size:24rpx;" catchtap="openEdit" data-id="{{item.id}}">编辑</button>
+      <button size="mini" class="btn-ghost btn-danger" style="font-size:24rpx;" catchtap="deleteRule" data-id="{{item.id}}">删除</button>
+    </view>
+  </view>
+
+  <view wx:if="{{rules.length === 0 && !loading}}" class="card" style="text-align:center;padding:80rpx 0;">
+    <view class="text-muted">暂无规则</view>
+  </view>
+
+  <view wx:if="{{showModal}}" class="modal-mask" catchtap="closeModal">
+    <view class="modal-box" catchtap="noop">
+      <view style="font-size:32rpx;font-weight:700;color:#e8f0eb;margin-bottom:24rpx;">{{form.id ? '编辑规则' : '新建规则'}}</view>
+
+      <view style="margin-bottom:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">规则名称（只有管理员看得到）</view>
+        <input class="ann-input" value="{{form.name}}" bindinput="onName" placeholder="如：开球前 2 小时提醒" adjust-position="{{false}}"/>
+      </view>
+
+      <view style="margin-bottom:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">什么时候发</view>
+        <picker range="{{triggers}}" range-key="label" value="{{form.triggerIdx}}" bindchange="onTrigger">
+          <view class="ann-input">{{triggers[form.triggerIdx].label}}</view>
+        </picker>
+      </view>
+      <view wx:if="{{form.triggerIdx === 0}}" style="margin-bottom:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">阶段</view>
+        <picker range="{{phases}}" range-key="label" value="{{form.phaseIdx}}" bindchange="onPhase">
+          <view class="ann-input">{{phases[form.phaseIdx].label}}</view>
+        </picker>
+        <view class="text-muted" style="font-size:20rpx;margin-top:8rpx;">新建时如果有比赛正处于这个阶段，会马上补发一次</view>
+      </view>
+      <view wx:if="{{form.triggerIdx === 1}}" style="margin-bottom:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">开球前多少分钟（120 = 2 小时，1440 = 1 天）</view>
+        <input class="ann-input" type="number" value="{{form.minutes}}" bindinput="onMinutes" adjust-position="{{false}}"/>
+      </view>
+      <view wx:if="{{form.triggerIdx === 2}}" style="margin-bottom:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">美东时间</view>
+        <picker mode="time" value="{{form.time}}" bindchange="onTime">
+          <view class="ann-input">{{form.time}}</view>
+        </picker>
+      </view>
+
+      <view style="margin-bottom:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">发给谁</view>
+        <picker range="{{audiences}}" range-key="label" value="{{form.audienceIdx}}" bindchange="onAudience">
+          <view class="ann-input">{{audiences[form.audienceIdx].label}}</view>
+        </picker>
+      </view>
+
+      <view style="margin-bottom:20rpx;">
+        <view class="text-muted" style="font-size:22rpx;margin-bottom:8rpx;">通知文案（最多 20 字，地点和开球时间会自动带上）</view>
+        <input class="ann-input" value="{{form.text}}" bindinput="onText" maxlength="20" placeholder="如：今天有球,别忘了你已报名" adjust-position="{{false}}"/>
+      </view>
+
+      <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:28rpx;">
+        <view style="font-size:28rpx;color:#e8f0eb;">启用</view>
+        <switch checked="{{form.enabled}}" bindchange="onEnabled" color="#00C9A7"/>
+      </view>
+
+      <view class="flex-row" style="gap:16rpx;">
+        <button class="btn-ghost" style="flex:1;" bindtap="closeModal">取消</button>
+        <button class="btn-primary" style="flex:1;" bindtap="save" loading="{{saving}}">保存</button>
+      </view>
+    </view>
+  </view>
+</view>

@@ -19,6 +19,7 @@
     "pages/admin/settings/index",
     "pages/admin/attendance/index",
     "pages/admin/announcements/index",
+    "pages/admin/notifications/index",
     "pages/privacy/index"
   ],
   "window": {
