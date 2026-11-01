@@ -14,6 +14,14 @@ function etOffsetMinutes(date) {
   return Math.round((new Date(utcStr) - new Date(etStr)) / 60000)
 }
 
+// ET wall clock → epoch ms. The offset has to be read at the target instant,
+// not at UTC midnight: on the two DST change days those differ by an hour.
+function etWallClockTs(y, mo, d, h, mi) {
+  const naive = Date.UTC(y, mo - 1, d, h || 0, mi || 0)
+  const guess = naive + etOffsetMinutes(new Date(naive)) * 60000
+  return naive + etOffsetMinutes(new Date(guess)) * 60000
+}
+
 // Match-day registration cutoff: 12:00 ET on the day of kickoff. After this,
 // new signups queue for manual review and auto-promotion pauses — slots are
 // filled only by captains/admins (bumpWaitlist).
@@ -24,8 +32,7 @@ function registrationCutoffTs(matchDate) {
   const y = Number(parts.find(p => p.type === 'year').value)
   const mo = Number(parts.find(p => p.type === 'month').value)
   const da = Number(parts.find(p => p.type === 'day').value)
-  const utcBase = new Date(Date.UTC(y, mo - 1, da))
-  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + 12 * 3600000
+  return etWallClockTs(y, mo, da, 12, 0)
 }
 
 // Waitlist priority tiers: 1 = annual self, 2 = friend brought by annual,
