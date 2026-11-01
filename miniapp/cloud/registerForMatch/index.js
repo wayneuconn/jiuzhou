@@ -80,8 +80,17 @@ async function higherPriorityWaiting(matchId, tier) {
   return snap.data.some(r => (r.waitlistTier ?? 1) <= tier)
 }
 
-// Fill free slots from the waitlist by (tier, position). During R1 only
-// annual (tier 1) waiters may come in — friends and 次卡 wait for R2.
+// Queue order. Signups made before the match-day cutoff keep their membership
+// priority; anything after it is appended by arrival alone, tier ignored.
+function byQueueOrder(a, b) {
+  const aLate = a.waitlistLate === true, bLate = b.waitlistLate === true
+  return (aLate ? 1 : 0) - (bLate ? 1 : 0)
+    || (aLate ? 0 : (a.waitlistTier ?? 1) - (b.waitlistTier ?? 1))
+    || (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99)
+}
+
+// Fill free slots from the waitlist in queue order. During R1 only annual
+// (tier 1) waiters may come in — friends and 次卡 wait for R2.
 async function promoteFromWaitlist(matchId) {
   const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
   const match = matchSnap.data
@@ -111,9 +120,7 @@ async function promoteFromWaitlist(matchId) {
     const eligible = waitSnap.data
       .map(r => ({ ...r, _tier: r.waitlistTier ?? 1 }))
       .filter(r => r._tier <= maxTier)
-      // Auto-promotion only runs before the cutoff, where membership priority
-      // rules the queue (after it, captains/admins pick manually in FCFS order)
-      .sort((a, b) => a._tier - b._tier || (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))
+      .sort(byQueueOrder)
     if (evenGate && eligible.length < 2) break
     const next = eligible[0]
     if (!next) break
@@ -219,6 +226,7 @@ exports.main = async (event, context) => {
   if (!regOpen && !waitlistOnlyOpen) {
     throw new Error('报名与候补已截止')
   }
+  const postCutoff = Date.now() >= registrationCutoffTs(match.date)
 
   // ── bring-a-friend: annual members with an active own registration ────────
   if (event.friendName !== undefined) {
@@ -252,6 +260,7 @@ exports.main = async (event, context) => {
         status: 'waitlist',
         waitlistPosition: position,
         waitlistTier: 2,
+        waitlistLate: postCutoff,
         isGuest: true,
         broughtBy: user._id,
         broughtByName: user.displayName,
@@ -329,9 +338,6 @@ exports.main = async (event, context) => {
   }
 
   const confirmedCount = confirmedSnap.total ?? 0
-  // After the match-day cutoff (14:00 ET) everything queues for manual review
-  // — except admin proxy registration, which IS the review.
-  const postCutoff = Date.now() >= registrationCutoffTs(match.date)
   // Waitlist when: full (incl. full-locked ready state), past cutoff, or R1
   // as 次卡 (annual-only round), or someone with equal/higher priority is
   // already waiting (no queue jumping).
@@ -361,6 +367,7 @@ exports.main = async (event, context) => {
         status: mustWait ? 'waitlist' : 'confirmed',
         waitlistPosition: mustWait ? await nextWaitlistPosition(matchId) : null,
         waitlistTier: myTier,
+        waitlistLate: postCutoff,
         registeredAt: db.serverDate(),
         autoAccept: reAutoAccept,
         gkPenalty,
@@ -397,6 +404,7 @@ exports.main = async (event, context) => {
       status: mustWait ? 'waitlist' : 'confirmed',
       waitlistPosition: mustWait ? await nextWaitlistPosition(matchId) : null,
       waitlistTier: myTier,
+      waitlistLate: postCutoff,
       team: null,
       tags: [],
       autoAccept: typeof event.autoAccept === 'boolean' ? event.autoAccept : true,

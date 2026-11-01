@@ -325,19 +325,18 @@ Page({
       const confirmedList: RegVM[] = active
         .filter(r => r.status === 'confirmed' || r.status === 'promoted')
         .map(toVM)
-      // Waitlist order = promotion order: priority tier first, then arrival
-      // Past the noon cutoff membership priority stops mattering — the queue
-      // is plain first-come-first-served by registration time.
-      const pastCutoff = Date.now() >= new Date(
-        new Date(match.date).getFullYear(), new Date(match.date).getMonth(),
-        new Date(match.date).getDate(), 12, 0, 0).getTime()
+      // Queue order = promotion order, and it only ever grows at the tail:
+      // signups made before the match-day cutoff keep their membership
+      // priority, later ones are appended by arrival with tier ignored.
       const waitlistList: RegVM[] = active
         .filter(r => r.status === 'waitlist')
         .map(toVM)
-        .sort((a, b) => pastCutoff
-          ? ((a.registeredAt ?? 0) - (b.registeredAt ?? 0))
-          : (((a.waitlistTier ?? 1) - (b.waitlistTier ?? 1))
-             || ((a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))))
+        .sort((a, b) => {
+          const aLate = a.waitlistLate === true, bLate = b.waitlistLate === true
+          return (aLate ? 1 : 0) - (bLate ? 1 : 0)
+            || (aLate ? 0 : (a.waitlistTier ?? 1) - (b.waitlistTier ?? 1))
+            || ((a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99))
+        })
       const excusedList: RegVM[] = active.filter(r => r.status === 'excused' && !r.isGuest).map(toVM)
 
       const myReg = user ? (registrations.find(r => r.uid === user._id) ?? null) : null
