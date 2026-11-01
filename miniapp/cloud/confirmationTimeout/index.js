@@ -264,10 +264,9 @@ exports.main = async (event, context) => {
     try {
       const wSnap = await db.collection('registrations')
         .where({ matchId: m._id, status: 'waitlist' })
-        .orderBy('registeredAt', 'asc')
-        .limit(1)
+        .limit(100)
         .get().catch(() => ({ data: [] }))
-      const pending = wSnap.data[0]
+      const pending = wSnap.data.sort(byQueueOrder)[0]
       if (cnt === 22 && pending) {
         const notifyUid = pending.isGuest ? pending.broughtBy : pending.uid
         const uSnap = notifyUid ? await db.collection('users').doc(notifyUid).get().catch(() => ({ data: null })) : { data: null }
