@@ -142,6 +142,9 @@ export interface Registration {
   gkHalvesServed?: number
   // Waitlist priority: 1 = annual self, 2 = friend brought by annual, 3 = per_session/other
   waitlistTier?: number
+  // Signed up after the match-day 12:00 cutoff — queues behind everyone who
+  // made it in on time, by arrival, with waitlistTier no longer applied
+  waitlistLate?: boolean
   // Guest (friend) registrations added by an annual member
   isGuest?: boolean
   broughtBy?: string | null
