@@ -1,6 +1,6 @@
 import type { Announcement } from '../../../types/index'
 
-type AnnVM = Announcement & { id: string }
+type AnnVM = Announcement & { id: string; ackNames: string[] }
 
 Page({
   data: {
@@ -8,7 +8,8 @@ Page({
     loading: true,
     showModal: false,
     saving: false,
-    form: { id: '', title: '', content: '', pinned: false, popup: false, popupUntil: '' },
+    form: { id: '', title: '', content: '', pinned: false, popup: false, popupUntil: '', requireAck: false },
+    ackOpenId: '',
   },
 
   onShow() { this.load() },
@@ -17,7 +18,7 @@ Page({
     this.setData({ loading: true })
     try {
       const res = await wx.cloud.callFunction({ name: 'adminGetAnnouncements' }) as unknown as {
-        result: { announcements: (Announcement & { id: string })[] }
+        result: { announcements: AnnVM[] }
       }
       const announcements: AnnVM[] = res.result.announcements.map(a => ({ ...a }))
       this.setData({ announcements })
@@ -26,7 +27,7 @@ Page({
   },
 
   openNew() {
-    this.setData({ showModal: true, form: { id: '', title: '', content: '', pinned: false, popup: false, popupUntil: '' } })
+    this.setData({ showModal: true, form: { id: '', title: '', content: '', pinned: false, popup: false, popupUntil: '', requireAck: false } })
   },
 
   openEdit(e: WechatMiniprogram.BaseEvent) {
@@ -42,6 +43,7 @@ Page({
         popupUntil: until
           ? `${until.getFullYear()}-${String(until.getMonth() + 1).padStart(2, '0')}-${String(until.getDate()).padStart(2, '0')}`
           : '',
+        requireAck: !!ann.requireAck,
       },
     })
   },
@@ -55,9 +57,14 @@ Page({
   onPopup(e: WechatMiniprogram.SwitchChange) { this.setData({ 'form.popup': e.detail.value }) },
   onPopupUntil(e: WechatMiniprogram.PickerChange) { this.setData({ 'form.popupUntil': e.detail.value as unknown as string }) },
   clearPopupUntil() { this.setData({ 'form.popupUntil': '' }) },
+  onRequireAck(e: WechatMiniprogram.SwitchChange) { this.setData({ 'form.requireAck': e.detail.value }) },
+  toggleAcks(e: WechatMiniprogram.BaseEvent) {
+    const { id } = e.currentTarget.dataset as { id: string }
+    this.setData({ ackOpenId: this.data.ackOpenId === id ? '' : id })
+  },
 
   async save() {
-    const { id, title, content, pinned, popup, popupUntil } = this.data.form
+    const { id, title, content, pinned, popup, popupUntil, requireAck } = this.data.form
     if (!title.trim() || !content.trim()) { wx.showToast({ title: '请填写标题和内容', icon: 'none' }); return }
     this.setData({ saving: true })
     try {
@@ -69,6 +76,7 @@ Page({
           content: content.trim(),
           pinned,
           popup,
+          requireAck: popup && requireAck,
           // end of the chosen day, so it stays visible all of that date
           popupUntil: popup && popupUntil ? new Date(`${popupUntil}T23:59:59`).getTime() : null,
         },

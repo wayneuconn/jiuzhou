@@ -137,40 +137,6 @@ async function promoteFromWaitlist(matchId, waitlistMinutes) {
   await recalcMatchState(matchId)
 }
 
-// Registration-open broadcast: R1 → annual members, R2 → 次卡. Skips users
-// already on the roster/waitlist; best-effort, consumes each user's banked
-// one-time subscribe quota (活动开始通知 fields thing4/thing2/date5).
-async function notifyMatchOpen(matchId, match, membershipType, text) {
-  try {
-    const [usersSnap, regsSnap] = await Promise.all([
-      db.collection('users').where({ membershipType }).limit(200).get().catch(() => ({ data: [] })),
-      db.collection('registrations')
-        .where({ matchId, status: _.in(['confirmed', 'promoted', 'waitlist']) })
-        .limit(100).get().catch(() => ({ data: [] })),
-    ])
-    const registered = new Set(regsSnap.data.map(r => r.uid))
-    const d = new Date(match.date)
-    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
-    await Promise.all(usersSnap.data
-      .filter(u => u.openid && !registered.has(u._id))
-      .map(u => cloud.callFunction({
-        name: 'sendSubscribeMsg',
-        data: {
-          type: 'matchOpen',
-          toOpenid: u.openid,
-          data: {
-            page: `/pages/match-detail/index?id=${matchId}`,
-            templateData: {
-              thing4: { value: text.slice(0, 20) },
-              thing2: { value: (match.location || '待定').slice(0, 20) },
-              date5: { value: timeStr },
-            },
-          },
-        },
-      }).catch(() => {})))
-  } catch (_) {}
-}
-
 async function notifyPromoted(matchId, match, uid, waitlistMinutes, isGuestNotice) {
   try {
     const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
@@ -240,10 +206,9 @@ exports.main = async (event, context) => {
   let advancedToR2 = 0
   for (const m of r1Snap.data) {
     await db.collection('matches').doc(m._id).update({ data: { status: 'registration_r2' } }).catch(() => {})
-    // R2 lifts the annual-only gate — drain friends/次卡 from the waitlist,
-    // then tell 次卡 members registration is open for them
+    // R2 lifts the annual-only gate — drain friends/次卡 from the waitlist
+    // (the 次卡 broadcast is a notifyRules rule, sent at the end of the tick)
     await promoteFromWaitlist(m._id, waitlistMinutes)
-    await notifyMatchOpen(m._id, m, 'per_session', 'R2 全员报名已开放')
     advancedToR2++
   }
 
@@ -377,7 +342,7 @@ exports.main = async (event, context) => {
     if (activeSnap.data.length === 0 && futureDraftSnap.data.length === 0) {
       const nextDate = nextMatchDate(config)
       if (!isInWinterBreak(nextDate, config)) {
-        const created = await db.collection('matches').add({
+        await db.collection('matches').add({
           data: {
             date: nextDate.getTime(),
             location: config.recurringLocation ?? '待定',
@@ -390,16 +355,12 @@ exports.main = async (event, context) => {
             createdAt: db.serverDate(),
           },
         }).catch(() => null)
-        // New match opens directly in R1 — tell annual members
-        if (created?._id) {
-          await notifyMatchOpen(created._id, {
-            date: nextDate.getTime(),
-            location: config.recurringLocation ?? '待定',
-          }, 'annual', '新比赛开放报名(R1)')
-        }
       }
     }
   }
 
-  return { promoted, autoCompleted }
+  // ── 4. Scheduled / broadcast notifications (admin 通知规则 page) ─────────
+  const rules = await cloud.callFunction({ name: 'runNotifyRules', data: {} }).catch(() => null)
+
+  return { promoted, autoCompleted, notified: rules?.result?.sent ?? 0 }
 }

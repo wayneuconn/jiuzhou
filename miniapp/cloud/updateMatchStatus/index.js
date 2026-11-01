@@ -131,40 +131,6 @@ async function promoteFromWaitlist(matchId) {
   await recalcMatchState(matchId)
 }
 
-// Registration-open broadcast: R1 → annual members, R2 → 次卡. Skips users
-// already on the roster/waitlist; best-effort, consumes each user's banked
-// one-time subscribe quota (活动开始通知 fields thing4/thing2/date5).
-async function notifyMatchOpen(matchId, match, membershipType, text) {
-  try {
-    const [usersSnap, regsSnap] = await Promise.all([
-      db.collection('users').where({ membershipType }).limit(200).get().catch(() => ({ data: [] })),
-      db.collection('registrations')
-        .where({ matchId, status: _.in(['confirmed', 'promoted', 'waitlist']) })
-        .limit(100).get().catch(() => ({ data: [] })),
-    ])
-    const registered = new Set(regsSnap.data.map(r => r.uid))
-    const d = new Date(match.date)
-    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
-    await Promise.all(usersSnap.data
-      .filter(u => u.openid && !registered.has(u._id))
-      .map(u => cloud.callFunction({
-        name: 'sendSubscribeMsg',
-        data: {
-          type: 'matchOpen',
-          toOpenid: u.openid,
-          data: {
-            page: `/pages/match-detail/index?id=${matchId}`,
-            templateData: {
-              thing4: { value: text.slice(0, 20) },
-              thing2: { value: (match.location || '待定').slice(0, 20) },
-              date5: { value: timeStr },
-            },
-          },
-        },
-      }).catch(() => {})))
-  } catch (_) {}
-}
-
 // A behaviour tag is added AFTER the match it refers to, so by then the player
 // may already be signed up for the next one. Without this, the duty would sit
 // idle until their next fresh signup — possibly weeks away. Attach it to the
@@ -430,16 +396,15 @@ exports.main = async (event) => {
 
     await db.collection('matches').doc(matchId).update({ data: updateData })
 
-    // Opening R1: tell annual members a new match is up for registration
-    if (status === 'registration_r1' && match.status === 'draft') {
-      await notifyMatchOpen(matchId, match, 'annual', '新比赛开放报名(R1)')
-    }
-
-    // Opening R2 lifts the annual-only gate — drain the waitlist by priority,
-    // then tell 次卡 members registration is open for them
+    // Opening R2 lifts the annual-only gate — drain the waitlist by priority
     if (status === 'registration_r2' && match.status !== 'registration_r2') {
       await promoteFromWaitlist(matchId)
-      await notifyMatchOpen(matchId, match, 'per_session', 'R2 全员报名已开放')
+    }
+
+    // Phase broadcasts (R1/R2 开放 etc.) are notifyRules rules — run them now
+    // rather than waiting up to 5 minutes for the cron
+    if (status !== match.status) {
+      await cloud.callFunction({ name: 'runNotifyRules', data: { matchId } }).catch(() => {})
     }
 
     // Notify confirmed/promoted players if match was cancelled

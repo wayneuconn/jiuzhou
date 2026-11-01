@@ -8,7 +8,7 @@ exports.main = async (event) => {
   const caller = userSnap.data[0]
   if (!caller || caller.role !== 'admin') throw new Error('admins only')
 
-  const { id, title, content, pinned, popup, popupUntil } = event
+  const { id, title, content, pinned, popup, popupUntil, requireAck } = event
   if (!title || !content) throw new Error('title and content required')
 
   const data = {
@@ -18,6 +18,8 @@ exports.main = async (event) => {
     popup: !!popup,
     // null = show indefinitely
     popupUntil: typeof popupUntil === 'number' ? popupUntil : null,
+    // 需确认: blocks the match page until confirmed, then never pops again
+    requireAck: !!popup && !!requireAck,
     updatedAt: db.serverDate(),
   }
 

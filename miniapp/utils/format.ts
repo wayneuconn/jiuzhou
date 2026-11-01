@@ -84,8 +84,52 @@ export const TIER_LABEL: Record<string, string> = {
 
 const ESC = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
+// Mini programs can't open outside links, so a link in an announcement is
+// shown highlighted and offered as a 复制 button (see extractLinks).
+const MD_LINK = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g
+const BARE_URL = /https?:\/\/[^\s<>"'）)，。]+/g
+const LINK_STYLE = 'color:#00C9A7;text-decoration:underline;word-break:break-all;'
+
+function mdLinks(s: string): string {
+  const out: string[] = []
+  let last = 0
+  // Markdown links first, then bare URLs in the text between them, so a
+  // link's own URL is never wrapped twice.
+  const bare = (t: string) => t.replace(BARE_URL, u => `<span style="${LINK_STYLE}">${u}</span>`)
+  const re = new RegExp(MD_LINK.source, 'g')
+  let m: RegExpExecArray | null
+  while ((m = re.exec(s))) {
+    out.push(bare(s.slice(last, m.index)), `<span style="${LINK_STYLE}">${m[1]} 🔗</span>`)
+    last = m.index + m[0].length
+  }
+  out.push(bare(s.slice(last)))
+  return out.join('')
+}
+
+export interface AnnLink { label: string; url: string }
+
+// Every link in a Markdown text, in order, de-duplicated by URL.
+// [文字](url) keeps its label; a bare URL is its own label.
+export function extractLinks(md: string): AnnLink[] {
+  if (!md) return []
+  const links: AnnLink[] = []
+  const seen = new Set<string>()
+  const push = (label: string, url: string) => {
+    if (seen.has(url)) return
+    seen.add(url)
+    links.push({ label, url })
+  }
+  const mdRe = new RegExp(MD_LINK.source, 'g')
+  let m: RegExpExecArray | null
+  while ((m = mdRe.exec(md))) push(m[1], m[2])
+  const urlRe = new RegExp(BARE_URL.source, 'g')
+  const rest = md.replace(MD_LINK, ' ')
+  while ((m = urlRe.exec(rest))) push(m[0], m[0])
+  return links
+}
+
 function mdInline(s: string): string {
-  return ESC(s)
+  return mdLinks(ESC(s))
     .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#e8f0eb;font-weight:700;">$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/`(.+?)`/g, '<code style="background:#1A2535;padding:0 6px;border-radius:6px;font-family:monospace;">$1</code>')

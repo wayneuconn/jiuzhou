@@ -14,6 +14,7 @@ const OPS = {
   neq: v => ({ __op: 'neq', v }),
   in: v => ({ __op: 'in', v }),
   exists: v => ({ __op: 'exists', v }),
+  and: (...v) => ({ __op: 'and', v }),
   inc: v => ({ __op: 'inc', v }),
   remove: () => ({ __op: 'remove' }),
 }
@@ -30,6 +31,7 @@ function satisfies(doc, cond) {
         case 'neq': return got !== want.v
         case 'in': return want.v.includes(got)
         case 'exists': return want.v ? got !== undefined : got === undefined
+        case 'and': return want.v.every(w => satisfies(doc, { [field]: w }))
         default: throw new Error('stub: unsupported query op ' + want.__op)
       }
     }

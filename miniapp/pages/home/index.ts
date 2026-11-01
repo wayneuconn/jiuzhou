@@ -1,8 +1,9 @@
 import type { Match, Announcement } from '../../types/index'
-import { formatDate, STATUS_LABEL, STATUS_BADGE, markdownToHtml } from '../../utils/format'
+import { formatDate, STATUS_LABEL, STATUS_BADGE, markdownToHtml, extractLinks } from '../../utils/format'
+import type { AnnLink } from '../../utils/format'
 
 type NextMatchVM = Match & { dateStr: string; statusLabel: string; statusBadge: string }
-type AnnVM = Announcement & { contentHtml: string }
+type AnnVM = Announcement & { contentHtml: string; links: AnnLink[] }
 
 interface ActiveEventVM {
   id: string
@@ -82,7 +83,7 @@ Page({
       }
       const { announcements, nextMatch, activeEvent, season, seasonDrive } = res.result
       this.setData({
-        announcements: announcements.map(a => ({ ...a, contentHtml: markdownToHtml(a.content) })),
+        announcements: announcements.map(a => ({ ...a, contentHtml: markdownToHtml(a.content), links: extractLinks(a.content) })),
         season,
         seasonDrive: seasonDrive ?? null,
         activeEvent: activeEvent ? {
@@ -125,6 +126,11 @@ Page({
   onUnload() {
     this._eggTimers.forEach(clearTimeout)
     this._eggTimers = []
+  },
+
+  copyAnnLink(e: WechatMiniprogram.BaseEvent) {
+    const { url } = e.currentTarget.dataset as { url: string }
+    wx.setClipboardData({ data: url, success: () => wx.showToast({ title: '链接已复制', icon: 'success' }) })
   },
 
   goToMatch() {
