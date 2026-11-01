@@ -9,13 +9,20 @@ function etOffsetMinutes(date) {
   return Math.round((new Date(utcStr) - new Date(etStr)) / 60000)
 }
 
+// ET wall clock → epoch ms. The offset has to be read at the target instant,
+// not at UTC midnight: on the two DST change days those differ by an hour.
+function etWallClockTs(y, mo, d, h, mi) {
+  const naive = Date.UTC(y, mo - 1, d, h || 0, mi || 0)
+  const guess = naive + etOffsetMinutes(new Date(naive)) * 60000
+  return naive + etOffsetMinutes(new Date(guess)) * 60000
+}
+
 // 'YYYY-MM-DD' + 'HH:mm' interpreted in ET → epoch ms.
 // Kickoff times are Eastern regardless of the admin device's timezone.
 function etTimestamp(dateStr, timeStr) {
   const [y, m, d] = dateStr.split('-').map(Number)
   const [hh, mm] = (timeStr || '20:00').split(':').map(Number)
-  const utcBase = new Date(Date.UTC(y, m - 1, d))
-  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + hh * 3600000 + (mm || 0) * 60000
+  return etWallClockTs(y, m, d, hh, mm)
 }
 
 exports.main = async (event, context) => {

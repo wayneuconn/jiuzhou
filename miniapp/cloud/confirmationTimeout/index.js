@@ -13,8 +13,7 @@ function registrationCutoffTs(matchDate) {
   const y = Number(parts.find(p => p.type === 'year').value)
   const mo = Number(parts.find(p => p.type === 'month').value)
   const da = Number(parts.find(p => p.type === 'day').value)
-  const utcBase = new Date(Date.UTC(y, mo - 1, da))
-  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000 + 12 * 3600000
+  return etWallClockTs(y, mo, da, 12, 0)
 }
 
 // Returns how many minutes ET is behind UTC (300 for EST, 240 for EDT — handles DST)
@@ -22,6 +21,14 @@ function etOffsetMinutes(date) {
   const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC' })
   const etStr  = date.toLocaleString('en-US', { timeZone: 'America/New_York' })
   return Math.round((new Date(utcStr) - new Date(etStr)) / 60000)
+}
+
+// ET wall clock → epoch ms. The offset has to be read at the target instant,
+// not at UTC midnight: on the two DST change days those differ by an hour.
+function etWallClockTs(y, mo, d, h, mi) {
+  const naive = Date.UTC(y, mo - 1, d, h || 0, mi || 0)
+  const guess = naive + etOffsetMinutes(new Date(naive)) * 60000
+  return naive + etOffsetMinutes(new Date(guess)) * 60000
 }
 
 // ET date string YYYY-MM-DD for a given UTC Date
@@ -50,10 +57,8 @@ function nextMatchDate(config) {
     targetET.setDate(nowET.getDate() + ahead)
     if (!days.includes(targetET.getDay())) continue
 
-    // UTC timestamp: ET midnight for this date + ET hours
-    const utcBase   = new Date(Date.UTC(targetET.getFullYear(), targetET.getMonth(), targetET.getDate()))
-    const offsetMin = etOffsetMinutes(utcBase)  // 300 (EST) or 240 (EDT)
-    return new Date(utcBase.getTime() + offsetMin * 60000 + etHour * 3600000 + etMin * 60000)
+    return new Date(etWallClockTs(
+      targetET.getFullYear(), targetET.getMonth() + 1, targetET.getDate(), etHour, etMin))
   }
 
   // Fallback: 7 days from now

@@ -10,6 +10,14 @@ function etOffsetMinutes(date) {
   return Math.round((new Date(utcStr) - new Date(etStr)) / 60000)
 }
 
+// ET wall clock → epoch ms. The offset has to be read at the target instant,
+// not at UTC midnight: on the two DST change days those differ by an hour.
+function etWallClockTs(y, mo, d, h, mi) {
+  const naive = Date.UTC(y, mo - 1, d, h || 0, mi || 0)
+  const guess = naive + etOffsetMinutes(new Date(naive)) * 60000
+  return naive + etOffsetMinutes(new Date(guess)) * 60000
+}
+
 // Start of the current ET calendar month/year → epoch ms; null = all time
 function periodStartTs(period) {
   if (period !== 'month' && period !== 'year') return null
@@ -18,8 +26,7 @@ function periodStartTs(period) {
   }).formatToParts(new Date())
   const y = Number(parts.find(p => p.type === 'year').value)
   const mo = Number(parts.find(p => p.type === 'month').value)
-  const utcBase = period === 'month' ? new Date(Date.UTC(y, mo - 1, 1)) : new Date(Date.UTC(y, 0, 1))
-  return utcBase.getTime() + etOffsetMinutes(utcBase) * 60000
+  return period === 'month' ? etWallClockTs(y, mo, 1, 0, 0) : etWallClockTs(y, 1, 1, 0, 0)
 }
 
 // Guests have no account, so their identity is the name the bringer typed.
