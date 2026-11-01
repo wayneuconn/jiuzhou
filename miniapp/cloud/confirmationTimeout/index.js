@@ -84,8 +84,6 @@ function isInWinterBreak(date, config) {
   return etDateStr(date) >= config.winterBreakStart && etDateStr(date) <= config.winterBreakEnd
 }
 
-// Fill free slots from the waitlist by (tier, position). During R1 only
-// annual (tier 1) waiters may come in — friends and 次卡 wait for R2.
 // Queue order. Signups made before the match-day cutoff keep their membership
 // priority; anything after it is appended by arrival alone, tier ignored.
 function byQueueOrder(a, b) {
@@ -95,6 +93,8 @@ function byQueueOrder(a, b) {
     || (a.waitlistPosition ?? 99) - (b.waitlistPosition ?? 99)
 }
 
+// Fill free slots from the waitlist in queue order. During R1 only annual
+// (tier 1) waiters may come in — friends and 次卡 wait for R2.
 async function promoteFromWaitlist(matchId, waitlistMinutes) {
   const matchSnap = await db.collection('matches').doc(matchId).get().catch(() => ({ data: null }))
   const match = matchSnap.data
