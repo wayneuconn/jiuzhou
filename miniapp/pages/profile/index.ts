@@ -1,5 +1,4 @@
 import type { User, MembershipApplication, SeasonDrive, SeasonRenewal, EventQuestion } from '../../types/index'
-import type { SeasonWaiverVM } from '../../app'
 import { getCardTier, getNextTierInfo, TIER_COLOR, DEFAULT_THRESHOLDS, TIER_LABEL } from '../../utils/format'
 import { ADMIN_CONTACT } from '../../utils/contact'
 
@@ -9,25 +8,6 @@ const MEMBERSHIP_LABEL: Record<string, string> = { annual: '年卡', per_session
 const MEMBERSHIP_BADGE: Record<string, string> = { annual: 'badge-teal', per_session: 'badge-gold', none: 'badge-grey' }
 
 interface PriorityPosition { pos: string; priorityLabel: string }
-
-// The 2d context returned by canvas.getContext('2d') — only what's used here.
-// miniprogram-api-typings has no declaration for it.
-interface SigCtx {
-  lineWidth: number
-  lineCap: string
-  lineJoin: string
-  strokeStyle: string
-  scale(x: number, y: number): void
-  beginPath(): void
-  moveTo(x: number, y: number): void
-  lineTo(x: number, y: number): void
-  stroke(): void
-  clearRect(x: number, y: number, w: number, h: number): void
-}
-
-// Touches on a canvas carry x/y relative to the canvas, which the shipped
-// TouchDetail type doesn't describe
-type CanvasTouch = { x: number; y: number }
 
 interface RenewalQVM {
   id: string
@@ -88,16 +68,6 @@ Page({
     renewalNote: '',
     renewalQs: [] as RenewalQVM[],
     renewing: false,
-    // 赛季确认书
-    seasonWaiver: null as SeasonWaiverVM | null,
-    showWaiverModal: false,
-    waiverRealName: '',
-    waiverAgreed: false,
-    waiverSigning: false,
-    waiverHasInk: false,
-    // The signature and agree sections stay hidden until the text has been
-    // scrolled through — reasonable notice is what makes a clickwrap stick
-    waiverRead: false,
     saved: false,
     isAdmin: false,
     pendingApplications: 0,
@@ -133,7 +103,6 @@ Page({
           pendingApplications: number
           seasonDrive: Pick<SeasonDrive, 'season' | 'deadline' | 'note' | 'questions'> | null
           myRenewal: Pick<SeasonRenewal, 'season' | 'response' | 'status' | 'birthday' | 'answers'> | null
-          seasonWaiver: SeasonWaiverVM | null
         }
         loginReady?: Promise<void>
         refreshUserProfile: () => Promise<User | null>
@@ -179,7 +148,6 @@ Page({
             : '',
           renewalBirthday: renewal?.birthday || user.birthday || '',
         })
-        this.setData({ seasonWaiver: app.globalData.seasonWaiver })
         this._renewalSel = { ...(renewal?.answers ?? {}) }
         this.setData({ renewalQs: buildQVM(drive?.questions ?? [], this._renewalSel) })
       }
@@ -195,162 +163,6 @@ Page({
   },
 
   retryLoad() { this.loadProfile() },
-
-  // ── 赛季确认书 ───────────────────────────────────────────────────────────
-  openWaiverModal() {
-    this.setData({ showWaiverModal: true, waiverAgreed: false, waiverHasInk: false, waiverRead: false })
-    wx.nextTick(() => {
-      // Text short enough not to scroll counts as read — otherwise the gate
-      // would never open
-      wx.createSelectorQuery().in(this)
-        .select('.waiver-body')
-        .fields({ size: true, scrollOffset: true })
-        .exec((res) => {
-          const box = res?.[0] as { height?: number; scrollHeight?: number } | undefined
-          if (box && box.scrollHeight !== undefined && box.height !== undefined
-              && box.scrollHeight <= box.height + 4) {
-            this._unlockWaiver()
-          }
-        })
-    })
-  },
-
-  onWaiverScrolledToEnd() { this._unlockWaiver() },
-
-  // Reveal the form and only THEN wire up the canvas: it doesn't exist in the
-  // tree until waiverRead flips, so the setData callback is the earliest point
-  // at which the node can be found.
-  _unlockWaiver() {
-    if (this.data.waiverRead) return
-    this.setData({ waiverRead: true }, () => {
-      if (this.data.seasonWaiver?.handwriting && !this.data.seasonWaiver?.signed) {
-        this._initSignaturePad()
-      }
-    })
-  },
-  closeWaiverModal() { this.setData({ showWaiverModal: false }) },
-
-  // ── signature pad (canvas 2d) ────────────────────────────────────────────
-  _sigCanvas: null as WechatMiniprogram.Canvas | null,
-  _sigCtx: null as SigCtx | null,
-
-  _initSignaturePad() {
-    wx.createSelectorQuery().in(this)
-      .select('#sigCanvas')
-      .fields({ node: true, size: true })
-      .exec((res) => {
-        const node = res?.[0]?.node as WechatMiniprogram.Canvas | undefined
-        if (!node) return
-        const { pixelRatio: dpr } = wx.getWindowInfo()
-        const ctx = node.getContext('2d') as unknown as SigCtx
-        node.width = res[0].width * dpr
-        node.height = res[0].height * dpr
-        ctx.scale(dpr, dpr)
-        ctx.lineWidth = 2.5
-        ctx.lineCap = 'round'
-        ctx.lineJoin = 'round'
-        ctx.strokeStyle = '#e8f0eb'
-        this._sigCanvas = node
-        this._sigCtx = ctx
-        this.setData({ waiverHasInk: false })
-      })
-  },
-
-  onSigStart(e: WechatMiniprogram.TouchEvent) {
-    const ctx = this._sigCtx
-    if (!ctx) return
-    const t = e.touches[0] as unknown as CanvasTouch
-    ctx.beginPath()
-    ctx.moveTo(t.x, t.y)
-  },
-
-  onSigMove(e: WechatMiniprogram.TouchEvent) {
-    const ctx = this._sigCtx
-    if (!ctx) return
-    const t = e.touches[0] as unknown as CanvasTouch
-    ctx.lineTo(t.x, t.y)
-    ctx.stroke()
-    if (!this.data.waiverHasInk) this.setData({ waiverHasInk: true })
-  },
-
-  // The transcription is what's comfortable to read on a phone; this opens
-  // the document it was transcribed from.
-  async openWaiverOriginal() {
-    const fileID = this.data.seasonWaiver?.pdfFileId
-    if (!fileID) return
-    wx.showLoading({ title: '打开中' })
-    try {
-      const { fileList } = await wx.cloud.getTempFileURL({ fileList: [fileID] })
-      const url = fileList?.[0]?.tempFileURL
-      if (!url) throw new Error('原件暂时打不开')
-      // Typings declare the sync DownloadTask return; awaited it resolves to
-      // the success result, so the cast is describing what actually arrives
-      const dl = await (wx.downloadFile({ url }) as unknown as Promise<{ tempFilePath: string }>)
-      await wx.openDocument({ filePath: dl.tempFilePath, fileType: 'pdf', showMenu: true })
-    } catch (err) {
-      wx.showModal({
-        title: '打不开原件',
-        content: (err as { errMsg?: string; message?: string })?.errMsg || (err as Error)?.message || '请稍后再试',
-        showCancel: false,
-      })
-    } finally {
-      wx.hideLoading()
-    }
-  },
-
-  clearSignature() {
-    const canvas = this._sigCanvas
-    const ctx = this._sigCtx
-    if (!canvas || !ctx) return
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    this.setData({ waiverHasInk: false })
-  },
-
-  // Canvas → temp file → 云存储, returning the cloud:// id to archive
-  async _uploadSignature(): Promise<string> {
-    const canvas = this._sigCanvas
-    if (!canvas) throw new Error('签名区未就绪，请重新打开本页')
-    const { tempFilePath } = await wx.canvasToTempFilePath({ canvas } as never, this)
-    const uid = getApp<{ globalData: { userProfile: { _id: string } | null } }>().globalData.userProfile?._id ?? 'unknown'
-    const season = this.data.seasonWaiver?.season ?? 'season'
-    const res = await wx.cloud.uploadFile({
-      cloudPath: `waiver-signatures/${season}_${uid}_${Date.now()}.png`,
-      filePath: tempFilePath,
-    })
-    return res.fileID
-  },
-  onWaiverName(e: WechatMiniprogram.Input) { this.setData({ waiverRealName: e.detail.value }) },
-  onWaiverAgree(e: WechatMiniprogram.SwitchChange) { this.setData({ waiverAgreed: e.detail.value }) },
-
-  async submitWaiver() {
-    const name = this.data.waiverRealName.trim()
-    if (!name) { wx.showToast({ title: '请填写真实姓名', icon: 'none' }); return }
-    if (!this.data.waiverAgreed) { wx.showToast({ title: '请先勾选已阅读', icon: 'none' }); return }
-    const needsInk = !!this.data.seasonWaiver?.handwriting
-    if (needsInk && !this.data.waiverHasInk) {
-      wx.showToast({ title: '请在方框内签写姓名', icon: 'none' })
-      return
-    }
-    this.setData({ waiverSigning: true })
-    try {
-      const signatureFileId = needsInk ? await this._uploadSignature() : ''
-      await wx.cloud.callFunction({
-        name: 'signSeasonWaiver',
-        data: { realName: name, agreed: true, signatureFileId },
-      })
-      this.setData({ showWaiverModal: false })
-      wx.showToast({ title: '已确认', icon: 'success' })
-      this.loadProfile()
-    } catch (err) {
-      wx.showModal({
-        title: '提交失败',
-        content: (err as { errMsg?: string; message?: string })?.errMsg || (err as Error)?.message || '提交失败',
-        showCancel: false,
-      })
-    } finally {
-      this.setData({ waiverSigning: false })
-    }
-  },
 
   // ── 赛季年卡登记 ─────────────────────────────────────────────────────────
   _renewalSel: {} as Record<string, string | string[]>,
