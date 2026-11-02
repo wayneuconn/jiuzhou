@@ -15,6 +15,8 @@
     { "name": "updateMatchStatus", "config": { "timeout": 30, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "initDB", "config": { "timeout": 60, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "migrateAbsentBan", "config": { "timeout": 60, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "migrateEvents", "config": { "timeout": 60, "runtime": "Nodejs16.13", "installDependency": true } },
+    { "name": "exportEventResults", "config": { "timeout": 30, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "adminSeasonAction", "config": { "timeout": 60, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "respondSeasonRenewal", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
     { "name": "adminManageInvite", "config": { "timeout": 20, "runtime": "Nodejs16.13", "installDependency": true } },
