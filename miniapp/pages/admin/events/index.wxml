@@ -9,7 +9,7 @@
     <view style="font-size:24rpx;font-weight:700;color:#00C9A7;margin-bottom:8rpx;">💡 怎么用</view>
     <view class="text-muted" style="font-size:22rpx;line-height:1.8;">① 新建 → 写问题 → 详情页点「开放」。一步填完一次提交，招新、意向调查、订队服都这样</view>
     <view class="text-muted" style="font-size:22rpx;line-height:1.8;">② 只有当后面的问题要看前面的答案才定（先投日期、定下来再报名），才加「第一轮问题」</view>
-    <view class="text-muted" style="font-size:22rpx;line-height:1.8;">③ 单选题可开「先到先得」：选走的别人就锁上，适合球衣号码</view>
+    <view class="text-muted" style="font-size:22rpx;line-height:1.8;">③ 球衣号码：用填空题打开「不能重复」，填过的号别人就用不了</view>
     <view class="text-muted" style="font-size:22rpx;line-height:1.8;">④ 要问带几位家属 / 订几件，用「数字」题；勾上「算人数」才计入人数上限</view>
   </view>
 
@@ -106,15 +106,15 @@
 
       <!-- Main questions -->
       <view class="ev-section">问题</view>
-      <view class="text-muted" style="font-size:22rpx;margin-bottom:12rpx;line-height:1.6;">大家一次填完这些就提交。填空题的回答只有管理员能看到；单选题的「先到先得」会把被选走的选项对别人锁上；数字题可以勾「算人数」计入人数上限。</view>
+      <view class="text-muted" style="font-size:22rpx;margin-bottom:12rpx;line-height:1.6;">大家一次填完这些就提交。填空题的回答只有管理员能看到——除非打开「不能重复」（比如球衣号码：自己填号，填过的别人就不能再用，大家看得到谁占了哪个）。单选题的「先到先得」同理。数字题可以勾「算人数」计入人数上限。</view>
       <view wx:for="{{mainQs}}" wx:key="id" wx:for-item="q" wx:for-index="qi" class="ev-qcard">
         <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
           <picker range="{{qTypes}}" range-key="label" value="{{q.typeIndex}}" bindchange="onQType" data-phase="main" data-index="{{qi}}">
             <view class="ev-qtype">{{qTypes[q.typeIndex].label}} ▾</view>
           </picker>
           <view class="flex-row" style="align-items:center;gap:12rpx;">
-            <block wx:if="{{qTypes[q.typeIndex].key === 'single'}}">
-              <view class="text-muted" style="font-size:22rpx;">先到先得</view>
+            <block wx:if="{{qTypes[q.typeIndex].key === 'single' || qTypes[q.typeIndex].key === 'text'}}">
+              <view class="text-muted" style="font-size:22rpx;">{{qTypes[q.typeIndex].key === 'text' ? '不能重复' : '先到先得'}}</view>
               <switch checked="{{q.exclusive}}" bindchange="onQExclusive" data-index="{{qi}}" color="#F0B429" style="transform:scale(0.7);"/>
             </block>
             <block wx:if="{{qTypes[q.typeIndex].key === 'number'}}">

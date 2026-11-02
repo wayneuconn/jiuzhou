@@ -31,12 +31,10 @@ async function openEvent(questions = [NUMBERS]) {
 const claims = () => Object.values(store.eventClaims || {})
 const holderOf = (option) => claims().find(c => c.option === option)?.displayName ?? ''
 
-test('an exclusive question gets one claim row per option', async () => {
+test('no claim rows exist until someone actually picks', async () => {
   seedClub()
   await openEvent()
-  assert.equal(claims().length, 3)
-  assert.deepEqual(claims().map(c => c.option).sort(), ['10', '7', '9'])
-  assert.ok(claims().every(c => c.uid === null))
+  assert.equal(claims().length, 0)
 })
 
 test('first-round questions never become exclusive', async () => {
@@ -60,7 +58,7 @@ test('the first player takes a number, the second is turned away by name', async
   as('a2@x')
   await assert.rejects(
     () => joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } }),
-    /「10」刚被人选走了/,
+    /「10」已经有人了/,
   )
   assert.equal(store.eventRegistrations[eventId + '_a2'], undefined)
 })
@@ -133,7 +131,7 @@ test('everyone sees who holds what, and which one is theirs', async () => {
   assert.equal(mine.exclusiveTaken.kit['10'].mine, true)
 })
 
-test('editing the options keeps taken numbers and drops the untouched ones', async () => {
+test('editing the options leaves a taken number taken', async () => {
   seedClub()
   const eventId = await openEvent()
   as('a1@x')
@@ -145,6 +143,71 @@ test('editing the options keeps taken numbers and drops the untouched ones', asy
     questions: [{ ...NUMBERS, options: ['10', '11'] }],
   })
 
-  assert.deepEqual(claims().map(c => c.option).sort(), ['10', '11'])
   assert.equal(holderOf('10'), '张三')
+  as('a2@x')
+  await assert.rejects(() => joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } }), /已经有人了/)
+})
+
+// 不能重复 on a free-text question: type your own number.
+const KIT_TEXT = { id: 'kit', title: '球衣号码', type: 'text', options: [], required: true, exclusive: true }
+
+test('a text question can be exclusive; a single one still can, a multi one cannot', async () => {
+  seedClub()
+  const { eventId } = await saveEvent({
+    title: 'x', scope: 'all',
+    questions: [KIT_TEXT, { ...NUMBERS, id: 'm', type: 'multi' }, { id: 'n', title: '件数', type: 'number', max: 3, exclusive: true }],
+  })
+  const qs = store.events[eventId].questions
+  assert.equal(qs[0].exclusive, true)
+  assert.equal(qs[1].exclusive, undefined)
+  assert.equal(qs[2].exclusive, undefined)
+})
+
+test('typed numbers collide after normalising, so 07 and 7 are the same', async () => {
+  seedClub()
+  const eventId = await openEvent([KIT_TEXT])
+  as('a1@x')
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: ' 07 ' } })
+  assert.equal(store.eventRegistrations[eventId + '_a1'].answers.kit, '7')
+
+  as('a2@x')
+  await assert.rejects(() => joinEvent({ eventId, mode: 'submit', answers: { kit: '7' } }), /「7」已经有人了/)
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '77' } })
+  assert.equal(holderOf('77'), '李四')
+})
+
+test('00 stays distinct from 0', async () => {
+  seedClub()
+  const eventId = await openEvent([KIT_TEXT])
+  as('a1@x')
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '0' } })
+  as('a2@x')
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '00' } })
+  assert.equal(holderOf('0'), '张三')
+  assert.equal(holderOf('00'), '李四')
+})
+
+test('changing a typed number frees the old one', async () => {
+  seedClub()
+  const eventId = await openEvent([KIT_TEXT])
+  as('a1@x')
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '23' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '24' } })
+  as('a2@x')
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '23' } })
+  assert.equal(holderOf('23'), '李四')
+  assert.equal(holderOf('24'), '张三')
+})
+
+test('everyone sees the taken typed numbers; ordinary text answers stay private', async () => {
+  seedClub()
+  const eventId = await openEvent([KIT_TEXT, { id: 'note', title: '备注', type: 'text', options: [], required: false }])
+  as('a1@x')
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '10', note: '左脚' } })
+
+  as('a2@x')
+  const seen = await eventDetail({ eventId })
+  assert.deepEqual(seen.exclusiveTaken.kit['10'], { name: '张三', mine: false })
+  assert.equal(seen.exclusiveTaken.note, undefined)
+  assert.equal(JSON.stringify(seen).includes('左脚'), false)
 })

@@ -25,10 +25,19 @@ function claimId(eventId, qid, option) {
   return `${eventId}_${h.toString(16)}`
 }
 
-// 先到先得: take the options this answer needs, then drop the ones it no longer
-// uses. The where-update only moves a free row, so a race has exactly one winner.
+// Free-text answers to a 不能重复 question are compared after this, so "07"
+// and " 7" are the same number.
+function normalizeExclusive(v) {
+  const t = v.trim().replace(/\s+/g, ' ').toUpperCase()
+  return /^\d+$/.test(t) && !/^0+$/.test(t) ? t.replace(/^0+/, '') : t
+}
+
+// 先到先得 / 不能重复: take the values this answer needs, then drop the ones it
+// no longer uses. A claim row is created with a fixed _id (add never
+// overwrites), then moved by a where-update that only matches a free row, so
+// a race has exactly one winner.
 async function claimExclusive(eventId, questions, answers, user) {
-  const exclusives = (questions || []).filter(q => q.exclusive && q.type === 'single')
+  const exclusives = (questions || []).filter(q => q.exclusive && (q.type === 'single' || q.type === 'text'))
   if (!exclusives.length) return
   const mineSnap = await db.collection('eventClaims')
     .where({ eventId, uid: user._id }).limit(50).get().catch(() => ({ data: [] }))
@@ -36,16 +45,19 @@ async function claimExclusive(eventId, questions, answers, user) {
   const keep = new Set()
 
   for (const q of exclusives) {
-    const option = answers[q.id]
-    if (!option) continue
-    const id = claimId(eventId, q.id, option)
+    const value = answers[q.id]
+    if (!value) continue
+    const id = claimId(eventId, q.id, value)
     keep.add(id)
     if (held.has(id)) continue
+    await db.collection('eventClaims')
+      .add({ data: { _id: id, eventId, qid: q.id, option: value, uid: null, displayName: '' } })
+      .catch(() => {})
     const got = await db.collection('eventClaims')
       .where({ _id: id, uid: null })
       .update({ data: { uid: user._id, displayName: user.displayName || '' } })
       .catch(() => ({ stats: { updated: 0 } }))
-    if ((got.stats?.updated ?? 0) === 0) throw new Error(`「${option}」刚被人选走了，请换一个`)
+    if ((got.stats?.updated ?? 0) === 0) throw new Error(`「${value}」已经有人了，请换一个`)
   }
 
   await Promise.all(mineSnap.data.filter(r => !keep.has(r._id))
@@ -57,7 +69,9 @@ function cleanAnswers(questions, raw) {
   for (const q of questions || []) {
     const a = (raw || {})[q.id]
     if (q.type === 'text') {
-      if (typeof a === 'string' && a.trim()) out[q.id] = a.trim().slice(0, 200)
+      if (typeof a === 'string' && a.trim()) {
+        out[q.id] = q.exclusive ? normalizeExclusive(a).slice(0, 30) : a.trim().slice(0, 200)
+      }
     } else if (q.type === 'number') {
       const n = parseInt(a, 10)
       if (Number.isFinite(n) && n >= 0) out[q.id] = Math.min(n, q.max ?? 1)

@@ -81,3 +81,9 @@
   text-decoration: line-through;
   border-style: dashed;
 }
+
+.ev-opt.taken-chip {
+  padding: 8rpx 18rpx;
+  font-size: 24rpx;
+  pointer-events: none;
+}

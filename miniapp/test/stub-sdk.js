@@ -112,8 +112,10 @@ function collection(name) {
       remove: async () => { delete col[id]; return {} },
     }),
     add: async ({ data }) => {
-      const id = 'gen_' + Object.keys(col).length + '_' + Math.random().toString(36).slice(2, 8)
-      col[id] = { ...data }
+      const { _id, ...rest } = data
+      const id = _id ?? 'gen_' + Object.keys(col).length + '_' + Math.random().toString(36).slice(2, 8)
+      if (col[id]) throw new Error('duplicate key: ' + id)
+      col[id] = rest
       return { _id: id }
     },
   }
