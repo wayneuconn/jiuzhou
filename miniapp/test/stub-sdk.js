@@ -5,6 +5,7 @@
 const store = {}
 let ctx = { OPENID: null }
 const calls = []
+const uploads = []
 
 const OPS = {
   gt: v => ({ __op: 'gt', v }),
@@ -51,8 +52,8 @@ function collection(name) {
   store[name] = store[name] || {}
   const col = store[name]
 
-  const build = (cond, order, cap) => {
-    const rows = () => {
+  const build = (cond, order, cap, proj) => {
+    const rows = (raw) => {
       // _id has to be visible to the filter, not just the result: CloudBase
       // supports where({ _id: ... }), which is how single-use claims are made
       // atomic (where + update reports how many rows it moved).
@@ -68,21 +69,27 @@ function collection(name) {
           return dir === 'desc' ? -cmp : cmp
         })
       }
-      return cap === undefined ? out : out.slice(0, cap)
+      if (cap !== undefined) out = out.slice(0, cap)
+      if (proj && !raw) {
+        const keep = Object.entries(proj).filter(([, v]) => v).map(([k]) => k)
+        out = out.map(d => Object.fromEntries(keep.filter(k => k in d).map(k => [k, d[k]])))
+      }
+      return out
     }
     return {
-      where: c => build({ ...cond, ...c }, order, cap),
-      orderBy: (field, dir) => build(cond, { field, dir }, cap),
-      limit: n => build(cond, order, n),
+      where: c => build({ ...cond, ...c }, order, cap, proj),
+      orderBy: (field, dir) => build(cond, { field, dir }, cap, proj),
+      limit: n => build(cond, order, n, proj),
+      field: f => build(cond, order, cap, f),
       get: async () => ({ data: rows() }),
-      count: async () => ({ total: rows().length }),
+      count: async () => ({ total: rows(true).length }),
       update: async ({ data }) => {
-        const hit = rows()
+        const hit = rows(true)
         hit.forEach(r => applyUpdate(col[r._id], data))
         return { stats: { updated: hit.length } }
       },
       remove: async () => {
-        const hit = rows()
+        const hit = rows(true)
         hit.forEach(r => { delete col[r._id] })
         return { stats: { removed: hit.length } }
       },
@@ -118,6 +125,10 @@ module.exports = {
   getWXContext: () => ctx,
   // Cross-function calls (notifications) are recorded, never executed
   callFunction: async (args) => { calls.push(args); return { result: {} } },
+  uploadFile: async ({ cloudPath, fileContent }) => {
+    uploads.push({ cloudPath, fileContent })
+    return { fileID: 'cloud://stub/' + cloudPath }
+  },
   database: () => ({
     collection,
     command: OPS,
@@ -126,10 +137,12 @@ module.exports = {
   __stub: {
     store,
     calls,
+    uploads,
     as: openid => { ctx = { OPENID: openid } },
     reset: () => {
       for (const k of Object.keys(store)) delete store[k]
       calls.length = 0
+      uploads.length = 0
       ctx = { OPENID: null }
     },
   },

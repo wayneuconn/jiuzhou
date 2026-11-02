@@ -12,7 +12,7 @@ exports.main = async (event, context) => {
       .orderBy('date', 'asc').limit(1).get(),
     db.collection('config').doc('app').get().catch(() => ({ data: null })),
     db.collection('events')
-      .where({ status: _.in(['polling', 'registration']) })
+      .where({ status: _.in(['prep', 'open']) })
       .orderBy('createdAt', 'desc').limit(5).get().catch(() => ({ data: [] })),
     OPENID
       ? db.collection('users').where({ openid: OPENID }).limit(1).get().catch(() => ({ data: [] }))

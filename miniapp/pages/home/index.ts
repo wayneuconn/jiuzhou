@@ -89,7 +89,7 @@ Page({
         activeEvent: activeEvent ? {
           id: activeEvent.id,
           title: activeEvent.title,
-          statusLabel: activeEvent.status === 'polling' ? '征集意见中' : '报名中',
+          statusLabel: activeEvent.status === 'prep' ? '第一轮进行中' : '进行中',
         } : null,
         nextMatch: nextMatch ? {
           ...nextMatch,

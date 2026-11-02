@@ -1,6 +1,6 @@
 {
   "usingComponents": {},
-  "navigationBarTitleText": "活动结果",
+  "navigationBarTitleText": "表单结果",
   "enablePullDownRefresh": true,
   "backgroundColor": "#0D1117",
   "backgroundTextStyle": "light"

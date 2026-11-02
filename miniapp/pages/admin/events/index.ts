@@ -2,10 +2,10 @@ import type { TeamEvent, EventQuestion } from '../../../types/index'
 import { formatDate } from '../../../utils/format'
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: '草稿', polling: '征集意见中', registration: '报名中', closed: '已截止', cancelled: '已取消',
+  draft: '草稿', prep: '第一轮', open: '进行中', closed: '已结束', cancelled: '已取消',
 }
 const STATUS_BADGE: Record<string, string> = {
-  draft: 'badge-grey', polling: 'badge-gold', registration: 'badge-teal', closed: 'badge-grey', cancelled: 'badge-red',
+  draft: 'badge-grey', prep: 'badge-gold', open: 'badge-teal', closed: 'badge-grey', cancelled: 'badge-red',
 }
 const SCOPES = [
   { key: 'annual', label: '仅年卡' },
@@ -16,6 +16,13 @@ const Q_TYPES = [
   { key: 'single', label: '单选' },
   { key: 'multi', label: '多选' },
   { key: 'text', label: '填空' },
+  { key: 'number', label: '数字' },
+]
+const ACTION_LABELS = ['提交', '报名', '填写', '登记']
+const ROSTERS = [
+  { key: 'names', label: '公开名单' },
+  { key: 'count', label: '只显示人数' },
+  { key: 'none', label: '都不显示' },
 ]
 
 interface QForm {
@@ -24,6 +31,9 @@ interface QForm {
   typeIndex: number
   options: string
   required: boolean
+  exclusive: boolean
+  max: number
+  countsSeats: boolean
 }
 
 interface EventVM extends TeamEvent {
@@ -39,6 +49,9 @@ function toQForm(q: EventQuestion): QForm {
     typeIndex: Math.max(0, Q_TYPES.findIndex(t => t.key === q.type)),
     options: (q.options || []).join('/'),
     required: q.required !== false,
+    exclusive: q.exclusive === true,
+    max: q.max ?? 2,
+    countsSeats: q.countsSeats === true,
   }
 }
 
@@ -49,6 +62,9 @@ function fromQForm(q: QForm) {
     type: Q_TYPES[q.typeIndex]?.key ?? 'single',
     options: q.options.split('/').map(s => s.trim()).filter(Boolean),
     required: q.required,
+    exclusive: q.exclusive,
+    max: Number(q.max) || 1,
+    countsSeats: q.countsSeats,
   }
 }
 
@@ -79,17 +95,19 @@ Page({
     editingId: '',
     scopes: SCOPES,
     qTypes: Q_TYPES,
+    actionLabels: ACTION_LABELS,
+    rosters: ROSTERS,
     form: {
       title: '', description: '', location: '',
       eventDate: '', eventTime: '19:00',
       deadlineDate: '', deadlineTime: '20:00',
       scopeIndex: 0,
-      allowGuests: true,
-      maxGuestsPer: 2,
+      actionIndex: 0,
+      rosterIndex: 0,
       maxAttendees: '',
     },
-    pollQs: [] as QForm[],
-    signupQs: [] as QForm[],
+    prepQs: [] as QForm[],
+    mainQs: [] as QForm[],
   },
 
   onShow() { this.load() },
@@ -122,10 +140,10 @@ Page({
         title: '', description: '', location: '',
         eventDate: '', eventTime: '19:00',
         deadlineDate: '', deadlineTime: '20:00',
-        scopeIndex: 0, allowGuests: true, maxGuestsPer: 2, maxAttendees: '',
+        scopeIndex: 0, actionIndex: 0, rosterIndex: 0, maxAttendees: '',
       },
-      pollQs: [],
-      signupQs: [],
+      prepQs: [],
+      mainQs: [],
     })
   },
 
@@ -141,12 +159,12 @@ Page({
         eventDate: dstr(ev.eventDate, ''), eventTime: tstr(ev.eventDate, '19:00'),
         deadlineDate: dstr(ev.deadline, ''), deadlineTime: tstr(ev.deadline, '20:00'),
         scopeIndex: Math.max(0, SCOPES.findIndex(s => s.key === ev.scope)),
-        allowGuests: ev.allowGuests,
-        maxGuestsPer: ev.maxGuestsPer,
+        actionIndex: Math.max(0, ACTION_LABELS.indexOf(ev.actionLabel || '提交')),
+        rosterIndex: Math.max(0, ROSTERS.findIndex(r => r.key === (ev.rosterVisibility || 'names'))),
         maxAttendees: ev.maxAttendees ? String(ev.maxAttendees) : '',
       },
-      pollQs: (ev.pollQuestions || []).map(toQForm),
-      signupQs: (ev.signupQuestions || []).map(toQForm),
+      prepQs: (ev.prepQuestions || []).map(toQForm),
+      mainQs: (ev.questions || []).map(toQForm),
     })
   },
 
@@ -164,41 +182,52 @@ Page({
   onScope(e: WechatMiniprogram.PickerChange) {
     this.setData({ 'form.scopeIndex': Number(e.detail.value) })
   },
-  onGuestsSwitch(e: WechatMiniprogram.SwitchChange) {
-    this.setData({ 'form.allowGuests': e.detail.value })
+  onAction(e: WechatMiniprogram.PickerChange) {
+    this.setData({ 'form.actionIndex': Number(e.detail.value) })
+  },
+  onRoster(e: WechatMiniprogram.PickerChange) {
+    this.setData({ 'form.rosterIndex': Number(e.detail.value) })
   },
 
   addQ(e: WechatMiniprogram.BaseEvent) {
-    const phase = (e.currentTarget.dataset as { phase: 'poll' | 'signup' }).phase
-    const key = phase === 'poll' ? 'pollQs' : 'signupQs'
+    const phase = (e.currentTarget.dataset as { phase: 'prep' | 'main' }).phase
+    const key = phase === 'prep' ? 'prepQs' : 'mainQs'
     const list = [...this.data[key]]
     list.push({
       id: `q_${Date.now().toString(36)}_${list.length}`,
-      title: '', typeIndex: 0, options: '', required: true,
+      title: '', typeIndex: 0, options: '', required: true, exclusive: false, max: 2, countsSeats: false,
     })
     this.setData({ [key]: list })
   },
   delQ(e: WechatMiniprogram.BaseEvent) {
-    const { phase, index } = e.currentTarget.dataset as { phase: 'poll' | 'signup'; index: number }
-    const key = phase === 'poll' ? 'pollQs' : 'signupQs'
+    const { phase, index } = e.currentTarget.dataset as { phase: 'prep' | 'main'; index: number }
+    const key = phase === 'prep' ? 'prepQs' : 'mainQs'
     const list = [...this.data[key]]
     list.splice(index, 1)
     this.setData({ [key]: list })
   },
   onQField(e: WechatMiniprogram.Input) {
-    const { phase, index, field } = e.currentTarget.dataset as { phase: 'poll' | 'signup'; index: number; field: string }
-    const key = phase === 'poll' ? 'pollQs' : 'signupQs'
+    const { phase, index, field } = e.currentTarget.dataset as { phase: 'prep' | 'main'; index: number; field: string }
+    const key = phase === 'prep' ? 'prepQs' : 'mainQs'
     this.setData({ [`${key}[${index}].${field}`]: e.detail.value })
   },
   onQType(e: WechatMiniprogram.PickerChange) {
-    const { phase, index } = e.currentTarget.dataset as { phase: 'poll' | 'signup'; index: number }
-    const key = phase === 'poll' ? 'pollQs' : 'signupQs'
+    const { phase, index } = e.currentTarget.dataset as { phase: 'prep' | 'main'; index: number }
+    const key = phase === 'prep' ? 'prepQs' : 'mainQs'
     this.setData({ [`${key}[${index}].typeIndex`]: Number(e.detail.value) })
   },
   onQRequired(e: WechatMiniprogram.SwitchChange) {
-    const { phase, index } = e.currentTarget.dataset as { phase: 'poll' | 'signup'; index: number }
-    const key = phase === 'poll' ? 'pollQs' : 'signupQs'
+    const { phase, index } = e.currentTarget.dataset as { phase: 'prep' | 'main'; index: number }
+    const key = phase === 'prep' ? 'prepQs' : 'mainQs'
     this.setData({ [`${key}[${index}].required`]: e.detail.value })
+  },
+  onQExclusive(e: WechatMiniprogram.SwitchChange) {
+    const { index } = e.currentTarget.dataset as { index: number }
+    this.setData({ [`mainQs[${index}].exclusive`]: e.detail.value })
+  },
+  onQSeats(e: WechatMiniprogram.SwitchChange) {
+    const { index } = e.currentTarget.dataset as { index: number }
+    this.setData({ [`mainQs[${index}].countsSeats`]: e.detail.value })
   },
 
   async save() {
@@ -217,11 +246,11 @@ Page({
           eventDate: toTs(f.eventDate, f.eventTime),
           deadline: toTs(f.deadlineDate, f.deadlineTime),
           scope: SCOPES[f.scopeIndex]?.key ?? 'annual',
-          allowGuests: f.allowGuests,
-          maxGuestsPer: Number(f.maxGuestsPer) || 0,
+          actionLabel: ACTION_LABELS[f.actionIndex] ?? '提交',
+          rosterVisibility: ROSTERS[f.rosterIndex]?.key ?? 'names',
           maxAttendees: f.maxAttendees ? Number(f.maxAttendees) : null,
-          pollQuestions: this.data.pollQs.map(fromQForm),
-          signupQuestions: this.data.signupQs.map(fromQForm),
+          prepQuestions: this.data.prepQs.map(fromQForm),
+          questions: this.data.mainQs.map(fromQForm),
         },
       })
       wx.showToast({ title: '已保存', icon: 'success' })

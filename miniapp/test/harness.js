@@ -21,7 +21,7 @@ function load(name) {
   return require(path.join(CLOUD, name, 'index.js')).main
 }
 
-const { store, calls, as, reset } = stub.__stub
+const { store, calls, uploads, as, reset } = stub.__stub
 
 // A club with one match in the books and one open for signups. Kickoff is a
 // week out so the match-day 12:00 cutoff never trips.
@@ -56,4 +56,4 @@ function gkReg(matchId, uid, displayName, { halves = 1, reason = 'absent', statu
   }
 }
 
-module.exports = { load, store, calls, as, reset, seed, gkReg }
+module.exports = { load, store, calls, uploads, as, reset, seed, gkReg }

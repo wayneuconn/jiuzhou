@@ -11,7 +11,7 @@ exports.main = async (event, context) => {
   const caller = userSnap.data[0]
   const isAdmin = caller?.role === 'admin'
 
-  const filter = isAdmin ? {} : { status: _.in(['polling', 'registration', 'closed']) }
+  const filter = isAdmin ? {} : { status: _.in(['prep', 'open', 'closed']) }
   const snap = await db.collection('events')
     .where(filter)
     .orderBy('createdAt', 'desc')
