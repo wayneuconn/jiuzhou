@@ -3,20 +3,31 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
-const VALID_STATUS = ['draft', 'polling', 'registration', 'closed', 'cancelled']
+const VALID_STATUS = ['draft', 'prep', 'open', 'closed', 'cancelled']
 const VALID_SCOPE = ['annual', 'member', 'all']
+const VALID_ROSTER = ['names', 'count', 'none']
 const SCOPE_TYPES = { annual: ['annual'], member: ['annual', 'per_session'], all: null }
 
 function cleanQuestions(list, allowExclusive) {
   if (!Array.isArray(list)) return []
-  return list.slice(0, 10).map((q, i) => ({
-    id: (q.id || `q${i}_${Math.random().toString(36).slice(2, 6)}`).toString().slice(0, 20),
-    title: (q.title || '').toString().trim().slice(0, 50),
-    type: ['single', 'multi', 'text'].includes(q.type) ? q.type : 'single',
-    options: q.type === 'text' ? [] : (Array.isArray(q.options) ? q.options.map(o => o.toString().trim().slice(0, 30)).filter(Boolean).slice(0, 12) : []),
-    required: q.required !== false,
-    exclusive: allowExclusive === true && q.exclusive === true && q.type === 'single',
-  })).filter(q => q.title && (q.type === 'text' || q.options.length >= 2))
+  return list.slice(0, 12).map((q, i) => {
+    const type = ['single', 'multi', 'text', 'number'].includes(q.type) ? q.type : 'single'
+    const out = {
+      id: (q.id || `q${i}_${Math.random().toString(36).slice(2, 6)}`).toString().slice(0, 20),
+      title: (q.title || '').toString().trim().slice(0, 50),
+      type,
+      options: type === 'single' || type === 'multi'
+        ? (Array.isArray(q.options) ? q.options.map(o => o.toString().trim().slice(0, 30)).filter(Boolean).slice(0, 20) : [])
+        : [],
+      required: q.required !== false,
+    }
+    if (type === 'number') {
+      out.max = Math.max(1, Math.min(99, parseInt(q.max, 10) || 1))
+      out.countsSeats = q.countsSeats === true
+    }
+    if (type === 'single') out.exclusive = allowExclusive === true && q.exclusive === true
+    return out
+  }).filter(q => q.title && (q.type === 'text' || q.type === 'number' || q.options.length >= 2))
 }
 
 function claimId(eventId, qid, option) {
@@ -46,8 +57,8 @@ async function syncClaims(eventId, questions) {
   ])
 }
 
-// Notify in-scope members (skipping those who already joined) that a phase
-// opened — reuses the 活动开始通知 template (thing4/thing2/date5).
+// Notify in-scope members who haven't answered yet — reuses the 活动开始通知
+// template (thing4/thing2/date5).
 async function notifyScope(eventId, ev, text) {
   try {
     const types = SCOPE_TYPES[ev.scope] ?? ['annual']
@@ -70,7 +81,7 @@ async function notifyScope(eventId, ev, text) {
             page: `/pages/event-detail/index?id=${eventId}`,
             templateData: {
               thing4: { value: text.slice(0, 20) },
-              thing2: { value: (ev.title || '球队活动').slice(0, 20) },
+              thing2: { value: (ev.title || '球队表单').slice(0, 20) },
               date5: { value: timeStr },
             },
           },
@@ -93,11 +104,12 @@ exports.main = async (event) => {
     const ev = snap.data
     if (!ev) throw new Error('event not found')
     await db.collection('events').doc(eventId).update({ data: { status } })
-    if (status === 'polling' && ev.status !== 'polling') {
-      await notifyScope(eventId, ev, '活动征集意见中,来投票')
+    const verb = ev.actionLabel || '提交'
+    if (status === 'prep' && ev.status !== 'prep') {
+      await notifyScope(eventId, ev, '先来答一轮，帮忙定方案')
     }
-    if (status === 'registration' && ev.status !== 'registration') {
-      await notifyScope(eventId, ev, '活动开放报名')
+    if (status === 'open' && ev.status !== 'open') {
+      await notifyScope(eventId, ev, `开放${verb}了`)
     }
     return { success: true }
   }
@@ -110,22 +122,23 @@ exports.main = async (event) => {
     eventDate: typeof event.eventDate === 'number' ? event.eventDate : null,
     deadline: typeof event.deadline === 'number' ? event.deadline : null,
     scope: VALID_SCOPE.includes(event.scope) ? event.scope : 'annual',
-    allowGuests: event.allowGuests === true,
-    maxGuestsPer: Math.max(0, Math.min(10, parseInt(event.maxGuestsPer, 10) || 0)),
     maxAttendees: event.maxAttendees ? Math.max(2, parseInt(event.maxAttendees, 10) || 0) || null : null,
-    pollQuestions: cleanQuestions(event.pollQuestions, false),
-    signupQuestions: cleanQuestions(event.signupQuestions, true),
+    actionLabel: (event.actionLabel || '').toString().trim().slice(0, 4) || '提交',
+    rosterVisibility: VALID_ROSTER.includes(event.rosterVisibility) ? event.rosterVisibility : 'names',
+    prepQuestions: cleanQuestions(event.prepQuestions, false),
+    questions: cleanQuestions(event.questions, true),
   }
-  if (!data.title) throw new Error('请填写活动标题')
+  if (!data.title) throw new Error('请填写标题')
+  if (!data.questions.length && !data.prepQuestions.length) throw new Error('至少要有一道问题')
 
   if (event.eventId) {
     await db.collection('events').doc(event.eventId).update({ data })
-    await syncClaims(event.eventId, data.signupQuestions)
+    await syncClaims(event.eventId, data.questions)
     return { eventId: event.eventId }
   }
   const res = await db.collection('events').add({
     data: { ...data, status: 'draft', createdAt: db.serverDate() },
   })
-  await syncClaims(res._id, data.signupQuestions)
+  await syncClaims(res._id, data.questions)
   return { eventId: res._id }
 }

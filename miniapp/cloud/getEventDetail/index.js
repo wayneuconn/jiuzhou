@@ -2,11 +2,11 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
-// Choice-question tallies are public (helps everyone converge on a date);
-// free-text answers go to admins only.
+// Choice tallies are public (that's what lets everyone converge); free text
+// stays with the admins.
 function tally(questions, regs, answerField) {
   return (questions || []).map(q => {
-    if (q.type === 'text') return { id: q.id, counts: [] }
+    if (q.type === 'text' || q.type === 'number') return { id: q.id, counts: [] }
     const counts = q.options.map(opt => ({
       option: opt,
       count: regs.filter(r => {
@@ -16,6 +16,13 @@ function tally(questions, regs, answerField) {
     }))
     return { id: q.id, counts }
   })
+}
+
+function seatsOf(questions, answers) {
+  return (questions || []).reduce((n, q) => {
+    if (q.type !== 'number' || !q.countsSeats) return n
+    return n + (Number((answers || {})[q.id]) || 0)
+  }, 0)
 }
 
 exports.main = async (event, context) => {
@@ -35,7 +42,7 @@ exports.main = async (event, context) => {
   const isAdmin = caller?.role === 'admin'
 
   // Visibility = scope: out-of-scope users (and anyone, for drafts) get a
-  // minimal blocked response instead of the event content.
+  // minimal blocked response instead of the content.
   if (!isAdmin) {
     const types = { annual: ['annual'], member: ['annual', 'per_session'], all: null }[ev.scope] ?? ['annual']
     const inScope = types === null || (caller && types.includes(caller.membershipType))
@@ -45,10 +52,9 @@ exports.main = async (event, context) => {
   }
 
   const regs = regsSnap.data
-
-  const polled = regs.filter(r => Object.keys(r.pollAnswers || {}).length > 0)
-  const confirmed = regs.filter(r => r.status === 'confirmed')
-  const headcount = confirmed.reduce((s, r) => s + 1 + (r.guests || 0), 0)
+  const prepped = regs.filter(r => Object.keys(r.prepAnswers || {}).length > 0)
+  const submitted = regs.filter(r => r.status === 'submitted')
+  const headcount = submitted.reduce((s, r) => s + 1 + seatsOf(ev.questions, r.answers), 0)
 
   const myReg = caller ? (regs.find(r => r.uid === caller._id) ?? null) : null
 
@@ -61,14 +67,20 @@ exports.main = async (event, context) => {
     exclusiveTaken[c.qid][c.option] = { name: c.displayName || '已被选', mine: !!caller && c.uid === caller._id }
   }
 
+  const visibility = ev.rosterVisibility ?? 'names'
+  const roster = (visibility === 'names' || isAdmin)
+    ? submitted.map(r => ({ uid: r.uid, displayName: r.displayName, seats: seatsOf(ev.questions, r.answers) }))
+    : []
+
   return {
     event: { ...ev, id: ev._id },
     myReg,
-    pollCount: polled.length,
-    attendees: confirmed.map(r => ({ uid: r.uid, displayName: r.displayName, guests: r.guests || 0, guestNames: r.guestNames || '' })),
-    headcount,
-    pollTally: tally(ev.pollQuestions, regs, 'pollAnswers'),
-    signupTally: tally(ev.signupQuestions, confirmed, 'signupAnswers'),
+    prepCount: prepped.length,
+    roster,
+    submittedCount: visibility === 'none' && !isAdmin ? null : submitted.length,
+    headcount: visibility === 'none' && !isAdmin ? null : headcount,
+    prepTally: tally(ev.prepQuestions, regs, 'prepAnswers'),
+    tally: tally(ev.questions, submitted, 'answers'),
     exclusiveTaken,
     callerInfo: caller ? { membershipType: caller.membershipType ?? 'none', role: caller.role ?? 'guest' } : null,
   }

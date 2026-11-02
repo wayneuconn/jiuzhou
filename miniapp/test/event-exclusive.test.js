@@ -1,4 +1,4 @@
-// 先到先得 options on an event signup question — one taker per option.
+// 先到先得 options on a form question — one taker per option.
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const { load, store, as, reset } = require('./harness')
@@ -22,16 +22,16 @@ function seedClub() {
   as('admin@x')
 }
 
-async function openEvent(signupQuestions = [NUMBERS]) {
-  const { eventId } = await saveEvent({ title: '订队服', scope: 'all', signupQuestions })
-  await saveEvent({ action: 'setStatus', eventId, status: 'registration' })
+async function openEvent(questions = [NUMBERS]) {
+  const { eventId } = await saveEvent({ title: '订队服', scope: 'all', questions })
+  await saveEvent({ action: 'setStatus', eventId, status: 'open' })
   return eventId
 }
 
 const claims = () => Object.values(store.eventClaims || {})
 const holderOf = (option) => claims().find(c => c.option === option)?.displayName ?? ''
 
-test('an exclusive signup question gets one claim row per option', async () => {
+test('an exclusive question gets one claim row per option', async () => {
   seedClub()
   await openEvent()
   assert.equal(claims().length, 3)
@@ -39,13 +39,13 @@ test('an exclusive signup question gets one claim row per option', async () => {
   assert.ok(claims().every(c => c.uid === null))
 })
 
-test('poll questions never become exclusive', async () => {
+test('first-round questions never become exclusive', async () => {
   seedClub()
   const { eventId } = await saveEvent({
     title: '聚餐', scope: 'all',
-    pollQuestions: [{ ...NUMBERS, id: 'day', title: '哪天' }],
+    prepQuestions: [{ ...NUMBERS, id: 'day', title: '哪天' }],
   })
-  assert.equal(store.events[eventId].pollQuestions[0].exclusive, false)
+  assert.equal(store.events[eventId].prepQuestions[0].exclusive, false)
   assert.equal(claims().length, 0)
 })
 
@@ -54,12 +54,12 @@ test('the first player takes a number, the second is turned away by name', async
   const eventId = await openEvent()
 
   as('a1@x')
-  await joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '10' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } })
   assert.equal(holderOf('10'), '张三')
 
   as('a2@x')
   await assert.rejects(
-    () => joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '10' } }),
+    () => joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } }),
     /「10」刚被人选走了/,
   )
   assert.equal(store.eventRegistrations[eventId + '_a2'], undefined)
@@ -70,13 +70,13 @@ test('a free number still goes through', async () => {
   const eventId = await openEvent()
 
   as('a1@x')
-  await joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '10' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } })
   as('a2@x')
-  await joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '7' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '7' } })
 
   assert.equal(holderOf('10'), '张三')
   assert.equal(holderOf('7'), '李四')
-  assert.equal(store.eventRegistrations[eventId + '_a2'].signupAnswers.kit, '7')
+  assert.equal(store.eventRegistrations[eventId + '_a2'].answers.kit, '7')
 })
 
 test('switching numbers frees the old one for someone else', async () => {
@@ -84,13 +84,13 @@ test('switching numbers frees the old one for someone else', async () => {
   const eventId = await openEvent()
 
   as('a1@x')
-  await joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '10' } })
-  await joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '9' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '9' } })
   assert.equal(holderOf('10'), '')
   assert.equal(holderOf('9'), '张三')
 
   as('a2@x')
-  await joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '10' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } })
   assert.equal(holderOf('10'), '李四')
 })
 
@@ -99,12 +99,12 @@ test('withdrawing releases the number', async () => {
   const eventId = await openEvent()
 
   as('a1@x')
-  await joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '10' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } })
   await joinEvent({ eventId, mode: 'withdraw' })
   assert.equal(holderOf('10'), '')
 
   as('a2@x')
-  await joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '10' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } })
   assert.equal(holderOf('10'), '李四')
 })
 
@@ -112,8 +112,8 @@ test('re-saving the same answer is not a self-collision', async () => {
   seedClub()
   const eventId = await openEvent()
   as('a1@x')
-  await joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '10' } })
-  await joinEvent({ eventId, mode: 'signup', guests: 0, signupAnswers: { kit: '10' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } })
   assert.equal(holderOf('10'), '张三')
 })
 
@@ -121,7 +121,7 @@ test('everyone sees who holds what, and which one is theirs', async () => {
   seedClub()
   const eventId = await openEvent()
   as('a1@x')
-  await joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '10' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } })
 
   as('a2@x')
   const seen = await eventDetail({ eventId })
@@ -137,12 +137,12 @@ test('editing the options keeps taken numbers and drops the untouched ones', asy
   seedClub()
   const eventId = await openEvent()
   as('a1@x')
-  await joinEvent({ eventId, mode: 'signup', signupAnswers: { kit: '10' } })
+  await joinEvent({ eventId, mode: 'submit', answers: { kit: '10' } })
 
   as('admin@x')
   await saveEvent({
     eventId, title: '订队服', scope: 'all',
-    signupQuestions: [{ ...NUMBERS, options: ['10', '11'] }],
+    questions: [{ ...NUMBERS, options: ['10', '11'] }],
   })
 
   assert.deepEqual(claims().map(c => c.option).sort(), ['10', '11'])

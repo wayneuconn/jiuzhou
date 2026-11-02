@@ -163,9 +163,9 @@ export interface Formation {
 }
 
 // ── One-off events (周年庆/聚餐/团建): optional polling phase, then signup ──
-export type EventStatus = 'draft' | 'polling' | 'registration' | 'closed' | 'cancelled'
+export type EventStatus = 'draft' | 'prep' | 'open' | 'closed' | 'cancelled'
 export type EventScope = 'annual' | 'member' | 'all'
-export type EventQuestionType = 'single' | 'multi' | 'text'
+export type EventQuestionType = 'single' | 'multi' | 'text' | 'number'
 
 export interface EventQuestion {
   id: string
@@ -173,9 +173,16 @@ export interface EventQuestion {
   type: EventQuestionType
   options: string[]
   required: boolean
-  // 先到先得: an option one person takes is locked out for everyone else
+  // single only — 先到先得: an option one person takes is locked out for everyone else
   exclusive?: boolean
+  // number only
+  max?: number
+  // number only — the answer adds that many people to the headcount cap
+  countsSeats?: boolean
 }
+
+// Who gets to see the list of people who submitted
+export type EventRosterVisibility = 'names' | 'count' | 'none'
 
 export interface TeamEvent {
   id: string
@@ -185,26 +192,26 @@ export interface TeamEvent {
   eventDate: number | null
   deadline: number | null
   scope: EventScope
-  allowGuests: boolean
-  maxGuestsPer: number
   maxAttendees: number | null
-  pollQuestions: EventQuestion[]
-  signupQuestions: EventQuestion[]
+  // The verb this form is about: 报名 / 填写 / 登记 ...
+  actionLabel: string
+  rosterVisibility: EventRosterVisibility
+  // Optional first round, for when the form itself depends on the answers
+  prepQuestions: EventQuestion[]
+  questions: EventQuestion[]
   status: EventStatus
   createdAt: number
 }
 
-export type EventRegStatus = 'polled' | 'confirmed' | 'withdrawn'
+export type EventRegStatus = 'prepped' | 'submitted' | 'withdrawn'
 
 export interface EventReg {
   eventId: string
   uid: string
   displayName: string
   status: EventRegStatus
-  guests: number
-  guestNames: string
-  pollAnswers: Record<string, string | string[]>
-  signupAnswers: Record<string, string | string[]>
+  prepAnswers: Record<string, string | string[] | number>
+  answers: Record<string, string | string[] | number>
   registeredAt: number
 }
 

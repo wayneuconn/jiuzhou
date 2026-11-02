@@ -2,7 +2,7 @@ import type { TeamEvent, EventQuestion, EventReg } from '../../../types/index'
 import { formatDate } from '../../../utils/format'
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: '草稿', polling: '征集意见中', registration: '报名中', closed: '已截止', cancelled: '已取消',
+  draft: '草稿', prep: '第一轮', open: '进行中', closed: '已结束', cancelled: '已取消',
 }
 
 interface OptResult { label: string; count: number; pct: number; names: string }
@@ -15,14 +15,14 @@ interface QuestionResult {
   answered: number
 }
 
-function buildResults(questions: EventQuestion[], regs: EventReg[], field: 'pollAnswers' | 'signupAnswers'): QuestionResult[] {
+function buildResults(questions: EventQuestion[], regs: EventReg[], field: 'prepAnswers' | 'answers'): QuestionResult[] {
   return (questions || []).map(q => {
     const picked = (r: EventReg) => (r[field] || {})[q.id]
     const answered = regs.filter(r => {
       const a = picked(r)
-      return Array.isArray(a) ? a.length > 0 : (typeof a === 'string' && a !== '')
+      return Array.isArray(a) ? a.length > 0 : (typeof a === 'number' ? true : typeof a === 'string' && a !== '')
     })
-    if (q.type === 'text') {
+    if (q.type === 'text' || q.type === 'number') {
       return {
         id: q.id, title: q.title, type: q.type, opts: [],
         answered: answered.length,
@@ -51,13 +51,14 @@ Page({
     title: '',
     statusLabel: '',
     eventDateStr: '',
-    polledCount: 0,
-    confirmedCount: 0,
+    actionLabel: '提交',
+    preppedCount: 0,
+    submittedCount: 0,
     headcount: 0,
-    pollResults: [] as QuestionResult[],
-    signupResults: [] as QuestionResult[],
-    attendees: [] as Array<{ displayName: string; guests: number; guestNames: string }>,
-    polledNotSigned: '',
+    prepResults: [] as QuestionResult[],
+    mainResults: [] as QuestionResult[],
+    roster: [] as Array<{ displayName: string; seats: number }>,
+    preppedNotSubmitted: '',
     notResponded: '',
     notRespondedCount: 0,
     showChase: false,
@@ -101,31 +102,35 @@ Page({
       }
       const { event: ev, regs, scopeUsers } = res.result
 
-      const sig = JSON.stringify(regs.map(r => [r.uid, r.status, r.guests, r.pollAnswers, r.signupAnswers]))
+      const sig = JSON.stringify(regs.map(r => [r.uid, r.status, r.prepAnswers, r.answers]))
       if (silent && sig === this._sig) return
       this._sig = sig
 
-      const polled = regs.filter(r => Object.keys(r.pollAnswers || {}).length > 0)
-      const confirmed = regs.filter(r => r.status === 'confirmed')
-      const headcount = confirmed.reduce((s, r) => s + 1 + (r.guests || 0), 0)
-      const respondedUids = new Set(regs.filter(r => r.status !== 'withdrawn' || Object.keys(r.pollAnswers || {}).length > 0).map(r => r.uid))
-      const confirmedUids = new Set(confirmed.map(r => r.uid))
+      const seatsOf = (r: EventReg) => (ev.questions || []).reduce(
+        (n, q) => q.type === 'number' && q.countsSeats ? n + (Number((r.answers || {})[q.id]) || 0) : n, 0)
+
+      const prepped = regs.filter(r => Object.keys(r.prepAnswers || {}).length > 0)
+      const submitted = regs.filter(r => r.status === 'submitted')
+      const headcount = submitted.reduce((s, r) => s + 1 + seatsOf(r), 0)
+      const respondedUids = new Set(regs.filter(r => r.status !== 'withdrawn' || Object.keys(r.prepAnswers || {}).length > 0).map(r => r.uid))
+      const submittedUids = new Set(submitted.map(r => r.uid))
       const notRespondedList = scopeUsers.filter(u => !respondedUids.has(u._id)).map(u => u.displayName)
 
       this.setData({
         title: ev.title,
         statusLabel: STATUS_LABEL[ev.status] ?? ev.status,
         eventDateStr: ev.eventDate ? formatDate(ev.eventDate) : '时间待定',
-        polledCount: polled.length,
-        confirmedCount: confirmed.length,
+        actionLabel: ev.actionLabel || '提交',
+        preppedCount: prepped.length,
+        submittedCount: submitted.length,
         headcount,
-        pollResults: buildResults(ev.pollQuestions || [], regs, 'pollAnswers'),
-        signupResults: buildResults(ev.signupQuestions || [], confirmed, 'signupAnswers'),
-        attendees: confirmed.map(r => ({ displayName: r.displayName, guests: r.guests || 0, guestNames: r.guestNames || '' })),
-        polledNotSigned: polled.filter(r => !confirmedUids.has(r.uid)).map(r => r.displayName).join('、'),
+        prepResults: buildResults(ev.prepQuestions || [], regs, 'prepAnswers'),
+        mainResults: buildResults(ev.questions || [], submitted, 'answers'),
+        roster: submitted.map(r => ({ displayName: r.displayName, seats: seatsOf(r) })),
+        preppedNotSubmitted: prepped.filter(r => !submittedUids.has(r.uid)).map(r => r.displayName).join('、'),
         notResponded: notRespondedList.join('、'),
         notRespondedCount: notRespondedList.length,
-        showChase: ev.status === 'registration' || ev.status === 'polling',
+        showChase: ev.status === 'open' || ev.status === 'prep',
       })
     } catch (err) {
       console.error('load results failed', err)

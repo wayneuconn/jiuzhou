@@ -6,7 +6,7 @@ const { buildXlsx } = require('./xlsx')
 
 const SCOPE_TYPES = { annual: ['annual'], member: ['annual', 'per_session'], all: null }
 const SCOPE_LABEL = { annual: '仅限年卡', member: '年卡+次卡', all: '所有人' }
-const STATUS_LABEL = { polled: '仅投票', confirmed: '已报名', withdrawn: '已取消' }
+const STATUS_LABEL = { prepped: '只答了第一轮', submitted: '已提交', withdrawn: '已撤回' }
 const TYPE_LABEL = { annual: '年卡', per_session: '次卡', none: '无' }
 
 const etTime = (v) => {
@@ -17,36 +17,43 @@ const etTime = (v) => {
 
 const answerText = (a) => Array.isArray(a) ? a.join('、') : (a ?? '')
 
+const seatsOf = (questions, answers) => (questions || []).reduce(
+  (n, q) => q.type === 'number' && q.countsSeats ? n + (Number((answers || {})[q.id]) || 0) : n, 0)
+
 function answerSheet(title, questions, regs, field) {
-  const header = ['序号', '姓名', '状态', '家属人数', '家属称呼', '提交时间', ...questions.map(q => q.title)]
+  const header = ['序号', '姓名', '状态', '提交时间', ...questions.map(q => q.title)]
   const rows = regs.map((r, i) => [
     i + 1,
     r.displayName || '',
     STATUS_LABEL[r.status] || r.status || '',
-    r.guests || 0,
-    r.guestNames || '',
     etTime(r.registeredAt),
     ...questions.map(q => answerText((r[field] || {})[q.id])),
   ])
   return { name: title, rows: [header, ...rows] }
 }
 
-function tallySheet(ev, regs, confirmed) {
-  const rows = [['阶段', '问题', '选项', '人数', '谁选的']]
-  const add = (phase, questions, pool, field) => {
+function tallySheet(ev, regs, submitted) {
+  const rows = [['轮次', '问题', '选项', '人数', '谁选的']]
+  const add = (round, questions, pool, field) => {
     for (const q of questions || []) {
       if (q.type === 'text') continue
+      if (q.type === 'number') {
+        const answered = pool.filter(r => Number.isFinite(Number((r[field] || {})[q.id])))
+        const total = answered.reduce((s, r) => s + Number((r[field] || {})[q.id]), 0)
+        rows.push([round, q.title, '合计', total, answered.map(r => `${r.displayName}×${(r[field] || {})[q.id]}`).join('、')])
+        continue
+      }
       for (const opt of q.options) {
         const who = pool.filter(r => {
           const a = (r[field] || {})[q.id]
           return Array.isArray(a) ? a.includes(opt) : a === opt
         })
-        rows.push([phase, q.title, opt, who.length, who.map(r => r.displayName).join('、')])
+        rows.push([round, q.title, opt, who.length, who.map(r => r.displayName).join('、')])
       }
     }
   }
-  add('投票', ev.pollQuestions, regs, 'pollAnswers')
-  add('报名', ev.signupQuestions, confirmed, 'signupAnswers')
+  add('第一轮', ev.prepQuestions, regs, 'prepAnswers')
+  add('正式', ev.questions, submitted, 'answers')
   return { name: '统计', rows }
 }
 
@@ -71,30 +78,30 @@ exports.main = async (event) => {
 
   const byTime = (a, b) => new Date(a.registeredAt || 0) - new Date(b.registeredAt || 0)
   const regs = regsSnap.data.slice().sort(byTime)
-  const confirmed = regs.filter(r => r.status === 'confirmed')
-  const polled = regs.filter(r => Object.keys(r.pollAnswers || {}).length > 0)
+  const submitted = regs.filter(r => r.status === 'submitted')
+  const prepped = regs.filter(r => Object.keys(r.prepAnswers || {}).length > 0)
 
   const sheets = [{
     name: '概况',
     rows: [
       ['项目', '内容'],
-      ['活动', ev.title || ''],
+      ['标题', ev.title || ''],
       ['时间', ev.eventDate ? etTime(ev.eventDate) : '待定'],
       ['地点', ev.location || ''],
       ['范围', SCOPE_LABEL[ev.scope] || ev.scope || ''],
-      ['报名截止', ev.deadline ? etTime(ev.deadline) : '无'],
-      ['已报名', confirmed.length],
-      ['总人数（含家属）', confirmed.reduce((s, r) => s + 1 + (r.guests || 0), 0)],
-      ['已投票', polled.length],
+      ['截止', ev.deadline ? etTime(ev.deadline) : '无'],
+      [`已${ev.actionLabel || '提交'}`, submitted.length],
+      ['总人数（含附加名额）', submitted.reduce((s, r) => s + 1 + seatsOf(ev.questions, r.answers), 0)],
+      ['第一轮参与', prepped.length],
       ['导出时间', etTime(new Date())],
     ],
   }]
 
-  sheets.push(answerSheet('报名名单', ev.signupQuestions || [], confirmed, 'signupAnswers'))
-  if ((ev.pollQuestions || []).length) {
-    sheets.push(answerSheet('投票', ev.pollQuestions, polled, 'pollAnswers'))
+  sheets.push(answerSheet('名单', ev.questions || [], submitted, 'answers'))
+  if ((ev.prepQuestions || []).length) {
+    sheets.push(answerSheet('第一轮', ev.prepQuestions, prepped, 'prepAnswers'))
   }
-  sheets.push(tallySheet(ev, regs, confirmed))
+  sheets.push(tallySheet(ev, regs, submitted))
 
   const responded = new Set(regs.filter(r => r.status !== 'withdrawn').map(r => r.uid))
   const quiet = scopeSnap.data.filter(u => !responded.has(u._id))
@@ -105,7 +112,7 @@ exports.main = async (event) => {
 
   const buf = buildXlsx(sheets)
   const stamp = etTime(new Date()).replace(/[ :]/g, '-')
-  const safeTitle = (ev.title || '活动').replace(/[\\/:*?"<>|]/g, '').slice(0, 20)
+  const safeTitle = (ev.title || '表单').replace(/[\\/:*?"<>|]/g, '').slice(0, 20)
   const up = await cloud.uploadFile({
     cloudPath: `exports/events/${eventId}_${Date.now()}.xlsx`,
     fileContent: buf,

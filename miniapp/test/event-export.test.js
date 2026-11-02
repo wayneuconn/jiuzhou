@@ -24,7 +24,10 @@ function unzip(buf) {
   return files
 }
 
-const Q = [{ id: 'kit', title: '球衣号码', type: 'single', options: ['7', '10'], required: true, exclusive: true }]
+const Q = [
+  { id: 'kit', title: '球衣号码', type: 'single', options: ['7', '10'], required: true, exclusive: true },
+  { id: 'g', title: '带几位家属', type: 'number', options: [], required: false, max: 2, countsSeats: true },
+]
 
 function seedEvent() {
   reset()
@@ -36,14 +39,14 @@ function seedEvent() {
   }
   store.events = {
     ev1: {
-      title: '订队服', scope: 'all', status: 'registration', location: '球场',
+      title: '订队服', scope: 'all', status: 'open', location: '球场', actionLabel: '报名',
       eventDate: Date.parse('2026-12-05T18:00:00Z'), deadline: null,
-      pollQuestions: [], signupQuestions: Q,
+      prepQuestions: [], questions: Q,
     },
   }
   store.eventRegistrations = {
-    ev1_a1: { eventId: 'ev1', uid: 'a1', displayName: '张三', status: 'confirmed', guests: 1, guestNames: '夫人', pollAnswers: {}, signupAnswers: { kit: '10' }, registeredAt: new Date('2026-11-02T15:00:00Z') },
-    ev1_a2: { eventId: 'ev1', uid: 'a2', displayName: '李四 & 友', status: 'confirmed', guests: 0, guestNames: '', pollAnswers: {}, signupAnswers: { kit: '7' }, registeredAt: new Date('2026-11-02T16:00:00Z') },
+    ev1_a1: { eventId: 'ev1', uid: 'a1', displayName: '张三', status: 'submitted', prepAnswers: {}, answers: { kit: '10', g: 1 }, registeredAt: new Date('2026-11-02T15:00:00Z') },
+    ev1_a2: { eventId: 'ev1', uid: 'a2', displayName: '李四 & 友', status: 'submitted', prepAnswers: {}, answers: { kit: '7' }, registeredAt: new Date('2026-11-02T16:00:00Z') },
   }
   as('admin@x')
 }
@@ -64,10 +67,10 @@ test('the workbook is a readable zip with the expected sheets', async () => {
   assert.ok(files['[Content_Types].xml'])
   assert.ok(files['xl/workbook.xml'])
   const names = [...files['xl/workbook.xml'].matchAll(/<sheet name="([^"]+)"/g)].map(m => m[1])
-  assert.deepEqual(names, ['概况', '报名名单', '统计', '未响应'])
+  assert.deepEqual(names, ['概况', '名单', '统计', '未响应'])
 })
 
-test('answers, guests and the holder of each number land in the rows', async () => {
+test('answers and the holder of each number land in the rows', async () => {
   seedEvent()
   await exportResults({ eventId: 'ev1' })
   const files = unzip(uploads[0].fileContent)
@@ -75,13 +78,13 @@ test('answers, guests and the holder of each number land in the rows', async () 
   const roster = files['xl/worksheets/sheet2.xml']
   assert.ok(roster.includes('球衣号码'))
   assert.ok(roster.includes('张三'))
-  assert.ok(roster.includes('夫人'))
   assert.ok(roster.includes('李四 &amp; 友'))
   assert.ok(roster.includes('2026-11-02 11:00'))
 
   const tally = files['xl/worksheets/sheet3.xml']
-  assert.ok(tally.includes('先到先得') === false)
-  assert.ok(tally.includes('报名'))
+  assert.ok(tally.includes('正式'))
+  assert.ok(tally.includes('合计'))
+  assert.ok(tally.includes('张三×1'))
   assert.ok(tally.includes('王五') === false)
 })
 
@@ -93,13 +96,13 @@ test('people in scope who never answered get their own sheet', async () => {
   assert.ok(quiet.includes('张三') === false)
 })
 
-test('a poll sheet appears only when the event has poll questions', async () => {
+test('a first-round sheet appears only when the form has first-round questions', async () => {
   seedEvent()
-  store.events.ev1.pollQuestions = [{ id: 'day', title: '哪天', type: 'single', options: ['周六', '周日'], required: true }]
-  store.eventRegistrations.ev1_a3 = { eventId: 'ev1', uid: 'a3', displayName: '王五', status: 'polled', guests: 0, guestNames: '', pollAnswers: { day: '周日' }, signupAnswers: {}, registeredAt: new Date('2026-11-02T14:00:00Z') }
+  store.events.ev1.prepQuestions = [{ id: 'day', title: '哪天', type: 'single', options: ['周六', '周日'], required: true }]
+  store.eventRegistrations.ev1_a3 = { eventId: 'ev1', uid: 'a3', displayName: '王五', status: 'prepped', prepAnswers: { day: '周日' }, answers: {}, registeredAt: new Date('2026-11-02T14:00:00Z') }
   await exportResults({ eventId: 'ev1' })
   const files = unzip(uploads[0].fileContent)
   const names = [...files['xl/workbook.xml'].matchAll(/<sheet name="([^"]+)"/g)].map(m => m[1])
-  assert.deepEqual(names, ['概况', '报名名单', '投票', '统计', '未响应'])
+  assert.deepEqual(names, ['概况', '名单', '第一轮', '统计', '未响应'])
   assert.ok(files['xl/worksheets/sheet3.xml'].includes('周日'))
 })
