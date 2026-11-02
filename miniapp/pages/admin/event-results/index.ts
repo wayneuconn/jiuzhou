@@ -63,6 +63,7 @@ Page({
     showChase: false,
     loading: true,
     loadError: false,
+    exporting: false,
   },
 
   _poll: null as ReturnType<typeof setInterval> | null,
@@ -134,4 +135,25 @@ Page({
     }
   },
   retryLoad() { this.load() },
+
+  async exportXlsx() {
+    if (this.data.exporting) return
+    this.setData({ exporting: true })
+    wx.showLoading({ title: '生成表格...', mask: true })
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'exportEventResults',
+        data: { eventId: this.data.eventId },
+      }) as unknown as { result: { fileID: string; fileName: string } }
+      const { tempFilePath } = await wx.cloud.downloadFile({ fileID: res.result.fileID })
+      wx.hideLoading()
+      await wx.openDocument({ filePath: tempFilePath, fileType: 'xlsx', showMenu: true })
+    } catch (err) {
+      wx.hideLoading()
+      console.error('export failed', err)
+      wx.showModal({ title: '导出失败', content: '请重试，或检查网络', showCancel: false })
+    } finally {
+      this.setData({ exporting: false })
+    }
+  },
 })

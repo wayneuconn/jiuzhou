@@ -75,3 +75,9 @@
 }
 
 .player-row:last-child { border-bottom: none; }
+
+.ev-opt.taken {
+  opacity: 0.45;
+  text-decoration: line-through;
+  border-style: dashed;
+}

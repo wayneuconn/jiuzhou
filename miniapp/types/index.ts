@@ -173,6 +173,8 @@ export interface EventQuestion {
   type: EventQuestionType
   options: string[]
   required: boolean
+  // 先到先得: an option one person takes is locked out for everyone else
+  exclusive?: boolean
 }
 
 export interface TeamEvent {

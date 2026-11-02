@@ -124,13 +124,17 @@
 
       <!-- Signup questions builder -->
       <view class="ev-section">报名问题（正式报名阶段，可为空）</view>
-      <view class="text-muted" style="font-size:22rpx;margin-bottom:12rpx;line-height:1.6;">报名时必须回答的信息，比如"饮食禁忌？""怎么过去？"。填空题的回答只有管理员能看到。</view>
+      <view class="text-muted" style="font-size:22rpx;margin-bottom:12rpx;line-height:1.6;">报名时必须回答的信息，比如"饮食禁忌？""怎么过去？"。填空题的回答只有管理员能看到。单选题可以打开「先到先得」，选走的选项（比如球衣号码）对别人就锁上了，大家实时看得到谁占了哪个。</view>
       <view wx:for="{{signupQs}}" wx:key="id" wx:for-item="q" wx:for-index="qi" class="ev-qcard">
         <view class="flex-row" style="justify-content:space-between;align-items:center;margin-bottom:12rpx;">
           <picker range="{{qTypes}}" range-key="label" value="{{q.typeIndex}}" bindchange="onQType" data-phase="signup" data-index="{{qi}}">
             <view class="ev-qtype">{{qTypes[q.typeIndex].label}} ▾</view>
           </picker>
           <view class="flex-row" style="align-items:center;gap:12rpx;">
+            <block wx:if="{{qTypes[q.typeIndex].key === 'single'}}">
+              <view class="text-muted" style="font-size:22rpx;">先到先得</view>
+              <switch checked="{{q.exclusive}}" bindchange="onQExclusive" data-index="{{qi}}" color="#F0B429" style="transform:scale(0.7);"/>
+            </block>
             <view class="text-muted" style="font-size:22rpx;">必答</view>
             <switch checked="{{q.required}}" bindchange="onQRequired" data-phase="signup" data-index="{{qi}}" color="#00C9A7" style="transform:scale(0.7);"/>
             <view class="ev-del" bindtap="delQ" data-phase="signup" data-index="{{qi}}">删除</view>

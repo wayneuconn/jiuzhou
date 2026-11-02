@@ -22,10 +22,11 @@ exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
   const { eventId } = event
 
-  const [evSnap, regsSnap, userSnap] = await Promise.all([
+  const [evSnap, regsSnap, userSnap, claimsSnap] = await Promise.all([
     db.collection('events').doc(eventId).get().catch(() => ({ data: null })),
     db.collection('eventRegistrations').where({ eventId }).limit(300).get().catch(() => ({ data: [] })),
     OPENID ? db.collection('users').where({ openid: OPENID }).limit(1).get().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+    db.collection('eventClaims').where({ eventId }).limit(300).get().catch(() => ({ data: [] })),
   ])
   const ev = evSnap.data
   if (!ev) throw new Error('event not found')
@@ -51,6 +52,15 @@ exports.main = async (event, context) => {
 
   const myReg = caller ? (regs.find(r => r.uid === caller._id) ?? null) : null
 
+  // Who holds each 先到先得 option — public by design, that's what makes the
+  // queue visible before you pick.
+  const exclusiveTaken = {}
+  for (const c of claimsSnap.data) {
+    if (!c.uid) continue
+    exclusiveTaken[c.qid] = exclusiveTaken[c.qid] || {}
+    exclusiveTaken[c.qid][c.option] = { name: c.displayName || '已被选', mine: !!caller && c.uid === caller._id }
+  }
+
   return {
     event: { ...ev, id: ev._id },
     myReg,
@@ -59,6 +69,7 @@ exports.main = async (event, context) => {
     headcount,
     pollTally: tally(ev.pollQuestions, regs, 'pollAnswers'),
     signupTally: tally(ev.signupQuestions, confirmed, 'signupAnswers'),
+    exclusiveTaken,
     callerInfo: caller ? { membershipType: caller.membershipType ?? 'none', role: caller.role ?? 'guest' } : null,
   }
 }

@@ -17,12 +17,13 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: '已取消',
 }
 
-interface OptVM { label: string; count: number; selected: boolean }
+interface OptVM { label: string; count: number; selected: boolean; takenBy: string; locked: boolean }
 interface QuestionVM {
   id: string
   title: string
   type: string
   required: boolean
+  exclusive: boolean
   opts: OptVM[]
   textValue: string
 }
@@ -30,22 +31,31 @@ interface QuestionVM {
 type Answers = Record<string, string | string[]>
 
 interface Tally { id: string; counts: Array<{ option: string; count: number }> }
+type TakenMap = Record<string, Record<string, { name: string; mine: boolean }>>
 
-function buildVM(questions: EventQuestion[], sel: Answers, tallies: Tally[], showCounts: boolean): QuestionVM[] {
+function buildVM(questions: EventQuestion[], sel: Answers, tallies: Tally[], showCounts: boolean, taken: TakenMap): QuestionVM[] {
   return (questions || []).map(q => {
     const t = tallies.find(x => x.id === q.id)
+    const held = taken[q.id] ?? {}
     const a = sel[q.id]
     return {
       id: q.id,
       title: q.title,
       type: q.type,
       required: q.required,
+      exclusive: q.exclusive === true,
       textValue: q.type === 'text' && typeof a === 'string' ? a : '',
-      opts: q.options.map(opt => ({
-        label: opt,
-        count: showCounts ? (t?.counts.find(c => c.option === opt)?.count ?? 0) : -1,
-        selected: Array.isArray(a) ? a.includes(opt) : a === opt,
-      })),
+      opts: q.options.map(opt => {
+        const by = held[opt]
+        return {
+          label: opt,
+          // An exclusive option says who holds it instead of a headcount
+          count: q.exclusive || !showCounts ? -1 : (t?.counts.find(c => c.option === opt)?.count ?? 0),
+          selected: Array.isArray(a) ? a.includes(opt) : a === opt,
+          takenBy: by ? (by.mine ? '我' : by.name) : '',
+          locked: !!by && !by.mine,
+        }
+      }),
     }
   })
 }
@@ -79,6 +89,7 @@ Page({
 
   _pollSel: {} as Answers,
   _signupSel: {} as Answers,
+  _taken: {} as TakenMap,
   _event: null as TeamEvent | null,
 
   onLoad(options: Record<string, string>) {
@@ -111,6 +122,7 @@ Page({
           pollCount: number
           pollTally: Tally[]
           signupTally: Tally[]
+          exclusiveTaken: TakenMap
           callerInfo: { membershipType: string; role: string } | null
         }
       }
@@ -123,13 +135,14 @@ Page({
         })
         return
       }
-      const { event: ev, myReg, attendees, headcount, pollCount, pollTally, signupTally, callerInfo } = res.result
+      const { event: ev, myReg, attendees, headcount, pollCount, pollTally, signupTally, exclusiveTaken, callerInfo } = res.result
       this._event = ev
       const isAdmin = callerInfo?.role === 'admin'
 
       // Prefill local selections from my previous answers
       this._pollSel = { ...(myReg?.pollAnswers ?? {}) }
       this._signupSel = { ...(myReg?.signupAnswers ?? {}) }
+      this._taken = exclusiveTaken ?? {}
 
       const mt = callerInfo?.membershipType ?? 'none'
       const inScope = isAdmin
@@ -144,8 +157,8 @@ Page({
         eventDateStr: ev.eventDate ? formatDate(ev.eventDate) : '时间待定',
         deadlineStr: ev.deadline ? formatDate(ev.deadline) : '',
         scopeLabel: ev.scope === 'annual' ? '仅限年卡' : ev.scope === 'member' ? '年卡+次卡' : '所有人',
-        pollVM: buildVM(ev.pollQuestions || [], this._pollSel, pollTally, true),
-        signupVM: buildVM(ev.signupQuestions || [], this._signupSel, signupTally, ev.status === 'closed' || isAdmin),
+        pollVM: buildVM(ev.pollQuestions || [], this._pollSel, pollTally, true, {}),
+        signupVM: buildVM(ev.signupQuestions || [], this._signupSel, signupTally, ev.status === 'closed' || isAdmin, this._taken),
         attendees,
         headcount,
         pollCount,
@@ -170,7 +183,11 @@ Page({
 
   // ── answer pickers (shared by poll/signup via data-phase) ────────────────
   pickOption(e: WechatMiniprogram.BaseEvent) {
-    const { phase, qid, opt, qtype } = e.currentTarget.dataset as { phase: 'poll' | 'signup'; qid: string; opt: string; qtype: string }
+    const { phase, qid, opt, qtype, takenby } = e.currentTarget.dataset as { phase: 'poll' | 'signup'; qid: string; opt: string; qtype: string; takenby: string }
+    if (takenby) {
+      wx.showToast({ title: `「${opt}」已被 ${takenby} 选走`, icon: 'none' })
+      return
+    }
     const sel = phase === 'poll' ? this._pollSel : this._signupSel
     if (qtype === 'multi') {
       const cur = Array.isArray(sel[qid]) ? [...(sel[qid] as string[])] : []
@@ -194,9 +211,9 @@ Page({
     const ev = this._event
     if (!ev) return
     if (phase === 'poll') {
-      this.setData({ pollVM: buildVM(ev.pollQuestions || [], this._pollSel, [], false).map((q, i) => ({ ...q, opts: q.opts.map((o, j) => ({ ...o, count: this.data.pollVM[i]?.opts[j]?.count ?? -1 })) })) })
+      this.setData({ pollVM: buildVM(ev.pollQuestions || [], this._pollSel, [], false, {}).map((q, i) => ({ ...q, opts: q.opts.map((o, j) => ({ ...o, count: this.data.pollVM[i]?.opts[j]?.count ?? -1 })) })) })
     } else {
-      this.setData({ signupVM: buildVM(ev.signupQuestions || [], this._signupSel, [], false).map((q, i) => ({ ...q, opts: q.opts.map((o, j) => ({ ...o, count: this.data.signupVM[i]?.opts[j]?.count ?? -1 })) })) })
+      this.setData({ signupVM: buildVM(ev.signupQuestions || [], this._signupSel, [], false, this._taken).map((q, i) => ({ ...q, opts: q.opts.map((o, j) => ({ ...o, count: this.data.signupVM[i]?.opts[j]?.count ?? -1 })) })) })
     }
   },
 

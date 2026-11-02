@@ -10,6 +10,40 @@ function inScope(user, scope) {
   return types === null || types.includes(user.membershipType)
 }
 
+function claimId(eventId, qid, option) {
+  let h = 0x811c9dc5
+  const s = qid + '\u0000' + option
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
+  return `${eventId}_${h.toString(16)}`
+}
+
+// 先到先得: take the options this answer needs, then drop the ones it no longer
+// uses. The where-update only moves a free row, so a race has exactly one winner.
+async function claimExclusive(eventId, questions, answers, user) {
+  const exclusives = (questions || []).filter(q => q.exclusive && q.type === 'single')
+  if (!exclusives.length) return
+  const mineSnap = await db.collection('eventClaims')
+    .where({ eventId, uid: user._id }).limit(50).get().catch(() => ({ data: [] }))
+  const held = new Set(mineSnap.data.map(r => r._id))
+  const keep = new Set()
+
+  for (const q of exclusives) {
+    const option = answers[q.id]
+    if (!option) continue
+    const id = claimId(eventId, q.id, option)
+    keep.add(id)
+    if (held.has(id)) continue
+    const got = await db.collection('eventClaims')
+      .where({ _id: id, uid: null })
+      .update({ data: { uid: user._id, displayName: user.displayName || '' } })
+      .catch(() => ({ stats: { updated: 0 } }))
+    if ((got.stats?.updated ?? 0) === 0) throw new Error(`「${option}」刚被人选走了，请换一个`)
+  }
+
+  await Promise.all(mineSnap.data.filter(r => !keep.has(r._id))
+    .map(r => db.collection('eventClaims').doc(r._id).update({ data: { uid: null, displayName: '' } })))
+}
+
 function cleanAnswers(questions, raw) {
   const out = {}
   for (const q of questions || []) {
@@ -54,6 +88,8 @@ exports.main = async (event, context) => {
     await db.collection('eventRegistrations').doc(regId).update({
       data: { status: 'withdrawn', guests: 0, guestNames: '' },
     })
+    await db.collection('eventClaims').where({ eventId, uid: user._id })
+      .update({ data: { uid: null, displayName: '' } }).catch(() => {})
     return { success: true }
   }
 
@@ -104,6 +140,8 @@ exports.main = async (event, context) => {
       throw new Error(`名额不足：仅剩 ${Math.max(0, ev.maxAttendees - taken)} 个位置`)
     }
   }
+
+  await claimExclusive(eventId, ev.signupQuestions, signupAnswers, user)
 
   const data = { status: 'confirmed', guests, guestNames, signupAnswers }
   if (exist) {

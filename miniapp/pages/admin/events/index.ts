@@ -24,6 +24,7 @@ interface QForm {
   typeIndex: number
   options: string
   required: boolean
+  exclusive: boolean
 }
 
 interface EventVM extends TeamEvent {
@@ -39,6 +40,7 @@ function toQForm(q: EventQuestion): QForm {
     typeIndex: Math.max(0, Q_TYPES.findIndex(t => t.key === q.type)),
     options: (q.options || []).join('/'),
     required: q.required !== false,
+    exclusive: q.exclusive === true,
   }
 }
 
@@ -49,6 +51,7 @@ function fromQForm(q: QForm) {
     type: Q_TYPES[q.typeIndex]?.key ?? 'single',
     options: q.options.split('/').map(s => s.trim()).filter(Boolean),
     required: q.required,
+    exclusive: q.exclusive,
   }
 }
 
@@ -174,7 +177,7 @@ Page({
     const list = [...this.data[key]]
     list.push({
       id: `q_${Date.now().toString(36)}_${list.length}`,
-      title: '', typeIndex: 0, options: '', required: true,
+      title: '', typeIndex: 0, options: '', required: true, exclusive: false,
     })
     this.setData({ [key]: list })
   },
@@ -199,6 +202,10 @@ Page({
     const { phase, index } = e.currentTarget.dataset as { phase: 'poll' | 'signup'; index: number }
     const key = phase === 'poll' ? 'pollQs' : 'signupQs'
     this.setData({ [`${key}[${index}].required`]: e.detail.value })
+  },
+  onQExclusive(e: WechatMiniprogram.SwitchChange) {
+    const { index } = e.currentTarget.dataset as { index: number }
+    this.setData({ [`signupQs[${index}].exclusive`]: e.detail.value })
   },
 
   async save() {

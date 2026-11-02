@@ -7,7 +7,7 @@ const VALID_STATUS = ['draft', 'polling', 'registration', 'closed', 'cancelled']
 const VALID_SCOPE = ['annual', 'member', 'all']
 const SCOPE_TYPES = { annual: ['annual'], member: ['annual', 'per_session'], all: null }
 
-function cleanQuestions(list) {
+function cleanQuestions(list, allowExclusive) {
   if (!Array.isArray(list)) return []
   return list.slice(0, 10).map((q, i) => ({
     id: (q.id || `q${i}_${Math.random().toString(36).slice(2, 6)}`).toString().slice(0, 20),
@@ -15,7 +15,35 @@ function cleanQuestions(list) {
     type: ['single', 'multi', 'text'].includes(q.type) ? q.type : 'single',
     options: q.type === 'text' ? [] : (Array.isArray(q.options) ? q.options.map(o => o.toString().trim().slice(0, 30)).filter(Boolean).slice(0, 12) : []),
     required: q.required !== false,
+    exclusive: allowExclusive === true && q.exclusive === true && q.type === 'single',
   })).filter(q => q.title && (q.type === 'text' || q.options.length >= 2))
+}
+
+function claimId(eventId, qid, option) {
+  let h = 0x811c9dc5
+  const s = qid + '\u0000' + option
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
+  return `${eventId}_${h.toString(16)}`
+}
+
+// One row per 先到先得 option, so claiming one is a conditional where-update
+// that two racing players can't both win.
+async function syncClaims(eventId, questions) {
+  const wanted = new Map()
+  for (const q of questions) {
+    if (!q.exclusive) continue
+    for (const option of q.options) {
+      wanted.set(claimId(eventId, q.id, option), { eventId, qid: q.id, option, uid: null, displayName: '' })
+    }
+  }
+  const snap = await db.collection('eventClaims').where({ eventId }).limit(300).get().catch(() => ({ data: [] }))
+  const existing = new Set(snap.data.map(r => r._id))
+  await Promise.all([
+    ...[...wanted].filter(([id]) => !existing.has(id))
+      .map(([id, data]) => db.collection('eventClaims').doc(id).set({ data })),
+    ...snap.data.filter(r => !wanted.has(r._id) && !r.uid)
+      .map(r => db.collection('eventClaims').doc(r._id).remove()),
+  ])
 }
 
 // Notify in-scope members (skipping those who already joined) that a phase
@@ -85,17 +113,19 @@ exports.main = async (event) => {
     allowGuests: event.allowGuests === true,
     maxGuestsPer: Math.max(0, Math.min(10, parseInt(event.maxGuestsPer, 10) || 0)),
     maxAttendees: event.maxAttendees ? Math.max(2, parseInt(event.maxAttendees, 10) || 0) || null : null,
-    pollQuestions: cleanQuestions(event.pollQuestions),
-    signupQuestions: cleanQuestions(event.signupQuestions),
+    pollQuestions: cleanQuestions(event.pollQuestions, false),
+    signupQuestions: cleanQuestions(event.signupQuestions, true),
   }
   if (!data.title) throw new Error('请填写活动标题')
 
   if (event.eventId) {
     await db.collection('events').doc(event.eventId).update({ data })
+    await syncClaims(event.eventId, data.signupQuestions)
     return { eventId: event.eventId }
   }
   const res = await db.collection('events').add({
     data: { ...data, status: 'draft', createdAt: db.serverDate() },
   })
+  await syncClaims(res._id, data.signupQuestions)
   return { eventId: res._id }
 }

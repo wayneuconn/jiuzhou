@@ -16,6 +16,8 @@
       <view class="live-dot-wrap"><view class="live-dot"></view><text style="font-size:20rpx;color:#00C9A7;">实时</text></view>
     </view>
 
+    <button class="btn-ghost" style="margin:16rpx 0;" bindtap="exportXlsx" loading="{{exporting}}">⬇️ 导出 Excel</button>
+
     <!-- Stats -->
     <view class="flex-row" style="gap:12rpx;margin:20rpx 0;">
       <view class="stat-tile">
