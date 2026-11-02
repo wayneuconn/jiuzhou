@@ -28,6 +28,9 @@ interface QuestionVM {
   opts: OptVM[]
   textValue: string
   numValue: number
+  // 不能重复 text questions: who already holds what, and whether my input clashes
+  takenList: Array<{ value: string; name: string }>
+  clash: string
 }
 
 type Answers = Record<string, string | string[] | number>
@@ -35,11 +38,18 @@ type Answers = Record<string, string | string[] | number>
 interface Tally { id: string; counts: Array<{ option: string; count: number }> }
 type TakenMap = Record<string, Record<string, { name: string; mine: boolean }>>
 
+function normalizeExclusive(v: string): string {
+  const t = v.trim().replace(/\s+/g, ' ').toUpperCase()
+  return /^\d+$/.test(t) && !/^0+$/.test(t) ? t.replace(/^0+/, '') : t
+}
+
 function buildVM(questions: EventQuestion[], sel: Answers, tallies: Tally[], showCounts: boolean, taken: TakenMap): QuestionVM[] {
   return (questions || []).map(q => {
     const t = tallies.find(x => x.id === q.id)
     const held = taken[q.id] ?? {}
     const a = sel[q.id]
+    const typed = q.type === 'text' && q.exclusive && typeof a === 'string' ? normalizeExclusive(a) : ''
+    const holder = typed ? held[typed] : undefined
     return {
       id: q.id,
       title: q.title,
@@ -49,6 +59,12 @@ function buildVM(questions: EventQuestion[], sel: Answers, tallies: Tally[], sho
       max: q.max ?? 1,
       textValue: q.type === 'text' && typeof a === 'string' ? a : '',
       numValue: q.type === 'number' ? (Number(a) || 0) : 0,
+      takenList: q.type === 'text' && q.exclusive
+        ? Object.keys(held)
+          .sort((x, y) => (Number(x) - Number(y)) || x.localeCompare(y))
+          .map(value => ({ value, name: held[value].mine ? '我' : held[value].name }))
+        : [],
+      clash: holder && !holder.mine ? holder.name : '',
       opts: (q.options || []).map(opt => {
         const by = held[opt]
         return {
@@ -214,8 +230,9 @@ Page({
   },
 
   onAnswerText(e: WechatMiniprogram.Input) {
-    const { round, qid } = e.currentTarget.dataset as { round: string; qid: string }
+    const { round, qid, exclusive } = e.currentTarget.dataset as { round: string; qid: string; exclusive: boolean }
     this._sel(round)[qid] = e.detail.value
+    if (exclusive) this._rerender(round)
   },
 
   onAnswerNumber(e: WechatMiniprogram.BaseEvent) {

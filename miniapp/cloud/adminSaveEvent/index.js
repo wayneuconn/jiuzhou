@@ -25,36 +25,9 @@ function cleanQuestions(list, allowExclusive) {
       out.max = Math.max(1, Math.min(99, parseInt(q.max, 10) || 1))
       out.countsSeats = q.countsSeats === true
     }
-    if (type === 'single') out.exclusive = allowExclusive === true && q.exclusive === true
+    if (type === 'single' || type === 'text') out.exclusive = allowExclusive === true && q.exclusive === true
     return out
   }).filter(q => q.title && (q.type === 'text' || q.type === 'number' || q.options.length >= 2))
-}
-
-function claimId(eventId, qid, option) {
-  let h = 0x811c9dc5
-  const s = qid + '\u0000' + option
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
-  return `${eventId}_${h.toString(16)}`
-}
-
-// One row per 先到先得 option, so claiming one is a conditional where-update
-// that two racing players can't both win.
-async function syncClaims(eventId, questions) {
-  const wanted = new Map()
-  for (const q of questions) {
-    if (!q.exclusive) continue
-    for (const option of q.options) {
-      wanted.set(claimId(eventId, q.id, option), { eventId, qid: q.id, option, uid: null, displayName: '' })
-    }
-  }
-  const snap = await db.collection('eventClaims').where({ eventId }).limit(300).get().catch(() => ({ data: [] }))
-  const existing = new Set(snap.data.map(r => r._id))
-  await Promise.all([
-    ...[...wanted].filter(([id]) => !existing.has(id))
-      .map(([id, data]) => db.collection('eventClaims').doc(id).set({ data })),
-    ...snap.data.filter(r => !wanted.has(r._id) && !r.uid)
-      .map(r => db.collection('eventClaims').doc(r._id).remove()),
-  ])
 }
 
 // Notify in-scope members who haven't answered yet — reuses the 活动开始通知
@@ -133,12 +106,10 @@ exports.main = async (event) => {
 
   if (event.eventId) {
     await db.collection('events').doc(event.eventId).update({ data })
-    await syncClaims(event.eventId, data.questions)
     return { eventId: event.eventId }
   }
   const res = await db.collection('events').add({
     data: { ...data, status: 'draft', createdAt: db.serverDate() },
   })
-  await syncClaims(res._id, data.questions)
   return { eventId: res._id }
 }
