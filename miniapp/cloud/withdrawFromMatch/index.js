@@ -161,6 +161,49 @@ async function notifyAdmins(matchId, match, text) {
   } catch (_) {}
 }
 
+// After the cutoff a freed slot stays empty until someone pulls a waiter in,
+// so admins + this match's captains get told who is waiting.
+async function notifyOpenSlot(matchId, match, headline, excludeUid) {
+  try {
+    const wlSnap = await db.collection('registrations')
+      .where({ matchId, status: 'waitlist' })
+      .limit(100).get().catch(() => ({ data: [] }))
+    if (wlSnap.data.length === 0) return false
+    const names = wlSnap.data.sort(byQueueOrder).map(r => r.displayName || '?').join('、')
+    const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] }))
+    const recipients = new Map(adminsSnap.data.map(u => [u._id, u]))
+    for (const uid of [match.captainA, match.captainB]) {
+      if (!uid || recipients.has(uid)) continue
+      const c = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
+      if (c.data) recipients.set(uid, { ...c.data, _id: uid })
+    }
+    recipients.delete(excludeUid)
+    const d = new Date(match.date)
+    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    for (const u of recipients.values()) {
+      if (!u.openid) continue
+      try {
+        await cloud.callFunction({
+          name: 'sendSubscribeMsg',
+          data: {
+            type: 'adminAlert',
+            toOpenid: u.openid,
+            data: {
+              page: `/pages/match-detail/index?id=${matchId}`,
+              templateData: {
+                thing4: { value: `${headline}，请从候补拉人`.slice(0, 20) },
+                thing2: { value: `候补：${names}`.slice(0, 20) },
+                date5: { value: timeStr },
+              },
+            },
+          },
+        })
+      } catch (_) {}
+    }
+    return true
+  } catch (_) { return false }
+}
+
 async function notifyPromoted(matchId, match, uid, waitlistMinutes, isGuestNotice) {
   try {
     const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
@@ -217,6 +260,9 @@ exports.main = async (event, context) => {
     })
     if (freedSlot) await promoteFromWaitlist(matchId, freedTeam)
     else await recalcMatchState(matchId)
+    if (freedSlot && Date.now() >= registrationCutoffTs(match.date)) {
+      await notifyOpenSlot(matchId, match, `${fSnap.data.displayName ?? '朋友'} 退出了`, user._id)
+    }
     return { success: true }
   }
 
@@ -278,8 +324,12 @@ exports.main = async (event, context) => {
 
   // A confirmed player leaving is what admins need to know about (补位);
   // skip when an admin removed them — the admin already knows.
-  if (wasConfirmed && targetId === user._id) {
-    await notifyAdmins(matchId, match, `${regSnap.data.displayName ?? '有人'} ${newStatus === 'excused' ? '请假' : '退出'}了`)
+  const leftName = `${regSnap.data.displayName ?? '有人'} ${newStatus === 'excused' ? '请假' : '退出'}了`
+  const alerted = (wasConfirmed || friendFreedSlot) && Date.now() >= registrationCutoffTs(match.date)
+    ? await notifyOpenSlot(matchId, match, leftName, user._id)
+    : false
+  if (wasConfirmed && targetId === user._id && !alerted) {
+    await notifyAdmins(matchId, match, leftName)
   }
   return { success: true }
 }
