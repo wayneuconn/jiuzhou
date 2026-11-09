@@ -175,6 +175,43 @@ async function notifyAdminsFull(matchId, match) {
   } catch (_) {}
 }
 
+// After the cutoff nobody is promoted automatically, so whoever can fill slots
+// (admins + this match's captains) hears about every new waiter.
+async function notifyLateWaiter(matchId, match, name, selfUid) {
+  try {
+    const adminsSnap = await db.collection('users').where({ role: 'admin' }).limit(50).get().catch(() => ({ data: [] }))
+    const recipients = new Map(adminsSnap.data.map(u => [u._id, u]))
+    for (const uid of [match.captainA, match.captainB]) {
+      if (!uid || recipients.has(uid)) continue
+      const c = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
+      if (c.data) recipients.set(uid, { ...c.data, _id: uid })
+    }
+    recipients.delete(selfUid)
+    const d = new Date(match.date)
+    const timeStr = d.toLocaleString('en-CA', { timeZone: 'America/New_York', hour12: false }).replace(',', '').slice(0, 16)
+    for (const u of recipients.values()) {
+      if (!u.openid) continue
+      try {
+        await cloud.callFunction({
+          name: 'sendSubscribeMsg',
+          data: {
+            type: 'adminAlert',
+            toOpenid: u.openid,
+            data: {
+              page: `/pages/match-detail/index?id=${matchId}`,
+              templateData: {
+                thing4: { value: '12点后有人候补' },
+                thing2: { value: `${name} 在候补，需手动安排`.slice(0, 20) },
+                date5: { value: timeStr },
+              },
+            },
+          },
+        })
+      } catch (_) {}
+    }
+  } catch (_) {}
+}
+
 async function notifyPromoted(matchId, match, uid, waitlistMinutes, isGuestNotice) {
   try {
     const uSnap = await db.collection('users').doc(uid).get().catch(() => ({ data: null }))
@@ -271,6 +308,9 @@ exports.main = async (event, context) => {
     })
     await promoteFromWaitlist(matchId)
     const check = await db.collection('registrations').doc(matchId + '_' + friendUid).get().catch(() => ({ data: null }))
+    if (postCutoff && check.data?.status === 'waitlist') {
+      await notifyLateWaiter(matchId, match, `${friendName}(${user.displayName}的朋友)`, user._id)
+    }
     return { status: check.data?.status === 'confirmed' ? 'confirmed' : 'waitlist', friendUid }
   }
 
@@ -378,6 +418,7 @@ exports.main = async (event, context) => {
     let reStatus = mustWait ? 'waitlist' : 'confirmed'
     if (!mustWait) reStatus = await resolveOverflow(matchId, regId, match.maxPlayers)
     await promoteFromWaitlist(matchId)
+    if (postCutoff && reStatus === 'waitlist') await notifyLateWaiter(matchId, match, target.displayName, user._id)
     // Edge-trigger: this signup just filled the roster
     if (reStatus === 'confirmed' && confirmedCount + 1 >= match.maxPlayers) {
       await notifyAdminsFull(matchId, match)
@@ -420,6 +461,7 @@ exports.main = async (event, context) => {
   // Did the pair rule leave them holding the 23rd spot?
   const afterSnap = await db.collection('registrations').doc(regId).get().catch(() => ({ data: null }))
   const pendingPair = evenHold && afterSnap.data?.status === 'waitlist'
+  if (postCutoff && afterSnap.data?.status === 'waitlist') await notifyLateWaiter(matchId, match, target.displayName, user._id)
   // Edge-trigger: this signup just filled the roster
   if (status === 'confirmed' && confirmedCount + 1 >= match.maxPlayers) {
     await notifyAdminsFull(matchId, match)
