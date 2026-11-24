@@ -894,7 +894,7 @@ Page({
         content: `你因旷赛欠 ${owed} 个半场门将，本场登记为守半场`
           + (owed > 1 ? `，剩下的 ${owed - 1} 个半场留到以后` : '，守完即还清')
           + '。赛后请提醒队长或管理员记录。确认报名吗？',
-        confirmText: '接受并报名',
+        confirmText: '确认报名',
         confirmColor: '#F0B429',
       })
       return one.confirm ? 1 : 0
@@ -924,7 +924,7 @@ Page({
       const gk = await wx.showModal({
         title: '本场需要担任半场门将',
         content: `你已累计迟到 ${this.data.myLate} 次（阈值 ${this.data.lateThreshold} 次），本场需要担任半场门将。完成后请提醒队长或管理员帮你清零记录。确认报名吗？`,
-        confirmText: '接受并报名',
+        confirmText: '确认报名',
         confirmColor: '#F0B429',
       })
       if (!gk.confirm) return
